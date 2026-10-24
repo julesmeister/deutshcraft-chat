@@ -32,6 +32,18 @@ import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatInp
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.MessageBubble
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ReplySuggestions
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.TypingIndicator
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatOverflowMenu
+import com.julesmeister.deutschcraft.ui.theme.DeutschLime
+import com.julesmeister.deutschcraft.ui.theme.DeutschSurfaceHigh
+import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
+import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

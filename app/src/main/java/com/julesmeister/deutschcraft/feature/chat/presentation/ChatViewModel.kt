@@ -44,7 +44,9 @@ class ChatViewModel @Inject constructor(
         initializeChat()
     }
 
-    fun onAction(action: ChatUiAction) {
+    fun onAction(
+        action: ChatUiAction
+    ) {
         when (action) {
             is ChatUiAction.MessageInputChanged -> {
                 updateMessageInput(action.value)
@@ -66,37 +68,42 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
-
     private fun initializeChat() {
         viewModelScope.launch {
-            runCatching {
+            try {
                 progressRepository.ensureProfileExists()
 
-                chatRepository
-                    .getOrCreatePrimaryConversation()
-            }.onSuccess { conversation ->
+                val conversation =
+                    chatRepository
+                        .getOrCreatePrimaryConversation()
+
                 conversationId = conversation.id
 
                 observeMessages(
                     conversationId = conversation.id
                 )
-            }.onFailure { throwable ->
-                if (
-                    throwable
-                            is CancellationException
-                ) {
-                    throw throwable
-                }
 
-                showError(
-                    message =
-                        "DeutschCraft could not " +
-                                "load the conversation."
-                )
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        isInitializing = false
+                    )
+                }
+            } catch (
+                cancellationException: CancellationException
+            ) {
+                throw cancellationException
+            } catch (throwable: Throwable) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        isInitializing = false,
+                        errorMessage =
+                            "DeutschCraft could not load " +
+                                    "the conversation."
+                    )
+                }
             }
         }
     }
-
     private fun observeMessages(
         conversationId: String
     ) {
@@ -104,19 +111,30 @@ class ChatViewModel @Inject constructor(
 
         messagesObservationJob =
             viewModelScope.launch {
-                chatRepository
-                    .observeMessages(conversationId)
-                    .collect { messages ->
-                        _uiState.update {
-                                currentState ->
-                            currentState.copy(
-                                messages = messages
-                            )
+                try {
+                    chatRepository
+                        .observeMessages(conversationId)
+                        .collect { messages ->
+                            _uiState.update { state ->
+                                state.copy(
+                                    messages = messages
+                                )
+                            }
                         }
-                    }
+                } catch (
+                    cancellationException:
+                    CancellationException
+                ) {
+                    throw cancellationException
+                } catch (throwable: Throwable) {
+                    showError(
+                        message =
+                            "The saved conversation " +
+                                    "could not be loaded."
+                    )
+                }
             }
     }
-
     private fun updateMessageInput(
         value: String
     ) {
@@ -130,36 +148,53 @@ class ChatViewModel @Inject constructor(
     private fun selectSuggestion(
         suggestionId: String
     ) {
+        if (_uiState.value.isSending) {
+            return
+        }
+
         val suggestion =
             _uiState.value.suggestions
-                .firstOrNull {
-                    it.id == suggestionId
+                .firstOrNull { suggestion ->
+                    suggestion.id == suggestionId
                 }
                 ?: return
 
-        _uiState.update { currentState ->
-            currentState.copy(
+        _uiState.update { state ->
+            state.copy(
                 messageInput = suggestion.text
             )
         }
     }
-
     private fun sendCurrentMessage() {
-        val activeConversationId =
-            conversationId ?: return
+        /*
+         * Read everything before modifying ChatUiState.
+         */
+        val activeConversationId = conversationId
 
-        val messageText =
-            _uiState.value.messageInput.trim()
+        if (activeConversationId == null) {
+            showError(
+                message = "The conversation is still loading."
+            )
+            return
+        }
+
+        val currentState = _uiState.value
+        val messageText = currentState.messageInput.trim()
 
         if (
             messageText.isBlank() ||
-            _uiState.value.isSending
+            currentState.isSending ||
+            currentState.isInitializing
         ) {
             return
         }
 
-        _uiState.update { currentState ->
-            currentState.copy(
+        /*
+         * Clear the composer and show the typing state
+         * only after validating the message.
+         */
+        _uiState.update { state ->
+            state.copy(
                 messageInput = "",
                 suggestions = emptyList(),
                 isSending = true,
@@ -170,46 +205,38 @@ class ChatViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val userMessage =
-                    createUserMessage(
-                        conversationId =
-                            activeConversationId,
-                        content = messageText
-                    )
-
-                /*
-                 * Room is the source of truth.
-                 *
-                 * We save first so the user's message
-                 * remains visible even if assessment
-                 * or AI generation fails afterward.
-                 */
-                chatRepository.saveMessage(
-                    userMessage
+                val userMessage = createUserMessage(
+                    conversationId = activeConversationId,
+                    content = messageText
                 )
 
                 /*
-                 * Assessment failure should not remove
-                 * or block the user's sent message.
+                 * Room is the source of truth.
+                 * Saving first makes the user message durable.
+                 */
+                chatRepository.saveMessage(userMessage)
+
+                /*
+                 * Assessment failure is handled internally and
+                 * must not remove the user's saved message.
                  */
                 processMessageAssessment(
                     userMessage = userMessage
                 )
 
                 val assistantReply =
-                    chatRepository
-                        .generateAssistantReply(
-                            conversationId =
-                                activeConversationId,
-                            message = messageText
-                        )
+                    chatRepository.generateAssistantReply(
+                        conversationId =
+                            activeConversationId,
+                        message = messageText
+                    )
 
                 chatRepository.saveMessage(
                     assistantReply.message
                 )
 
-                _uiState.update { currentState ->
-                    currentState.copy(
+                _uiState.update { state ->
+                    state.copy(
                         suggestions =
                             assistantReply.suggestions,
                         isSending = false,
@@ -217,25 +244,22 @@ class ChatViewModel @Inject constructor(
                     )
                 }
             } catch (
-                cancellationException:
-                CancellationException
+                cancellationException: CancellationException
             ) {
                 throw cancellationException
             } catch (throwable: Throwable) {
-                _uiState.update { currentState ->
-                    currentState.copy(
+                _uiState.update { state ->
+                    state.copy(
                         isSending = false,
                         isAssistantTyping = false,
                         errorMessage =
-                            "The assistant could not " +
-                                    "respond. Your message " +
-                                    "was saved locally."
+                            "The assistant could not respond. " +
+                                    "Your message was saved locally."
                     )
                 }
             }
         }
     }
-
     private suspend fun createUserMessage(
         conversationId: String,
         content: String
