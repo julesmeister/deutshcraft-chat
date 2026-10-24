@@ -5,12 +5,17 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
 
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
-    val suggestions: List<ReplySuggestion> = emptyList(),
+    val suggestions: List<ReplySuggestion> =
+        emptyList(),
     val messageInput: String = "",
     val isAssistantTyping: Boolean = false,
     val isSending: Boolean = false,
+    val isAssessing: Boolean = false,
     val errorMessage: String? = null
 ) {
     val canSend: Boolean
-        get() = messageInput.isNotBlank() && !isSending
+        get() {
+            return messageInput.isNotBlank() &&
+                    !isSending
+        }
 }

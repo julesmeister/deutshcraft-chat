@@ -154,3 +154,32 @@ fun AssessmentEvidence.toMistakeEntities():
         )
     }
 }
+
+fun CefrProfile.mergeIntoEntity(
+    existingEntity: LearnerProfileEntity,
+    updatedAt: Long,
+    ruleVersion: Int
+): LearnerProfileEntity {
+    return existingEntity.copy(
+        currentLevel = currentLevel,
+        overallScore = overallScore,
+        readinessPercentage =
+            readinessPercentage,
+        assessedMessageCount =
+            assessedMessageCount,
+        activeDayCount = activeDayCount,
+        recentCriticalErrorRate =
+            recentCriticalErrorRate,
+        consecutiveQualifiedAssessments =
+            consecutiveQualifiedAssessments,
+        progressionState = progressionState,
+        suggestedNextLevel =
+            suggestedNextLevel,
+        lastAssessedAt = lastAssessedAt,
+        updatedAt = updatedAt,
+        assessmentRuleVersion =
+            ruleVersion,
+        syncStatus =
+            SyncStatusEntity.LOCAL_ONLY
+    )
+}

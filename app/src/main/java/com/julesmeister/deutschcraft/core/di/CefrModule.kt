@@ -1,5 +1,9 @@
 package com.julesmeister.deutschcraft.core.di
 
+import com.julesmeister.deutschcraft.core.cefr.engine.CefrAssessmentEngine
+import com.julesmeister.deutschcraft.core.cefr.engine.DefaultCefrAssessmentEngine
+import com.julesmeister.deutschcraft.core.cefr.engine.DefaultLocalMessageEvaluator
+import com.julesmeister.deutschcraft.core.cefr.engine.LocalMessageEvaluator
 import com.julesmeister.deutschcraft.core.cefr.rules.CefrProgressionPolicy
 import com.julesmeister.deutschcraft.core.cefr.rules.CefrRuleProvider
 import com.julesmeister.deutschcraft.core.cefr.rules.DefaultCefrProgressionPolicy
@@ -23,6 +27,21 @@ abstract class CefrModule {
     @Binds
     @Singleton
     abstract fun bindProgressionPolicy(
-        implementation: DefaultCefrProgressionPolicy
+        implementation:
+        DefaultCefrProgressionPolicy
     ): CefrProgressionPolicy
+
+    @Binds
+    @Singleton
+    abstract fun bindAssessmentEngine(
+        implementation:
+        DefaultCefrAssessmentEngine
+    ): CefrAssessmentEngine
+
+    @Binds
+    @Singleton
+    abstract fun bindLocalMessageEvaluator(
+        implementation:
+        DefaultLocalMessageEvaluator
+    ): LocalMessageEvaluator
 }

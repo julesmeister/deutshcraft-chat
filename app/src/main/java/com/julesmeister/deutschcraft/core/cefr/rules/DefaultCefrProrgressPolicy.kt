@@ -10,6 +10,7 @@ class DefaultCefrProgressionPolicy @Inject constructor(
     private val ruleProvider: CefrRuleProvider
 ) : CefrProgressionPolicy {
 
+
     override fun evaluate(
         profile: CefrProfile
     ): ProgressionDecision {

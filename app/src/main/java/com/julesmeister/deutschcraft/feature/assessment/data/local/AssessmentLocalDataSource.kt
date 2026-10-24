@@ -3,6 +3,7 @@ package com.julesmeister.deutschcraft.feature.assessment.data.local
 import androidx.room.withTransaction
 import com.julesmeister.deutschcraft.core.cefr.model.AssessmentEvidence
 import com.julesmeister.deutschcraft.core.cefr.model.CefrProfile
+import com.julesmeister.deutschcraft.core.cefr.model.CefrSkill
 import com.julesmeister.deutschcraft.core.cefr.model.DefaultLearnerProfile
 import com.julesmeister.deutschcraft.core.database.DeutschCraftDatabase
 import com.julesmeister.deutschcraft.core.database.dao.AssessmentDao
@@ -52,14 +53,20 @@ class AssessmentLocalDataSource @Inject constructor(
             return
         }
 
-        learnerProfileDao.upsertProfile(
-            DefaultLearnerProfile.createEntity(
-                currentTime =
-                    System.currentTimeMillis()
-            )
+        val now = System.currentTimeMillis()
+
+        learnerProfileDao.replaceProfileWithSkills(
+            profile =
+                DefaultLearnerProfile.createEntity(
+                    currentTime = now
+                ),
+            skillScores =
+                createInitialSkillScores(
+                    profileId = profileId,
+                    currentTime = now
+                )
         )
     }
-
     suspend fun saveAssessmentAndProfile(
         evidence: AssessmentEvidence,
         profile: LearnerProfileEntity,
@@ -71,15 +78,35 @@ class AssessmentLocalDataSource @Inject constructor(
                     profileId = profile.id
                 ),
                 grammarFeatures =
-                    evidence.toGrammarFeatureEntities(),
+                    evidence
+                        .toGrammarFeatureEntities(),
                 mistakes =
-                    evidence.toMistakeEntities()
+                    evidence
+                        .toMistakeEntities()
             )
 
-            learnerProfileDao.replaceProfileWithSkills(
-                profile = profile,
-                skillScores = skillScores
+            learnerProfileDao
+                .replaceProfileWithSkills(
+                    profile = profile,
+                    skillScores = skillScores
+                )
+        }
+    }
+
+    fun createInitialSkillScores(
+        profileId: String,
+        currentTime: Long
+    ): List<SkillScoreEntity> {
+        return CefrSkill.entries.map { skill ->
+            SkillScoreEntity(
+                profileId = profileId,
+                skill = skill,
+                score = 0,
+                evidenceCount = 0,
+                confidence = 0.0,
+                updatedAt = currentTime
             )
         }
     }
+
 }
