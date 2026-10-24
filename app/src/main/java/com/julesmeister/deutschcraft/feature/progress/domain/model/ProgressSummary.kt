@@ -1,4 +1,4 @@
-package com.julesmeister.deutschcraft.feature.progress.domain
+package com.julesmeister.deutschcraft.feature.progress.domain.model
 
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 

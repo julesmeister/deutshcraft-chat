@@ -13,6 +13,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import com.julesmeister.deutschcraft.core.database.dao.ActivityDayDao
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -59,5 +60,12 @@ object DatabaseModule {
         database: DeutschCraftDatabase
     ): AssessmentDao {
         return database.assessmentDao()
+    }
+
+    @Provides
+    fun provideActivityDayDao(
+        database: DeutschCraftDatabase
+    ): ActivityDayDao {
+        return database.activityDayDao()
     }
 }

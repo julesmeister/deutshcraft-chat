@@ -8,13 +8,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun ProgressRoute(
     onBackClick: () -> Unit,
-    viewModel: ProgressViewModel =
-        hiltViewModel()
+    viewModel: ProgressViewModel = hiltViewModel()
 ) {
-
-    val uiState by viewModel
-        .uiState
-        .collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     ProgressScreen(
         uiState = uiState,

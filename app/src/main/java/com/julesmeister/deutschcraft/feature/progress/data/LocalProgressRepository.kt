@@ -6,7 +6,7 @@ import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
 import com.julesmeister.deutschcraft.core.database.relation.LearnerProfileWithSkills
 import com.julesmeister.deutschcraft.feature.assessment.data.local.AssessmentLocalDataSource
 import com.julesmeister.deutschcraft.feature.progress.domain.ProgressRepository
-import com.julesmeister.deutschcraft.feature.progress.domain.ProgressSummary
+import com.julesmeister.deutschcraft.feature.progress.domain.model.ProgressSummary
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map

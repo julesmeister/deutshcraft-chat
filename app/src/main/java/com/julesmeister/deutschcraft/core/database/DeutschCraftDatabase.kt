@@ -15,6 +15,8 @@ import com.julesmeister.deutschcraft.core.database.entity.EvidenceGrammarFeature
 import com.julesmeister.deutschcraft.core.database.entity.LearnerProfileEntity
 import com.julesmeister.deutschcraft.core.database.entity.MessageEntity
 import com.julesmeister.deutschcraft.core.database.entity.SkillScoreEntity
+import com.julesmeister.deutschcraft.core.database.dao.ActivityDayDao
+import com.julesmeister.deutschcraft.core.database.entity.ActivityDayEntity
 
 @Database(
     entities = [
@@ -24,9 +26,10 @@ import com.julesmeister.deutschcraft.core.database.entity.SkillScoreEntity
         SkillScoreEntity::class,
         AssessmentEvidenceEntity::class,
         EvidenceGrammarFeatureEntity::class,
-        DetectedMistakeEntity::class
+        DetectedMistakeEntity::class,
+        ActivityDayEntity::class
     ],
-    version = 2,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(DatabaseTypeConverters::class)
@@ -39,4 +42,6 @@ abstract class DeutschCraftDatabase : RoomDatabase() {
     abstract fun learnerProfileDao(): LearnerProfileDao
 
     abstract fun assessmentDao(): AssessmentDao
+
+    abstract fun activityDayDao(): ActivityDayDao
 }

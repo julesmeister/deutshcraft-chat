@@ -12,10 +12,16 @@ fun ConversationEntity.toDomain(): Conversation {
     return Conversation(
         id = id,
         title = title,
-        currentCefrLevel = currentCefrLevel,
+        titleSource = titleSource,
+        cefrLevel = cefrLevel,
+        localDate = localDate,
+        epochDay = epochDay,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        lastMessagePreview = lastMessagePreview,
+        closedAt = closedAt,
+        messageCount = messageCount,
+        previewText = previewText,
+        isClosed = isClosed,
         isArchived = isArchived
     )
 }
@@ -24,10 +30,16 @@ fun Conversation.toEntity(): ConversationEntity {
     return ConversationEntity(
         id = id,
         title = title,
-        currentCefrLevel = currentCefrLevel,
+        titleSource = titleSource,
+        cefrLevel = cefrLevel,
+        localDate = localDate,
+        epochDay = epochDay,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        lastMessagePreview = lastMessagePreview,
+        closedAt = closedAt,
+        messageCount = messageCount,
+        previewText = previewText,
+        isClosed = isClosed,
         isArchived = isArchived,
         syncStatus = SyncStatusEntity.LOCAL_ONLY,
         remoteVersion = null,
@@ -54,30 +66,39 @@ fun ChatMessage.toEntity(): MessageEntity {
         sender = sender.toEntity(),
         sequenceNumber = sequenceNumber,
         createdAt = timestamp,
-        deliveryStatus = "SENT",
+        deliveryStatus = DEFAULT_DELIVERY_STATUS,
         syncStatus = SyncStatusEntity.LOCAL_ONLY,
         remoteVersion = null,
         lastSyncedAt = null
     )
 }
 
-private fun MessageSenderEntity.toDomain(): MessageSender {
+private fun MessageSenderEntity.toDomain():
+        MessageSender {
     return when (this) {
-        MessageSenderEntity.USER ->
+        MessageSenderEntity.USER -> {
             MessageSender.USER
+        }
 
         MessageSenderEntity.ASSISTANT,
-        MessageSenderEntity.SYSTEM ->
+        MessageSenderEntity.SYSTEM -> {
             MessageSender.ASSISTANT
+        }
     }
 }
 
-private fun MessageSender.toEntity(): MessageSenderEntity {
+private fun MessageSender.toEntity():
+        MessageSenderEntity {
     return when (this) {
-        MessageSender.USER ->
+        MessageSender.USER -> {
             MessageSenderEntity.USER
+        }
 
-        MessageSender.ASSISTANT ->
+        MessageSender.ASSISTANT -> {
             MessageSenderEntity.ASSISTANT
+        }
     }
 }
+
+private const val DEFAULT_DELIVERY_STATUS =
+    "SENT"

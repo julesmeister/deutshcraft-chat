@@ -19,6 +19,7 @@ import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatTop
 fun ChatScreen(
     uiState: ChatUiState,
     onAction: (ChatUiAction) -> Unit,
+    onBackClick: () -> Unit,
     onProgressClick: () -> Unit,
     modifier: Modifier = Modifier,
     onNewConversationClick: () -> Unit = {},
@@ -54,6 +55,8 @@ fun ChatScreen(
                     uiState.isAssistantTyping,
                 isAssessing =
                     uiState.isAssessing,
+                onBackClick =
+                    onBackClick,
                 onProgressClick =
                     onProgressClick,
                 onNewConversationClick =

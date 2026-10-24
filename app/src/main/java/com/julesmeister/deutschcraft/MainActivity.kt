@@ -3,7 +3,8 @@ package com.julesmeister.deutschcraft
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.julesmeister.deutschcraft.navigation.DeutschCraftNavHost
+import androidx.core.view.WindowCompat
+import com.julesmeister.deutschcraft.app.navigation.DeutschCraftNavHost
 import com.julesmeister.deutschcraft.ui.theme.DeutschCraftTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -14,6 +15,11 @@ class MainActivity : ComponentActivity() {
         savedInstanceState: Bundle?
     ) {
         super.onCreate(savedInstanceState)
+
+        WindowCompat.setDecorFitsSystemWindows(
+            window,
+            false
+        )
 
         setContent {
             DeutschCraftTheme {

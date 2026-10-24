@@ -1,4 +1,4 @@
-package com.julesmeister.deutschcraft.navigation
+package com.julesmeister.deutschcraft.app.navigation
 
 import kotlinx.serialization.Serializable
 

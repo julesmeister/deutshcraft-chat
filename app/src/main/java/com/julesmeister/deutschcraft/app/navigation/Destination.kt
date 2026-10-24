@@ -1,17 +1,17 @@
-package com.julesmeister.deutschcraft.navigation
+package com.julesmeister.deutschcraft.app.navigation
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object ChatDestination
+object ThreadListDestination
 
 @Serializable
-data object ProgressDestination
-
-@Serializable
-data class ConversationDestination(
+data class ChatDestination(
     val conversationId: String
 )
+
+@Serializable
+object ProgressDestination
 
 @Serializable
 data class AssessmentDestination(

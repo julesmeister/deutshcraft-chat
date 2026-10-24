@@ -10,7 +10,7 @@ import com.julesmeister.deutschcraft.core.cefr.model.MistakeSeverity
 import com.julesmeister.deutschcraft.core.cefr.model.ProgressionState
 import com.julesmeister.deutschcraft.core.database.entity.MessageSenderEntity
 import com.julesmeister.deutschcraft.core.database.entity.SyncStatusEntity
-
+import com.julesmeister.deutschcraft.core.database.entity.ConversationTitleSource
 class DatabaseTypeConverters {
 
     @TypeConverter
@@ -137,5 +137,19 @@ class DatabaseTypeConverters {
         value: String
     ): SyncStatusEntity {
         return SyncStatusEntity.valueOf(value)
+    }
+
+    @TypeConverter
+    fun conversationTitleSourceToString(
+        source: ConversationTitleSource
+    ): String {
+        return source.name
+    }
+
+    @TypeConverter
+    fun stringToConversationTitleSource(
+        value: String
+    ): ConversationTitleSource {
+        return ConversationTitleSource.valueOf(value)
     }
 }

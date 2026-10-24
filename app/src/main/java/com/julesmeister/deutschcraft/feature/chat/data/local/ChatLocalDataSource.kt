@@ -38,14 +38,21 @@ class ChatLocalDataSource @Inject constructor(
         message: MessageEntity
     ) {
         database.withTransaction {
-            messageDao.upsertMessage(message)
-
-            conversationDao.updateConversationPreview(
-                conversationId = message.conversationId,
-                lastMessagePreview = message.content,
-                updatedAt = message.createdAt,
-                syncStatus = SyncStatusEntity.LOCAL_ONLY
+            messageDao.upsertMessage(
+                message = message
             )
+
+            conversationDao
+                .updateConversationAfterMessage(
+                    conversationId =
+                        message.conversationId,
+                    previewText =
+                        message.content,
+                    updatedAt =
+                        message.createdAt,
+                    syncStatus =
+                        SyncStatusEntity.LOCAL_ONLY
+                )
         }
     }
 

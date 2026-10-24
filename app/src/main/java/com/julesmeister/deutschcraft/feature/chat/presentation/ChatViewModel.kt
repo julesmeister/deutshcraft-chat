@@ -1,9 +1,10 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.julesmeister.deutschcraft.core.activity.ActivityTracker
 import com.julesmeister.deutschcraft.core.cefr.engine.LocalMessageEvaluator
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
+import com.julesmeister.deutschcraft.core.cefr.model.DefaultLearnerProfile
 import com.julesmeister.deutschcraft.feature.assessment.domain.ProcessAssessmentUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatRepository
@@ -19,17 +20,28 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import androidx.lifecycle.SavedStateHandle
+import androidx.navigation.toRoute
+import com.julesmeister.deutschcraft.app.navigation.ChatDestination
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val chatRepository: ChatRepository,
     private val progressRepository: ProgressRepository,
     private val localMessageEvaluator:
     LocalMessageEvaluator,
     private val processAssessment:
-    ProcessAssessmentUseCase
+    ProcessAssessmentUseCase,
+    private val activityTracker:
+    ActivityTracker
 ) : ViewModel() {
 
+    private val destination: ChatDestination =
+        savedStateHandle.toRoute()
+
+    private val selectedConversationId =
+        destination.conversationId
     private val _uiState =
         MutableStateFlow(ChatUiState())
 
@@ -49,7 +61,9 @@ class ChatViewModel @Inject constructor(
     ) {
         when (action) {
             is ChatUiAction.MessageInputChanged -> {
-                updateMessageInput(action.value)
+                updateMessageInput(
+                    value = action.value
+                )
             }
 
             ChatUiAction.SendMessage -> {
@@ -68,14 +82,31 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
+
     private fun initializeChat() {
         viewModelScope.launch {
             try {
                 progressRepository.ensureProfileExists()
 
+                /*
+                 * The thread list currently opens the primary
+                 * conversation. The route argument is still
+                 * validated so the ViewModel is ready for
+                 * multiple conversations later.
+                 */
                 val conversation =
                     chatRepository
                         .getOrCreatePrimaryConversation()
+
+                if (
+                    selectedConversationId !=
+                    conversation.id
+                ) {
+                    throw IllegalArgumentException(
+                        "Conversation $selectedConversationId " +
+                                "does not exist."
+                    )
+                }
 
                 conversationId = conversation.id
 
@@ -89,31 +120,48 @@ class ChatViewModel @Inject constructor(
                     )
                 }
             } catch (
-                cancellationException: CancellationException
+                cancellationException:
+                CancellationException
             ) {
                 throw cancellationException
             } catch (throwable: Throwable) {
+                android.util.Log.e(
+                    CHAT_VIEW_MODEL_TAG,
+                    "Failed to initialize conversation " +
+                            selectedConversationId,
+                    throwable
+                )
+
                 _uiState.update { currentState ->
                     currentState.copy(
                         isInitializing = false,
                         errorMessage =
-                            "DeutschCraft could not load " +
-                                    "the conversation."
+                            throwable.message
+                                ?: "DeutschCraft could not " +
+                                "load the conversation."
                     )
                 }
             }
         }
     }
+
     private fun observeMessages(
         conversationId: String
     ) {
+        /*
+         * Prevent multiple collectors from observing
+         * different conversations simultaneously.
+         */
         messagesObservationJob?.cancel()
 
         messagesObservationJob =
             viewModelScope.launch {
                 try {
                     chatRepository
-                        .observeMessages(conversationId)
+                        .observeMessages(
+                            conversationId =
+                                conversationId
+                        )
                         .collect { messages ->
                             _uiState.update { state ->
                                 state.copy(
@@ -135,9 +183,18 @@ class ChatViewModel @Inject constructor(
                 }
             }
     }
+
     private fun updateMessageInput(
         value: String
     ) {
+        /*
+         * Ignore composer updates while the screen
+         * is still initializing.
+         */
+        if (_uiState.value.isInitializing) {
+            return
+        }
+
         _uiState.update { currentState ->
             currentState.copy(
                 messageInput = value
@@ -148,7 +205,14 @@ class ChatViewModel @Inject constructor(
     private fun selectSuggestion(
         suggestionId: String
     ) {
-        if (_uiState.value.isSending) {
+        /*
+         * Prevent a suggestion from replacing the
+         * input during an active send operation.
+         */
+        if (
+            _uiState.value.isSending ||
+            _uiState.value.isInitializing
+        ) {
             return
         }
 
@@ -165,21 +229,27 @@ class ChatViewModel @Inject constructor(
             )
         }
     }
+
     private fun sendCurrentMessage() {
         /*
-         * Read everything before modifying ChatUiState.
+         * Read and validate the current state before
+         * clearing the message composer.
          */
-        val activeConversationId = conversationId
+        val activeConversationId =
+            conversationId
 
         if (activeConversationId == null) {
             showError(
-                message = "The conversation is still loading."
+                message =
+                    "The conversation is still loading."
             )
             return
         }
 
         val currentState = _uiState.value
-        val messageText = currentState.messageInput.trim()
+
+        val messageText =
+            currentState.messageInput.trim()
 
         if (
             messageText.isBlank() ||
@@ -190,8 +260,8 @@ class ChatViewModel @Inject constructor(
         }
 
         /*
-         * Clear the composer and show the typing state
-         * only after validating the message.
+         * Clear the input only after capturing the
+         * validated message text.
          */
         _uiState.update { state ->
             state.copy(
@@ -205,34 +275,65 @@ class ChatViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val userMessage = createUserMessage(
-                    conversationId = activeConversationId,
-                    content = messageText
-                )
+                val userMessage =
+                    createUserMessage(
+                        conversationId =
+                            activeConversationId,
+                        content = messageText
+                    )
 
                 /*
                  * Room is the source of truth.
-                 * Saving first makes the user message durable.
+                 *
+                 * The user message is saved before
+                 * assessment or response generation.
                  */
-                chatRepository.saveMessage(userMessage)
-
-                /*
-                 * Assessment failure is handled internally and
-                 * must not remove the user's saved message.
-                 */
-                processMessageAssessment(
-                    userMessage = userMessage
+                chatRepository.saveMessage(
+                    message = userMessage
                 )
 
+                /*
+                 * Record today's message activity.
+                 *
+                 * Multiple messages on the same day
+                 * update one ActivityDayEntity row,
+                 * so they count as only one active day.
+                 */
+                val activeDayCount =
+                    activityTracker
+                        .recordMessageActivity(
+                            profileId =
+                                DefaultLearnerProfile
+                                    .LOCAL_PROFILE_ID
+                        )
+
+                /*
+                 * Assessment failure is handled
+                 * internally and does not remove the
+                 * locally saved user message.
+                 */
+                processMessageAssessment(
+                    userMessage = userMessage,
+                    activeDayCount =
+                        activeDayCount
+                )
+
+                /*
+                 * Currently this generates a fake local
+                 * reply. Later this repository call can
+                 * delegate to Spring Boot and Qwen.
+                 */
                 val assistantReply =
-                    chatRepository.generateAssistantReply(
-                        conversationId =
-                            activeConversationId,
-                        message = messageText
-                    )
+                    chatRepository
+                        .generateAssistantReply(
+                            conversationId =
+                                activeConversationId,
+                            message = messageText
+                        )
 
                 chatRepository.saveMessage(
-                    assistantReply.message
+                    message =
+                        assistantReply.message
                 )
 
                 _uiState.update { state ->
@@ -244,22 +345,30 @@ class ChatViewModel @Inject constructor(
                     )
                 }
             } catch (
-                cancellationException: CancellationException
+                cancellationException:
+                CancellationException
             ) {
+                /*
+                 * Cancellation must be propagated so
+                 * structured concurrency still works.
+                 */
                 throw cancellationException
             } catch (throwable: Throwable) {
                 _uiState.update { state ->
                     state.copy(
                         isSending = false,
                         isAssistantTyping = false,
+                        isAssessing = false,
                         errorMessage =
-                            "The assistant could not respond. " +
-                                    "Your message was saved locally."
+                            "The assistant could not " +
+                                    "respond. Your message " +
+                                    "was saved locally."
                     )
                 }
             }
         }
     }
+
     private suspend fun createUserMessage(
         conversationId: String,
         content: String
@@ -267,7 +376,8 @@ class ChatViewModel @Inject constructor(
         val sequenceNumber =
             chatRepository
                 .getNextSequenceNumber(
-                    conversationId
+                    conversationId =
+                        conversationId
                 )
 
         return ChatMessage(
@@ -282,7 +392,8 @@ class ChatViewModel @Inject constructor(
     }
 
     private suspend fun processMessageAssessment(
-        userMessage: ChatMessage
+        userMessage: ChatMessage,
+        activeDayCount: Int
     ) {
         _uiState.update { currentState ->
             currentState.copy(
@@ -291,6 +402,10 @@ class ChatViewModel @Inject constructor(
         }
 
         try {
+            /*
+             * The current profile determines which
+             * CEFR-level rules should be used.
+             */
             val currentProgress =
                 progressRepository.getProgress()
 
@@ -298,14 +413,11 @@ class ChatViewModel @Inject constructor(
                 currentProgress?.currentLevel
                     ?: CefrLevel.A1
 
-            val activeDayCount =
-                calculateActiveDayCount(
-                    currentCount =
-                        currentProgress
-                            ?.activeDayCount
-                            ?: 0
-                )
-
+            /*
+             * The local evaluator creates conservative,
+             * low-confidence evidence from observable
+             * characteristics of the message.
+             */
             val localEvidence =
                 localMessageEvaluator.evaluate(
                     messageId =
@@ -318,9 +430,28 @@ class ChatViewModel @Inject constructor(
                         currentLevel
                 )
 
+            /*
+             * The use case runs the CEFR engine and
+             * saves evidence, scores, and the updated
+             * learner profile in Room.
+             */
             processAssessment(
                 evidence = localEvidence,
                 activeDayCount = activeDayCount
+            )
+
+            /*
+             * Optional but useful: record that an
+             * assessment was completed today.
+             *
+             * This updates assessmentCount on today's
+             * ActivityDayEntity. It does not create
+             * another active day.
+             */
+            activityTracker.recordAssessmentActivity(
+                profileId =
+                    DefaultLearnerProfile
+                        .LOCAL_PROFILE_ID
             )
         } catch (
             cancellationException:
@@ -329,11 +460,11 @@ class ChatViewModel @Inject constructor(
             throw cancellationException
         } catch (throwable: Throwable) {
             /*
-             * Assessment is secondary to chatting.
+             * Assessment is secondary to chat.
              *
-             * The message remains saved in Room.
-             * We do not fail the whole send operation
-             * when local stats processing fails.
+             * The message remains available in Room,
+             * and assistant response generation can
+             * continue.
              */
             _uiState.update { currentState ->
                 currentState.copy(
@@ -352,21 +483,6 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    private fun calculateActiveDayCount(
-        currentCount: Int
-    ): Int {
-        /*
-         * Temporary implementation.
-         *
-         * This guarantees at least one active day,
-         * but it must eventually be replaced by
-         * an ActivityDayEntity or DataStore-based
-         * date tracker so multiple messages on the
-         * same date do not increment the count.
-         */
-        return currentCount.coerceAtLeast(1)
-    }
-
     private fun dismissError() {
         _uiState.update { currentState ->
             currentState.copy(
@@ -381,10 +497,18 @@ class ChatViewModel @Inject constructor(
         _uiState.update { currentState ->
             currentState.copy(
                 errorMessage = message,
+                isInitializing = false,
                 isSending = false,
                 isAssistantTyping = false,
                 isAssessing = false
             )
         }
     }
+
+    override fun onCleared() {
+        messagesObservationJob?.cancel()
+        super.onCleared()
+    }
 }
+private const val CHAT_VIEW_MODEL_TAG =
+    "ChatViewModel"
