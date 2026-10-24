@@ -12,9 +12,5 @@ sealed interface ChatUiAction {
         val suggestionId: String
     ) : ChatUiAction
 
-    data object ProgressClicked : ChatUiAction
-
-    data object RetryMessage : ChatUiAction
-
     data object ErrorDismissed : ChatUiAction
 }

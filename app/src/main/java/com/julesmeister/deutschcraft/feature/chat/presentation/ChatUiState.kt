@@ -10,4 +10,7 @@ data class ChatUiState(
     val isAssistantTyping: Boolean = false,
     val isSending: Boolean = false,
     val errorMessage: String? = null
-)
+) {
+    val canSend: Boolean
+        get() = messageInput.isNotBlank() && !isSending
+}

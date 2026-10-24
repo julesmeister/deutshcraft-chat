@@ -7,8 +7,8 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatRepository
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
-
-class FakeChatRepository : ChatRepository {
+import javax.inject.Inject;
+class FakeChatRepository @Inject constructor() : ChatRepository {
 
     override suspend fun sendMessage(
         message: String

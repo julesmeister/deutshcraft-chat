@@ -2,18 +2,17 @@ package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.julesmeister.deutschcraft.feature.chat.data.FakeChatRepository
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatRepository
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
+import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.UUID
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.UUID
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
@@ -52,14 +51,6 @@ class ChatViewModel @Inject constructor(
             ChatUiAction.ErrorDismissed -> {
                 dismissError()
             }
-
-            ChatUiAction.RetryMessage -> {
-                sendCurrentMessage()
-            }
-
-            ChatUiAction.ProgressClicked -> {
-                // Navigation will be added later.
-            }
         }
     }
 
@@ -71,22 +62,20 @@ class ChatViewModel @Inject constructor(
 
     private fun selectSuggestion(suggestionId: String) {
         val suggestion = _uiState.value.suggestions
-            .find { it.id == suggestionId }
+            .firstOrNull { it.id == suggestionId }
             ?: return
 
         _uiState.update { currentState ->
-            currentState.copy(messageInput = suggestion.text)
+            currentState.copy(
+                messageInput = suggestion.text
+            )
         }
     }
 
     private fun sendCurrentMessage() {
         val messageText = _uiState.value.messageInput.trim()
 
-        if (messageText.isBlank()) {
-            return
-        }
-
-        if (_uiState.value.isSending) {
+        if (messageText.isBlank() || _uiState.value.isSending) {
             return
         }
 
