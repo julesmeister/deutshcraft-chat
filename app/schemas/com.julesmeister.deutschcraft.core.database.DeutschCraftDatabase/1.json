@@ -1,0 +1,224 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "37edf773b01e50eb0e676bb42e80256f",
+    "entities": [
+      {
+        "tableName": "conversations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `currentCefrLevel` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `lastMessagePreview` TEXT, `isArchived` INTEGER NOT NULL, `syncStatus` TEXT NOT NULL, `remoteVersion` INTEGER, `lastSyncedAt` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currentCefrLevel",
+            "columnName": "currentCefrLevel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastMessagePreview",
+            "columnName": "lastMessagePreview",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isArchived",
+            "columnName": "isArchived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "syncStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remoteVersion",
+            "columnName": "remoteVersion",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastSyncedAt",
+            "columnName": "lastSyncedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_conversations_updatedAt",
+            "unique": false,
+            "columnNames": [
+              "updatedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_conversations_updatedAt` ON `${TABLE_NAME}` (`updatedAt`)"
+          },
+          {
+            "name": "index_conversations_syncStatus",
+            "unique": false,
+            "columnNames": [
+              "syncStatus"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_conversations_syncStatus` ON `${TABLE_NAME}` (`syncStatus`)"
+          }
+        ]
+      },
+      {
+        "tableName": "messages",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `conversationId` TEXT NOT NULL, `content` TEXT NOT NULL, `sender` TEXT NOT NULL, `sequenceNumber` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `deliveryStatus` TEXT NOT NULL, `syncStatus` TEXT NOT NULL, `remoteVersion` INTEGER, `lastSyncedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`conversationId`) REFERENCES `conversations`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "conversationId",
+            "columnName": "conversationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sender",
+            "columnName": "sender",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sequenceNumber",
+            "columnName": "sequenceNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deliveryStatus",
+            "columnName": "deliveryStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "syncStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remoteVersion",
+            "columnName": "remoteVersion",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastSyncedAt",
+            "columnName": "lastSyncedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_messages_conversationId",
+            "unique": false,
+            "columnNames": [
+              "conversationId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_conversationId` ON `${TABLE_NAME}` (`conversationId`)"
+          },
+          {
+            "name": "index_messages_conversationId_sequenceNumber",
+            "unique": true,
+            "columnNames": [
+              "conversationId",
+              "sequenceNumber"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_messages_conversationId_sequenceNumber` ON `${TABLE_NAME}` (`conversationId`, `sequenceNumber`)"
+          },
+          {
+            "name": "index_messages_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          },
+          {
+            "name": "index_messages_syncStatus",
+            "unique": false,
+            "columnNames": [
+              "syncStatus"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_syncStatus` ON `${TABLE_NAME}` (`syncStatus`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "conversations",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "conversationId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '37edf773b01e50eb0e676bb42e80256f')"
+    ]
+  }
+}

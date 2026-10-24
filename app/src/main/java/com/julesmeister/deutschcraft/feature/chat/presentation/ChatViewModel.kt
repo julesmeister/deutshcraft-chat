@@ -18,6 +18,31 @@ import kotlinx.coroutines.launch
 class ChatViewModel @Inject constructor(
     private val repository: ChatRepository
 ) : ViewModel() {
+    private var conversationId: String? = null;
+    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val messages = _messages.asStateFlow()
+
+    init {
+        initializeConversation();
+    }
+
+    private fun initializeConversation() {
+        viewModelScope.launch {
+            val conversation =
+                repository.getOrCreatePrimaryConversation()
+
+            conversationId = conversation.id
+
+            repository.observeMessages(conversation.id)
+                .collect { messages ->
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            messages = messages
+                        )
+                    }
+                }
+        }
+    }
 
     private val _uiState = MutableStateFlow(
         ChatUiState(
@@ -26,7 +51,9 @@ class ChatViewModel @Inject constructor(
                     id = UUID.randomUUID().toString(),
                     content = "Hallo! Wie war dein Tag?",
                     sender = MessageSender.ASSISTANT,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = System.currentTimeMillis(),
+                    sequenceNumber = _messages.value.size.toLong(),
+                    conversationId = conversationId ?: ""
                 )
             )
         )
@@ -73,22 +100,21 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun sendCurrentMessage() {
-        val messageText = _uiState.value.messageInput.trim()
+        val activeConversationId =
+            conversationId ?: return
 
-        if (messageText.isBlank() || _uiState.value.isSending) {
+        val messageText =
+            _uiState.value.messageInput.trim()
+
+        if (
+            messageText.isBlank() ||
+            _uiState.value.isSending
+        ) {
             return
         }
 
-        val userMessage = ChatMessage(
-            id = UUID.randomUUID().toString(),
-            content = messageText,
-            sender = MessageSender.USER,
-            timestamp = System.currentTimeMillis()
-        )
-
         _uiState.update { currentState ->
             currentState.copy(
-                messages = currentState.messages + userMessage,
                 messageInput = "",
                 suggestions = emptyList(),
                 isSending = true,
@@ -99,11 +125,35 @@ class ChatViewModel @Inject constructor(
 
         viewModelScope.launch {
             runCatching {
-                repository.sendMessage(messageText)
+                val userSequence =
+                    repository.getNextSequenceNumber(
+                        activeConversationId
+                    )
+
+                val userMessage = ChatMessage(
+                    id = UUID.randomUUID().toString(),
+                    conversationId = activeConversationId,
+                    content = messageText,
+                    sender = MessageSender.USER,
+                    sequenceNumber = userSequence,
+                    timestamp = System.currentTimeMillis()
+                )
+
+                repository.saveMessage(userMessage)
+
+                val reply =
+                    repository.generateAssistantReply(
+                        conversationId =
+                            activeConversationId,
+                        message = messageText
+                    )
+
+                repository.saveMessage(reply.message)
+
+                reply
             }.onSuccess { reply ->
                 _uiState.update { currentState ->
                     currentState.copy(
-                        messages = currentState.messages + reply.message,
                         suggestions = reply.suggestions,
                         isSending = false,
                         isAssistantTyping = false
@@ -114,7 +164,8 @@ class ChatViewModel @Inject constructor(
                     currentState.copy(
                         isSending = false,
                         isAssistantTyping = false,
-                        errorMessage = "The message could not be sent."
+                        errorMessage =
+                            "The message could not be sent."
                     )
                 }
             }

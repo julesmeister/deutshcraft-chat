@@ -1,6 +1,6 @@
 package com.julesmeister.deutschcraft.core.di
 
-import com.julesmeister.deutschcraft.feature.chat.data.FakeChatRepository
+import com.julesmeister.deutschcraft.feature.chat.data.LocalFirstChatRepository
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatRepository
 import dagger.Binds
 import dagger.Module
@@ -15,6 +15,6 @@ abstract class ChatModule {
     @Binds
     @Singleton
     abstract fun bindChatRepository(
-        implementation: FakeChatRepository
+        implementation: LocalFirstChatRepository
     ): ChatRepository
 }
