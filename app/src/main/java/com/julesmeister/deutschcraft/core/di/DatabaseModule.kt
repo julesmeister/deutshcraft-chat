@@ -3,7 +3,9 @@ package com.julesmeister.deutschcraft.core.di
 import android.content.Context
 import androidx.room.Room
 import com.julesmeister.deutschcraft.core.database.DeutschCraftDatabase
+import com.julesmeister.deutschcraft.core.database.dao.AssessmentDao
 import com.julesmeister.deutschcraft.core.database.dao.ConversationDao
+import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
 import com.julesmeister.deutschcraft.core.database.dao.MessageDao
 import dagger.Module
 import dagger.Provides
@@ -15,6 +17,9 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+
+    private const val DATABASE_NAME =
+        "deutschcraft.db"
 
     @Provides
     @Singleton
@@ -42,6 +47,17 @@ object DatabaseModule {
         return database.messageDao()
     }
 
-    private const val DATABASE_NAME =
-        "deutschcraft.db"
+    @Provides
+    fun provideLearnerProfileDao(
+        database: DeutschCraftDatabase
+    ): LearnerProfileDao {
+        return database.learnerProfileDao()
+    }
+
+    @Provides
+    fun provideAssessmentDao(
+        database: DeutschCraftDatabase
+    ): AssessmentDao {
+        return database.assessmentDao()
+    }
 }
