@@ -1,131 +1,173 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
-import com.julesmeister.deutschcraft.ui.theme.DeutschLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschSurfaceHigh
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
 fun MessageBubble(
     message: ChatMessage,
+    correction: String?,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isUserMessage =
         message.sender == MessageSender.USER
 
-    val bubbleColor =
-        if (isUserMessage) {
-            DeutschLime
-        } else {
-            DeutschSurfaceHigh
-        }
-
-    val messageColor =
-        if (isUserMessage) {
-            DeutschTextOnLime
-        } else {
-            DeutschTextPrimary
-        }
-
-    val timeColor =
-        if (isUserMessage) {
-            DeutschTextOnLime.copy(
-                alpha = 0.65f
-            )
-        } else {
-            DeutschTextSecondary
-        }
-
     val bubbleShape =
         if (isUserMessage) {
             RoundedCornerShape(
-                topStart = 24.dp,
-                topEnd = 24.dp,
-                bottomStart = 24.dp,
-                bottomEnd = 7.dp
+                topStart = 20.dp,
+                topEnd = 20.dp,
+                bottomStart = 20.dp,
+                bottomEnd = 6.dp
             )
         } else {
             RoundedCornerShape(
-                topStart = 24.dp,
-                topEnd = 24.dp,
-                bottomStart = 7.dp,
-                bottomEnd = 24.dp
+                topStart = 20.dp,
+                topEnd = 20.dp,
+                bottomStart = 6.dp,
+                bottomEnd = 20.dp
             )
+        }
+
+    val bubbleColor =
+        if (isUserMessage) {
+            MaterialTheme
+                .colorScheme
+                .primaryContainer
+        } else {
+            MaterialTheme
+                .colorScheme
+                .surfaceContainer
+        }
+
+    val contentColor =
+        if (isUserMessage) {
+            MaterialTheme
+                .colorScheme
+                .onPrimaryContainer
+        } else {
+            MaterialTheme
+                .colorScheme
+                .onSurface
         }
 
     Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Bottom
+        modifier =
+            modifier.fillMaxWidth(),
+        horizontalArrangement =
+            if (isUserMessage) {
+                androidx.compose.foundation.layout
+                    .Arrangement
+                    .End
+            } else {
+                androidx.compose.foundation.layout
+                    .Arrangement
+                    .Start
+            }
     ) {
-        if (isUserMessage) {
-            Spacer(
-                modifier = Modifier.weight(0.18f)
-            )
-        }
-
         Box(
             modifier = Modifier
-                .widthIn(max = 320.dp)
+                .wrapContentWidth()
+                .widthIn(
+                    min = 72.dp,
+                    max = 320.dp
+                )
+                .animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = 0.82f,
+                        stiffness = 420f
+                    )
+                )
                 .clip(bubbleShape)
                 .background(bubbleColor)
+                .clickable(
+                    interactionSource =
+                        remember {
+                            MutableInteractionSource()
+                        },
+                    indication = null,
+                    onClick = onClick
+                )
                 .padding(
-                    horizontal = 16.dp,
-                    vertical = 11.dp
+                    horizontal = 14.dp,
+                    vertical = 10.dp
                 )
         ) {
-            Column {
+            Column(
+                modifier = Modifier.wrapContentWidth(),
+                horizontalAlignment =
+                    if (isUserMessage) {
+                        Alignment.End
+                    } else {
+                        Alignment.Start
+                    }
+            ) {
                 Text(
                     text = message.content,
-                    color = messageColor,
                     style =
-                        MaterialTheme.typography
-                            .bodyLarge
+                        MaterialTheme.typography.bodyLarge,
+                    color = contentColor
                 )
 
                 Text(
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .padding(top = 5.dp),
                     text = formatMessageTime(
                         timestamp =
                             message.timestamp
                     ),
-                    color = timeColor,
+                    modifier = Modifier.padding(
+                        top = 4.dp
+                    ),
                     style =
-                        MaterialTheme.typography
-                            .labelMedium,
-                    fontWeight = FontWeight.Medium
+                        MaterialTheme.typography.labelSmall,
+                    color =
+                        contentColor.copy(
+                            alpha = 0.65f
+                        ),
+                    textAlign =
+                        if (isUserMessage) {
+                            TextAlign.End
+                        } else {
+                            TextAlign.Start
+                        }
                 )
-            }
-        }
 
-        if (!isUserMessage) {
-            Spacer(
-                modifier = Modifier.weight(0.18f)
-            )
+                if (
+                    isUserMessage &&
+                    !correction.isNullOrBlank()
+                ) {
+                    MessageCorrectionContent(
+                        correction = correction,
+                        contentColor = contentColor
+                    )
+                }
+            }
         }
     }
 }
@@ -133,10 +175,16 @@ fun MessageBubble(
 private fun formatMessageTime(
     timestamp: Long
 ): String {
-    return SimpleDateFormat(
-        "HH:mm",
-        Locale.getDefault()
-    ).format(
-        Date(timestamp)
-    )
+    val formatter =
+        DateTimeFormatter.ofPattern(
+            "HH:mm",
+            Locale.getDefault()
+        )
+
+    return Instant
+        .ofEpochMilli(timestamp)
+        .atZone(
+            ZoneId.systemDefault()
+        )
+        .format(formatter)
 }

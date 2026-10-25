@@ -1,9 +1,10 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -11,137 +12,228 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschOutline
-import com.julesmeister.deutschcraft.ui.theme.DeutschSurface
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @Composable
 fun ChatInputBar(
-    value: String,
-    canSend: Boolean,
-    onValueChange: (String) -> Unit,
+    value: TextFieldValue,
+    isSending: Boolean,
+    enabled: Boolean,
+    onValueChange: (TextFieldValue) -> Unit,
     onSendClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    onAddClick: () -> Unit = {}
+    onAddClick: () -> Unit,
+    onInputFocused: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(
-                MaterialTheme.colorScheme.background
-            )
-            .padding(
-                horizontal = 12.dp,
-                vertical = 10.dp
-            ),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        IconButton(
-            modifier = Modifier
-                .padding(end = 8.dp)
-                .background(
-                    color = DeutschSurface,
-                    shape = CircleShape
-                ),
-            onClick = onAddClick
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Add,
-                contentDescription = "More actions",
-                tint = DeutschTextPrimary
-            )
+    val interactionSource =
+        remember {
+            MutableInteractionSource()
         }
 
-        TextField(
-            modifier = Modifier.weight(1f),
-            value = value,
-            onValueChange = onValueChange,
-            placeholder = {
-                Text(
-                    text = "Nachricht schreiben",
-                    color = DeutschTextSecondary
-                )
-            },
-            maxLines = 5,
-            shape = RoundedCornerShape(26.dp),
-            keyboardOptions = KeyboardOptions(
-                imeAction = ImeAction.Send
-            ),
-            keyboardActions = KeyboardActions(
-                onSend = {
-                    if (canSend) {
-                        onSendClick()
-                    }
-                }
-            ),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor =
-                    DeutschSurface,
-                unfocusedContainerColor =
-                    DeutschSurface,
-                disabledContainerColor =
-                    DeutschSurface,
+    val isInputFocused by
+    interactionSource
+        .collectIsFocusedAsState()
 
-                focusedTextColor =
-                    DeutschTextPrimary,
-                unfocusedTextColor =
-                    DeutschTextPrimary,
-                disabledTextColor =
-                    DeutschTextSecondary,
+    val canSend =
+        value.text.isNotBlank() &&
+                enabled &&
+                !isSending
 
-                cursorColor = DeutschLime,
+    LaunchedEffect(isInputFocused) {
+        if (isInputFocused) {
+            onInputFocused()
+        }
+    }
 
-                focusedIndicatorColor =
-                    Color.Transparent,
-                unfocusedIndicatorColor =
-                    Color.Transparent,
-                disabledIndicatorColor =
-                    Color.Transparent
-            )
-        )
-
-        FilledIconButton(
-            modifier = Modifier.padding(
-                start = 8.dp
-            ),
-            onClick = onSendClick,
-            enabled = canSend,
-            shape = CircleShape,
+    Row(
+        modifier = modifier.padding(
+            start = 12.dp,
+            top = 8.dp,
+            end = 12.dp,
+            bottom = 8.dp
+        ),
+        verticalAlignment =
+            Alignment.Bottom
+    ) {
+        IconButton(
+            onClick =
+                onAddClick,
+            enabled =
+                enabled && !isSending,
+            modifier =
+                Modifier.size(46.dp),
+            shape =
+                CircleShape,
             colors =
                 IconButtonDefaults
-                    .filledIconButtonColors(
+                    .iconButtonColors(
                         containerColor =
-                            DeutschLime,
+                            MaterialTheme
+                                .colorScheme
+                                .surfaceContainer,
                         contentColor =
-                            DeutschTextOnLime,
+                            MaterialTheme
+                                .colorScheme
+                                .onSurface,
                         disabledContainerColor =
-                            DeutschOutline,
+                            MaterialTheme
+                                .colorScheme
+                                .surfaceContainer
+                                .copy(alpha = 0.55f),
                         disabledContentColor =
-                            DeutschTextSecondary
+                            MaterialTheme
+                                .colorScheme
+                                .onSurfaceVariant
+                                .copy(alpha = 0.5f)
                     )
         ) {
             Icon(
                 imageVector =
-                    Icons.AutoMirrored.Filled.Send,
-                contentDescription = "Send message"
+                    Icons.Outlined.Add,
+                contentDescription =
+                    "Add attachment"
             )
+        }
+
+        OutlinedTextField(
+            value =
+                value,
+            onValueChange =
+                onValueChange,
+            modifier = Modifier
+                .weight(1f)
+                .padding(
+                    horizontal = 8.dp
+                ),
+            enabled =
+                enabled,
+            interactionSource =
+                interactionSource,
+            placeholder = {
+                Text(
+                    text =
+                        "Nachricht auf Deutsch"
+                )
+            },
+            minLines =
+                1,
+            maxLines =
+                5,
+            shape =
+                RoundedCornerShape(24.dp),
+            keyboardOptions =
+                KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    autoCorrectEnabled = true,
+                    imeAction =
+                        ImeAction.Send
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onSend = {
+                        if (canSend) {
+                            onInputFocused()
+                            onSendClick()
+                        }
+                    }
+                ),
+            colors =
+                OutlinedTextFieldDefaults
+                    .colors(
+                        focusedBorderColor =
+                            DeutschLime,
+                        unfocusedBorderColor =
+                            MaterialTheme
+                                .colorScheme
+                                .outlineVariant,
+                        focusedContainerColor =
+                            MaterialTheme
+                                .colorScheme
+                                .surfaceContainer,
+                        unfocusedContainerColor =
+                            MaterialTheme
+                                .colorScheme
+                                .surfaceContainer,
+                        disabledContainerColor =
+                            MaterialTheme
+                                .colorScheme
+                                .surfaceContainer
+                                .copy(alpha = 0.6f)
+                    )
+        )
+
+        IconButton(
+            onClick = {
+                onInputFocused()
+                onSendClick()
+            },
+            enabled =
+                canSend,
+            modifier =
+                Modifier.size(46.dp),
+            shape =
+                CircleShape,
+            colors =
+                IconButtonDefaults
+                    .iconButtonColors(
+                        containerColor =
+                            DeutschLime,
+                        contentColor =
+                            MaterialTheme
+                                .colorScheme
+                                .onPrimary,
+                        disabledContainerColor =
+                            MaterialTheme
+                                .colorScheme
+                                .surfaceContainer,
+                        disabledContentColor =
+                            MaterialTheme
+                                .colorScheme
+                                .onSurfaceVariant
+                                .copy(alpha = 0.45f)
+                    )
+        ) {
+            if (isSending) {
+                CircularProgressIndicator(
+                    modifier =
+                        Modifier.size(20.dp),
+                    strokeWidth =
+                        2.dp,
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .onSurfaceVariant
+                )
+            } else {
+                Icon(
+                    imageVector =
+                        Icons.AutoMirrored
+                            .Filled
+                            .Send,
+                    contentDescription =
+                        "Send message",
+                    modifier =
+                        Modifier.size(20.dp)
+                )
+            }
         }
     }
 }

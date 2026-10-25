@@ -6,7 +6,8 @@ data class ChatMessage(
     val content: String,
     val sender: MessageSender,
     val sequenceNumber: Long,
-    val timestamp: Long
+    val timestamp: Long,
+    var correction: String? = null
 )
 
 enum class MessageSender {

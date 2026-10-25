@@ -33,11 +33,11 @@ interface MessageDao {
 
     @Query(
         """
-        SELECT *
-        FROM messages
-        WHERE conversationId = :conversationId
-        ORDER BY sequenceNumber ASC
-        """
+    SELECT *
+    FROM messages
+    WHERE conversationId = :conversationId
+    ORDER BY sequenceNumber ASC
+    """
     )
     suspend fun getMessages(
         conversationId: String

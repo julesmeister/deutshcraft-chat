@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -5,6 +7,22 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
+
+val localProperties = Properties().apply {
+    val localPropertiesFile =
+        rootProject.file("local.properties")
+
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile
+            .inputStream()
+            .use(::load)
+    }
+}
+
+val qwenApiKey =
+    localProperties.getProperty(
+        "QWEN_API_KEY"
+    ).orEmpty()
 
 android {
     namespace = "com.julesmeister.deutschcraft"
@@ -20,6 +38,24 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField(
+            type = "String",
+            name = "QWEN_API_KEY",
+            value = "\"$qwenApiKey\""
+        )
+
+        buildConfigField(
+            type = "String",
+            name = "QWEN_BASE_URL",
+            value = "\"https://ap-southeast-1.maas.qwencloudapi.com/compatible-mode/v1/\""
+        )
+
+        buildConfigField(
+            type = "String",
+            name = "QWEN_MODEL",
+            value = "\"qwen3.8-flash\""
+        )
     }
 
     buildTypes {
@@ -38,9 +74,14 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 dependencies {
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation(libs.androidx.compose.runtime)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

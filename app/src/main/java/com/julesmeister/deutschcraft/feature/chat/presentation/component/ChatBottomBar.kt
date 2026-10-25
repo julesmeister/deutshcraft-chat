@@ -16,44 +16,62 @@ fun ChatBottomBar(
     uiState: ChatUiState,
     onAction: (ChatUiAction) -> Unit,
     onAddClick: () -> Unit,
+    onInputFocused: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(
-                MaterialTheme.colorScheme.background
+                color =
+                    MaterialTheme.colorScheme.background
             )
-            .imePadding()
             .navigationBarsPadding()
+            .imePadding()
     ) {
-        ReplySuggestions(
-            suggestions = uiState.suggestions,
+        ChatSuggestionSection(
+            suggestions =
+                uiState.suggestions,
             onSuggestionClick = { suggestionId ->
                 onAction(
                     ChatUiAction.SuggestionSelected(
-                        suggestionId = suggestionId
+                        suggestionId =
+                            suggestionId
                     )
                 )
+
+                onInputFocused()
             }
         )
 
         ChatInputBar(
-            value = uiState.messageInput,
-            canSend = uiState.canSend,
+            value =
+                uiState.messageInput,
+            isSending =
+                uiState.isSending,
+            enabled =
+                !uiState.isInitializing,
             onValueChange = { value ->
                 onAction(
                     ChatUiAction.MessageInputChanged(
-                        value = value
+                        value =
+                            value
                     )
                 )
             },
             onSendClick = {
+                onInputFocused()
+
                 onAction(
                     ChatUiAction.SendMessage
                 )
             },
-            onAddClick = onAddClick
+            onAddClick =
+                onAddClick,
+            onInputFocused =
+                onInputFocused,
+            modifier =
+                Modifier.fillMaxWidth()
         )
     }
 }

@@ -20,19 +20,33 @@ class ChatLocalDataSource @Inject constructor(
     fun observeMessages(
         conversationId: String
     ): Flow<List<MessageEntity>> {
-        return messageDao.observeMessages(conversationId)
+        return messageDao.observeMessages(
+            conversationId = conversationId
+        )
+    }
+
+    suspend fun getMessages(
+        conversationId: String
+    ): List<MessageEntity> {
+        return messageDao.getMessages(
+            conversationId = conversationId
+        )
     }
 
     suspend fun getConversation(
         conversationId: String
     ): ConversationEntity? {
-        return conversationDao.getConversation(conversationId)
+        return conversationDao.getConversation(
+            conversationId = conversationId
+        )
     }
 
     suspend fun createConversation(
         conversation: ConversationEntity
     ) {
-        conversationDao.upsertConversation(conversation)
+        conversationDao.upsertConversation(
+            conversation = conversation
+        )
     }
 
     suspend fun saveMessage(
@@ -70,16 +84,17 @@ class ChatLocalDataSource @Inject constructor(
         conversationId: String
     ): Long {
         return messageDao.getLastSequenceNumber(
-            conversationId
+            conversationId = conversationId
         ) + 1L
     }
 
     suspend fun deleteConversation(
         conversationId: String
     ) {
-        conversationDao.deleteConversationPermanently(
-            conversationId
-        )
+        conversationDao
+            .deleteConversationPermanently(
+                conversationId = conversationId
+            )
     }
 
     suspend fun updateGeneratedConversationTitle(
@@ -87,13 +102,19 @@ class ChatLocalDataSource @Inject constructor(
         title: String,
         updatedAt: Long
     ): Boolean {
-        val updatedRows = conversationDao.updateGeneratedTitle(
-            conversationId = conversationId,
-            title = title,
-            titleSource = ConversationTitleSource.LOCAL_GENERATED,
-            updatedAt = updatedAt,
-            syncStatus = SyncStatusEntity.LOCAL_ONLY
-        )
+        val updatedRows =
+            conversationDao.updateGeneratedTitle(
+                conversationId =
+                    conversationId,
+                title =
+                    title,
+                titleSource =
+                    ConversationTitleSource.LOCAL_GENERATED,
+                updatedAt =
+                    updatedAt,
+                syncStatus =
+                    SyncStatusEntity.LOCAL_ONLY
+            )
 
         return updatedRows > 0
     }
