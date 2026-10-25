@@ -3,7 +3,10 @@ package com.julesmeister.deutschcraft.app.navigation
 import kotlinx.serialization.Serializable
 
 @Serializable
-object ThreadListDestination
+data object StartupDestination
+
+@Serializable
+data object ThreadListDestination
 
 @Serializable
 data class ChatDestination(
@@ -11,7 +14,7 @@ data class ChatDestination(
 )
 
 @Serializable
-object ProgressDestination
+data object ProgressDestination
 
 @Serializable
 data class AssessmentDestination(

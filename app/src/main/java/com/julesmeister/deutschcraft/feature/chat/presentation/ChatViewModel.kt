@@ -1,4 +1,5 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.julesmeister.deutschcraft.core.activity.ActivityTracker
@@ -88,25 +89,12 @@ class ChatViewModel @Inject constructor(
             try {
                 progressRepository.ensureProfileExists()
 
-                /*
-                 * The thread list currently opens the primary
-                 * conversation. The route argument is still
-                 * validated so the ViewModel is ready for
-                 * multiple conversations later.
-                 */
                 val conversation =
                     chatRepository
-                        .getOrCreatePrimaryConversation()
-
-                if (
-                    selectedConversationId !=
-                    conversation.id
-                ) {
-                    throw IllegalArgumentException(
-                        "Conversation $selectedConversationId " +
-                                "does not exist."
-                    )
-                }
+                        .getOrCreateConversation(
+                            conversationId =
+                                selectedConversationId
+                        )
 
                 conversationId = conversation.id
 
@@ -125,7 +113,7 @@ class ChatViewModel @Inject constructor(
             ) {
                 throw cancellationException
             } catch (throwable: Throwable) {
-                android.util.Log.e(
+                Log.e(
                     CHAT_VIEW_MODEL_TAG,
                     "Failed to initialize conversation " +
                             selectedConversationId,
@@ -137,8 +125,8 @@ class ChatViewModel @Inject constructor(
                         isInitializing = false,
                         errorMessage =
                             throwable.message
-                                ?: "DeutschCraft could not " +
-                                "load the conversation."
+                                ?: ("DeutschCraft could not " +
+                                        "load the conversation.")
                     )
                 }
             }

@@ -37,6 +37,46 @@ class LocalFirstChatRepository @Inject constructor(
             }
     }
 
+    override suspend fun getConversation(
+        conversationId: String
+    ): Conversation? {
+        return localDataSource
+            .getConversation(
+                conversationId = conversationId
+            )
+            ?.toDomain()
+    }
+
+    override suspend fun getOrCreateConversation(
+        conversationId: String
+    ): Conversation {
+        val existingConversation =
+            getConversation(
+                conversationId = conversationId
+            )
+
+        if (existingConversation != null) {
+            return existingConversation
+        }
+
+        /*
+         * Only the temporary primary-conversation route
+         * may create a conversation when it is missing.
+         *
+         * A random or stale ID must not silently create
+         * an unrelated thread.
+         */
+        require(
+            conversationId ==
+                    PRIMARY_CONVERSATION_ID
+        ) {
+            "Conversation $conversationId does not exist." }
+
+        return createConversation(
+            conversationId = conversationId
+        )
+    }
+
     override suspend fun getOrCreatePrimaryConversation():
             Conversation {
         val conversationId =
@@ -51,7 +91,7 @@ class LocalFirstChatRepository @Inject constructor(
             return existingConversation.toDomain()
         }
 
-        return createPrimaryConversation(
+        return createConversation(
             conversationId = conversationId
         )
     }
@@ -110,7 +150,7 @@ class LocalFirstChatRepository @Inject constructor(
         )
     }
 
-    private suspend fun createPrimaryConversation(
+    private suspend fun createConversation(
         conversationId: String
     ): Conversation {
         val currentInstant =
@@ -145,13 +185,6 @@ class LocalFirstChatRepository @Inject constructor(
             conversation = conversation.toEntity()
         )
 
-        /*
-         * Save the initial assistant greeting only
-         * after the conversation row exists.
-         *
-         * This is required because MessageEntity has
-         * a foreign key pointing to ConversationEntity.
-         */
         val greeting = ChatMessage(
             id = UUID.randomUUID().toString(),
             conversationId = conversation.id,
@@ -167,12 +200,13 @@ class LocalFirstChatRepository @Inject constructor(
         )
 
         /*
-         * The returned value is the original domain
-         * object. Room will already have updated the
-         * stored preview and message count after
-         * saveMessage().
+         * Fetch the conversation again because saving
+         * the greeting updates its message count,
+         * preview text, and updated timestamp.
          */
-        return conversation
+        return getConversation(
+            conversationId = conversation.id
+        ) ?: conversation
     }
 
     private fun createFakeAssistantResponse(
@@ -227,5 +261,20 @@ class LocalFirstChatRepository @Inject constructor(
 
         const val ASSISTANT_REPLY_DELAY_MILLIS =
             1_200L
+    }
+
+    override suspend fun getOpenConversationForToday():
+            Conversation? {
+        val todayEpochDay = clock
+            .instant()
+            .atZone(clock.zone)
+            .toLocalDate()
+            .toEpochDay()
+
+        return localDataSource
+            .getOpenConversationForDay(
+                epochDay = todayEpochDay
+            )
+            ?.toDomain()
     }
 }

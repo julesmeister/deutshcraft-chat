@@ -56,6 +56,15 @@ class ChatLocalDataSource @Inject constructor(
         }
     }
 
+    suspend fun getOpenConversationForDay(
+        epochDay: Long
+    ): ConversationEntity? {
+        return conversationDao
+            .getOpenConversationForDay(
+                epochDay = epochDay
+            )
+    }
+
     suspend fun getNextSequenceNumber(
         conversationId: String
     ): Long {

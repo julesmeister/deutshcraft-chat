@@ -263,4 +263,6 @@ interface ConversationDao {
      */
     @Query("DELETE FROM conversations")
     suspend fun deleteAllConversations()
+
+
 }

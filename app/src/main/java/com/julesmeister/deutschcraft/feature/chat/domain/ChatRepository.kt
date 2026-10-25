@@ -8,8 +8,18 @@ interface ChatRepository {
         conversationId: String
     ): Flow<List<ChatMessage>>
 
+    suspend fun getConversation(
+        conversationId: String
+    ): Conversation?
+
+    suspend fun getOrCreateConversation(
+        conversationId: String
+    ): Conversation
+
     suspend fun getOrCreatePrimaryConversation():
             Conversation
+
+    suspend fun getOpenConversationForToday(): Conversation?
 
     suspend fun saveMessage(
         message: ChatMessage

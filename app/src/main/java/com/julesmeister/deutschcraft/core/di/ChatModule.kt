@@ -17,4 +17,5 @@ abstract class ChatModule {
     abstract fun bindChatRepository(
         implementation: LocalFirstChatRepository
     ): ChatRepository
+
 }
