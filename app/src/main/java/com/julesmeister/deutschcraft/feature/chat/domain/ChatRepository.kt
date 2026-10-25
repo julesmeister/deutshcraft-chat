@@ -37,4 +37,9 @@ interface ChatRepository {
         conversationId: String,
         message: String
     ): AssistantReply
+
+    suspend fun updateMessageCorrection(
+        messageId: String,
+        correction: String?
+    )
 }

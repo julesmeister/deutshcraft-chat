@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "2d7642c99c81acf4b543bce494704a11",
+    "identityHash": "03e995539ad7d375803a232dcd227603",
     "entities": [
       {
         "tableName": "conversations",
@@ -157,7 +157,7 @@
       },
       {
         "tableName": "messages",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `conversationId` TEXT NOT NULL, `content` TEXT NOT NULL, `sender` TEXT NOT NULL, `sequenceNumber` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `deliveryStatus` TEXT NOT NULL, `syncStatus` TEXT NOT NULL, `remoteVersion` INTEGER, `lastSyncedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`conversationId`) REFERENCES `conversations`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `conversationId` TEXT NOT NULL, `content` TEXT NOT NULL, `sender` TEXT NOT NULL, `sequenceNumber` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `correction` TEXT, `syncStatus` TEXT NOT NULL, `remoteVersion` INTEGER, `lastSyncedAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`conversationId`) REFERENCES `conversations`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -196,10 +196,9 @@
             "notNull": true
           },
           {
-            "fieldPath": "deliveryStatus",
-            "columnName": "deliveryStatus",
-            "affinity": "TEXT",
-            "notNull": true
+            "fieldPath": "correction",
+            "columnName": "correction",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "syncStatus",
@@ -243,24 +242,6 @@
             ],
             "orders": [],
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_messages_conversationId_sequenceNumber` ON `${TABLE_NAME}` (`conversationId`, `sequenceNumber`)"
-          },
-          {
-            "name": "index_messages_createdAt",
-            "unique": false,
-            "columnNames": [
-              "createdAt"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
-          },
-          {
-            "name": "index_messages_syncStatus",
-            "unique": false,
-            "columnNames": [
-              "syncStatus"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_syncStatus` ON `${TABLE_NAME}` (`syncStatus`)"
           }
         ],
         "foreignKeys": [
@@ -1068,7 +1049,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2d7642c99c81acf4b543bce494704a11')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '03e995539ad7d375803a232dcd227603')"
     ]
   }
 }

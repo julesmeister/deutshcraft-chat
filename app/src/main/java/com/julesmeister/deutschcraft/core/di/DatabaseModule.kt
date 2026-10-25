@@ -3,35 +3,38 @@ package com.julesmeister.deutschcraft.core.di
 import android.content.Context
 import androidx.room.Room
 import com.julesmeister.deutschcraft.core.database.DeutschCraftDatabase
+import com.julesmeister.deutschcraft.core.database.dao.ActivityDayDao
 import com.julesmeister.deutschcraft.core.database.dao.AssessmentDao
 import com.julesmeister.deutschcraft.core.database.dao.ConversationDao
 import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
 import com.julesmeister.deutschcraft.core.database.dao.MessageDao
+import com.julesmeister.deutschcraft.core.database.migration.DatabaseMigrations
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
-import com.julesmeister.deutschcraft.core.database.dao.ActivityDayDao
 
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
-    private const val DATABASE_NAME =
-        "deutschcraft.db"
-
     @Provides
     @Singleton
     fun provideDeutschCraftDatabase(
-        @ApplicationContext context: Context
+        @ApplicationContext
+        context: Context
     ): DeutschCraftDatabase {
         return Room.databaseBuilder(
-            context = context,
-            klass = DeutschCraftDatabase::class.java,
-            name = DATABASE_NAME
-        ).build()
+            context,
+            DeutschCraftDatabase::class.java,
+            DATABASE_NAME
+        )
+            .addMigrations(
+                DatabaseMigrations.MIGRATION_5_6
+            )
+            .build()
     }
 
     @Provides
@@ -68,4 +71,7 @@ object DatabaseModule {
     ): ActivityDayDao {
         return database.activityDayDao()
     }
+
+    private const val DATABASE_NAME =
+        "deutschcraft.db"
 }

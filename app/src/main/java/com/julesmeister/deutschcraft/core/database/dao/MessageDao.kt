@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
 import com.julesmeister.deutschcraft.core.database.entity.MessageEntity
+import com.julesmeister.deutschcraft.core.database.entity.MessageSenderEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -89,6 +90,18 @@ interface MessageDao {
     suspend fun deleteMessage(
         messageId: String
     )
+
+    @Query(
+        """
+    UPDATE messages
+    SET correction = :correction
+    WHERE id = :messageId
+    """
+    )
+    suspend fun updateMessageCorrection(
+        messageId: String,
+        correction: String?
+    ): Int
 
     @Query(
         """

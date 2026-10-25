@@ -2,7 +2,6 @@ package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import androidx.compose.ui.text.input.TextFieldValue
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
-import com.julesmeister.deutschcraft.feature.chat.domain.MessageCorrection
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
 
 internal fun ChatUiState.initializationSucceeded():
@@ -25,16 +24,11 @@ internal fun ChatUiState.initializationFailed(
     )
 }
 
-internal fun ChatUiState.withMessagesAndCorrections(
-    messages: List<ChatMessage>,
-    savedCorrections: Map<String, String>
+internal fun ChatUiState.withMessages(
+    messages: List<ChatMessage>
 ): ChatUiState {
-    val mergedCorrections =
-        savedCorrections + corrections
-
     return copy(
-        messages = messages,
-        corrections = mergedCorrections
+        messages = messages
     )
 }
 
@@ -49,37 +43,36 @@ internal fun ChatUiState.withInput(
 internal fun ChatUiState.sendingStarted():
         ChatUiState {
     return copy(
-        messageInput = TextFieldValue(),
-        suggestions = emptyList(),
-        isSending = true,
-        isAssistantTyping = true,
-        isAssessing = true,
-        errorMessage = null
+        messageInput =
+            TextFieldValue(),
+        suggestions =
+            emptyList(),
+        isSending =
+            true,
+        isAssistantTyping =
+            true,
+        isAssessing =
+            true,
+        errorMessage =
+            null
     )
 }
 
 internal fun ChatUiState.sendingSucceeded(
     suggestions: List<ReplySuggestion>,
-    correction: MessageCorrection?,
     warning: String?
 ): ChatUiState {
-    val updatedCorrections =
-        if (correction == null) {
-            corrections
-        } else {
-            corrections + mapOf(
-                correction.messageId to
-                        correction.correctedSentence
-            )
-        }
-
     return copy(
-        suggestions = suggestions,
-        corrections = updatedCorrections,
-        isSending = false,
-        isAssistantTyping = false,
-        isAssessing = false,
-        errorMessage = warning
+        suggestions =
+            suggestions,
+        isSending =
+            false,
+        isAssistantTyping =
+            false,
+        isAssessing =
+            false,
+        errorMessage =
+            warning
     )
 }
 

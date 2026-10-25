@@ -46,19 +46,38 @@ class SendChatMessageUseCase @Inject constructor(
                         cleanMessage
                 )
 
+            /*
+             * Save the original learner message first.
+             *
+             * It immediately becomes visible because Room
+             * is the message source of truth.
+             */
             chatRepository.saveMessage(
                 message = userMessage
             )
 
             /*
-             * Correction can run while the remaining local
-             * progress work is being performed.
+             * Correction and assistant generation can run
+             * concurrently because they are independent
+             * Qwen requests.
              */
             val correctionDeferred =
                 async {
-                    correctLearnerMessage(
-                        message = userMessage
+                    correctAndPersist(
+                        userMessage =
+                            userMessage
                     )
+                }
+
+            val assistantReplyDeferred =
+                async {
+                    chatRepository
+                        .generateAssistantReply(
+                            conversationId =
+                                conversationId,
+                            message =
+                                cleanMessage
+                        )
                 }
 
             val activeDayCount =
@@ -77,14 +96,17 @@ class SendChatMessageUseCase @Inject constructor(
                         activeDayCount
                 )
 
+            /*
+             * Await correction independently.
+             *
+             * updateMessageCorrection() changes the Room
+             * row, causing the existing message flow to
+             * emit the expanded Besser bubble.
+             */
+            correctionDeferred.await()
+
             val assistantReply =
-                chatRepository
-                    .generateAssistantReply(
-                        conversationId =
-                            conversationId,
-                        message =
-                            cleanMessage
-                    )
+                assistantReplyDeferred.await()
 
             chatRepository.saveMessage(
                 message =
@@ -94,8 +116,6 @@ class SendChatMessageUseCase @Inject constructor(
             SendChatMessageResult(
                 assistantReply =
                     assistantReply,
-                correction =
-                    correctionDeferred.await(),
                 assessmentWarning =
                     assessmentWarning
             )
@@ -124,8 +144,47 @@ class SendChatMessageUseCase @Inject constructor(
             sequenceNumber =
                 sequenceNumber,
             timestamp =
-                clock.millis()
+                clock.millis(),
+            correction =
+                null
         )
+    }
+
+    private suspend fun correctAndPersist(
+        userMessage: ChatMessage
+    ) {
+        try {
+            val correction =
+                correctLearnerMessage(
+                    message =
+                        userMessage
+                ) ?: return
+
+            chatRepository
+                .updateMessageCorrection(
+                    messageId =
+                        correction.messageId,
+                    correction =
+                        correction.correctedSentence
+                )
+        } catch (
+            cancellationException:
+            CancellationException
+        ) {
+            throw cancellationException
+        } catch (throwable: Throwable) {
+            /*
+             * Correction is supplementary.
+             *
+             * A failed correction must not prevent the
+             * assistant from responding.
+             */
+            Log.e(
+                SEND_MESSAGE_TAG,
+                "Correction could not be persisted.",
+                throwable
+            )
+        }
     }
 
     private suspend fun assessWithoutBreakingChat(

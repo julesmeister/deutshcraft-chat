@@ -54,7 +54,8 @@ fun MessageEntity.toDomain(): ChatMessage {
         content = content,
         sender = sender.toDomain(),
         sequenceNumber = sequenceNumber,
-        timestamp = createdAt
+        timestamp = createdAt,
+        correction = correction
     )
 }
 
@@ -66,7 +67,7 @@ fun ChatMessage.toEntity(): MessageEntity {
         sender = sender.toEntity(),
         sequenceNumber = sequenceNumber,
         createdAt = timestamp,
-        deliveryStatus = DEFAULT_DELIVERY_STATUS,
+        correction = correction,
         syncStatus = SyncStatusEntity.LOCAL_ONLY,
         remoteVersion = null,
         lastSyncedAt = null

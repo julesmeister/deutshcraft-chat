@@ -7,6 +7,7 @@ import com.julesmeister.deutschcraft.core.database.dao.MessageDao
 import com.julesmeister.deutschcraft.core.database.entity.ConversationEntity
 import com.julesmeister.deutschcraft.core.database.entity.ConversationTitleSource
 import com.julesmeister.deutschcraft.core.database.entity.MessageEntity
+import com.julesmeister.deutschcraft.core.database.entity.MessageSenderEntity
 import com.julesmeister.deutschcraft.core.database.entity.SyncStatusEntity
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -114,6 +115,19 @@ class ChatLocalDataSource @Inject constructor(
                     updatedAt,
                 syncStatus =
                     SyncStatusEntity.LOCAL_ONLY
+            )
+
+        return updatedRows > 0
+    }
+
+    suspend fun updateMessageCorrection(
+        messageId: String,
+        correction: String?
+    ): Boolean {
+        val updatedRows =
+            messageDao.updateMessageCorrection(
+                messageId = messageId,
+                correction = correction,
             )
 
         return updatedRows > 0

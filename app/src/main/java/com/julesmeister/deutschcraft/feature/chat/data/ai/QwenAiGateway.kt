@@ -21,7 +21,9 @@ import retrofit2.HttpException
 @Singleton
 class QwenAiGateway @Inject constructor(
     private val qwenApi: QwenApi,
-    private val json: Json
+    private val json: Json,
+    private val companionPersona:
+    DeutschCraftCompanionPersona
 ) : DeutschCraftAiGateway {
 
     override suspend fun generateReply(
@@ -31,30 +33,37 @@ class QwenAiGateway @Inject constructor(
     ): AiReply {
         if (BuildConfig.QWEN_API_KEY.isBlank()) {
             throw AiGatewayException(
-                message = "The Qwen API key is missing."
+                message =
+                    "The Qwen API key is missing."
             )
         }
 
         return try {
             val initialContent =
                 requestCompletion(
-                    messages = buildPromptMessages(
-                        learnerMessage = learnerMessage,
-                        conversationHistory =
-                            conversationHistory,
-                        cefrLevel = cefrLevel
-                    )
+                    messages =
+                        buildPromptMessages(
+                            learnerMessage =
+                                learnerMessage,
+                            conversationHistory =
+                                conversationHistory,
+                            cefrLevel =
+                                cefrLevel
+                        )
                 )
 
             val initialPayload =
                 decodePayload(
-                    responseContent = initialContent
+                    responseContent =
+                        initialContent
                 )
 
             val validInitialReply =
                 validatePayload(
-                    payload = initialPayload,
-                    learnerMessage = learnerMessage
+                    payload =
+                        initialPayload,
+                    learnerMessage =
+                        learnerMessage
                 )
 
             if (validInitialReply != null) {
@@ -63,66 +72,85 @@ class QwenAiGateway @Inject constructor(
 
             Log.w(
                 QWEN_GATEWAY_TAG,
-                "Qwen returned an invalid or echoed reply. " +
-                        "Retrying once."
+                "Qwen returned an invalid or echoed " +
+                        "response. Retrying once."
             )
 
             val repairedContent =
                 requestCompletion(
-                    messages = buildRepairMessages(
-                        learnerMessage = learnerMessage,
-                        malformedResponse = initialContent,
-                        cefrLevel = cefrLevel
-                    ),
-                    temperature = REPAIR_TEMPERATURE
+                    messages =
+                        buildRepairMessages(
+                            learnerMessage =
+                                learnerMessage,
+                            malformedResponse =
+                                initialContent,
+                            cefrLevel =
+                                cefrLevel
+                        ),
+                    temperature =
+                        REPAIR_TEMPERATURE
                 )
 
             val repairedPayload =
                 decodePayload(
-                    responseContent = repairedContent
+                    responseContent =
+                        repairedContent
                 )
 
             validatePayload(
-                payload = repairedPayload,
-                learnerMessage = learnerMessage
+                payload =
+                    repairedPayload,
+                learnerMessage =
+                    learnerMessage
             ) ?: throw AiGatewayException(
                 message =
-                    "Qwen did not return a usable reply " +
-                            "after one retry."
+                    "Qwen did not return a usable " +
+                            "response after one retry."
             )
         } catch (
-            cancellationException: CancellationException
+            cancellationException:
+            CancellationException
         ) {
             throw cancellationException
         } catch (
-            httpException: HttpException
+            httpException:
+            HttpException
         ) {
             throw AiGatewayException(
-                message = createHttpErrorMessage(
-                    statusCode = httpException.code()
-                ),
-                cause = httpException
+                message =
+                    createHttpErrorMessage(
+                        statusCode =
+                            httpException.code()
+                    ),
+                cause =
+                    httpException
             )
         } catch (
-            ioException: IOException
+            ioException:
+            IOException
         ) {
             throw AiGatewayException(
                 message =
                     "DeutschCraft could not reach Qwen. " +
                             "Check your internet connection.",
-                cause = ioException
+                cause =
+                    ioException
             )
         } catch (
-            gatewayException: AiGatewayException
+            gatewayException:
+            AiGatewayException
         ) {
             throw gatewayException
         } catch (throwable: Throwable) {
             throw AiGatewayException(
                 message =
                     throwable.message
-                        ?: "DeutschCraft could not " +
-                        "generate an AI reply.",
-                cause = throwable
+                        ?: (
+                                "DeutschCraft could not " +
+                                        "generate an AI reply."
+                                ),
+                cause =
+                    throwable
             )
         }
     }
@@ -134,14 +162,21 @@ class QwenAiGateway @Inject constructor(
     ): String {
         val request =
             QwenChatCompletionRequest(
-                model = BuildConfig.QWEN_MODEL,
-                messages = messages,
-                enableThinking = false,
-                temperature = temperature,
-                maxTokens = MAXIMUM_RESPONSE_TOKENS,
-                responseFormat = QwenResponseFormat(
-                    type = JSON_OBJECT_TYPE
-                )
+                model =
+                    BuildConfig.QWEN_MODEL,
+                messages =
+                    messages,
+                enableThinking =
+                    false,
+                temperature =
+                    temperature,
+                maxTokens =
+                    MAXIMUM_RESPONSE_TOKENS,
+                responseFormat =
+                    QwenResponseFormat(
+                        type =
+                            JSON_OBJECT_TYPE
+                    )
             )
 
         val response =
@@ -167,50 +202,70 @@ class QwenAiGateway @Inject constructor(
 
     private fun buildPromptMessages(
         learnerMessage: String,
-        conversationHistory: List<ChatMessage>,
+        conversationHistory:
+        List<ChatMessage>,
         cefrLevel: CefrLevel
     ): List<QwenMessage> {
         val recentHistory =
             conversationHistory
-                .takeLast(MAXIMUM_HISTORY_MESSAGES)
+                .takeLast(
+                    MAXIMUM_HISTORY_MESSAGES
+                )
                 .filter { message ->
                     message.content.isNotBlank()
                 }
                 .map { message ->
                     QwenMessage(
                         role =
-                            message.sender.toQwenRole(),
+                            message.sender
+                                .toQwenRole(),
                         content =
                             message.content.trim()
                     )
                 }
 
         val latestMessageAlreadyIncluded =
-            recentHistory.lastOrNull()?.let {
-                    latestMessage ->
-
-                latestMessage.role == USER_ROLE &&
-                        normalize(latestMessage.content) ==
-                        normalize(learnerMessage)
-            } ?: false
+            recentHistory
+                .lastOrNull()
+                ?.let { latestMessage ->
+                    latestMessage.role ==
+                            USER_ROLE &&
+                            normalize(
+                                value =
+                                    latestMessage.content
+                            ) ==
+                            normalize(
+                                value =
+                                    learnerMessage
+                            )
+                }
+                ?: false
 
         return buildList {
             add(
                 QwenMessage(
-                    role = SYSTEM_ROLE,
-                    content = createSystemPrompt(
-                        cefrLevel = cefrLevel
-                    )
+                    role =
+                        SYSTEM_ROLE,
+                    content =
+                        companionPersona
+                            .createSystemPrompt(
+                                cefrLevel =
+                                    cefrLevel
+                            )
                 )
             )
 
-            addAll(recentHistory)
+            addAll(
+                recentHistory
+            )
 
             if (!latestMessageAlreadyIncluded) {
                 add(
                     QwenMessage(
-                        role = USER_ROLE,
-                        content = learnerMessage.trim()
+                        role =
+                            USER_ROLE,
+                        content =
+                            learnerMessage.trim()
                     )
                 )
             }
@@ -224,16 +279,18 @@ class QwenAiGateway @Inject constructor(
     ): List<QwenMessage> {
         return listOf(
             QwenMessage(
-                role = SYSTEM_ROLE,
+                role =
+                    SYSTEM_ROLE,
                 content =
                     """
-                    You repair malformed JSON responses for
-                    DeutschCraft.
+                    You repair malformed DeutschCraft JSON.
 
-                    Return exactly one JSON object containing:
+                    Preserve the Emil companion persona.
+
+                    Return exactly one JSON object:
 
                     {
-                      "reply": "A new German assistant reply",
+                      "reply": "A natural German response",
                       "suggestions": [
                         "First learner response",
                         "Second learner response",
@@ -242,17 +299,18 @@ class QwenAiGateway @Inject constructor(
                     }
 
                     Requirements:
-                    - "reply" must answer the learner.
-                    - "reply" must not repeat the learner's
-                      sentence.
-                    - Suggestions must respond to "reply".
-                    - Suggestions must be strings, not objects.
-                    - Use CEFR level ${cefrLevel.name}.
+                    - Match CEFR level ${cefrLevel.name}.
+                    - The reply must answer the learner.
+                    - The reply must not copy the learner.
+                    - Suggestions must be strings.
+                    - Suggestions must begin with capital
+                      letters.
                     - Return JSON only.
                     """.trimIndent()
             ),
             QwenMessage(
-                role = USER_ROLE,
+                role =
+                    USER_ROLE,
                 content =
                     """
                     Learner message:
@@ -261,54 +319,10 @@ class QwenAiGateway @Inject constructor(
                     Malformed response:
                     $malformedResponse
 
-                    Repair it now as one valid JSON object.
+                    Repair the response now.
                     """.trimIndent()
             )
         )
-    }
-
-    private fun createSystemPrompt(
-        cefrLevel: CefrLevel
-    ): String {
-        return """
-            You are DeutschCraft, a friendly German-language
-            conversation partner.
-
-            The learner's CEFR level is ${cefrLevel.name}.
-
-            Respond naturally to the learner's latest message.
-
-            If the learner uses incorrect German or inserts
-            English words:
-            - Understand their intended meaning.
-            - Reply naturally to that meaning.
-            - Model correct German in your response.
-            - Do not simply repeat their incorrect sentence.
-
-            Return exactly one JSON object:
-
-            {
-              "reply": "Your German assistant response",
-              "suggestions": [
-                "Short learner response one",
-                "Short learner response two",
-                "Short learner response three"
-              ]
-            }
-
-            Strict rules:
-            - "reply" must be a string.
-            - "suggestions" must be an array of exactly
-              three strings.
-            - Never return an array at the top level.
-            - Never return suggestions as objects.
-            - Never return keys named "text".
-            - The assistant reply must not equal the
-              learner's latest message.
-            - Suggestions are possible learner responses
-              to the assistant's generated reply.
-            - Return valid JSON only.
-        """.trimIndent()
     }
 
     private fun decodePayload(
@@ -316,21 +330,25 @@ class QwenAiGateway @Inject constructor(
     ): QwenReplyPayload {
         val cleanedContent =
             removeMarkdownCodeFence(
-                content = responseContent
+                content =
+                    responseContent
             )
 
         val root =
             try {
                 json.parseToJsonElement(
-                    string = cleanedContent
+                    string =
+                        cleanedContent
                 )
             } catch (
-                exception: SerializationException
+                exception:
+                SerializationException
             ) {
                 throw AiGatewayException(
                     message =
                         "Qwen returned invalid JSON.",
-                    cause = exception
+                    cause =
+                        exception
                 )
             }
 
@@ -342,15 +360,9 @@ class QwenAiGateway @Inject constructor(
             }
 
             is JsonArray -> {
-                /*
-                 * A top-level suggestion array has no
-                 * assistant reply. Mark it invalid so the
-                 * gateway retries instead of displaying it.
-                 */
                 Log.w(
                     QWEN_GATEWAY_TAG,
-                    "Qwen returned a top-level array " +
-                            "instead of a reply object."
+                    "Qwen returned a top-level array."
                 )
 
                 QwenReplyPayload()
@@ -385,8 +397,10 @@ class QwenAiGateway @Inject constructor(
             )
 
         return QwenReplyPayload(
-            reply = reply,
-            suggestions = suggestions
+            reply =
+                reply,
+            suggestions =
+                suggestions
         )
     }
 
@@ -416,13 +430,17 @@ class QwenAiGateway @Inject constructor(
                 }
             }
             .map { suggestion ->
-                suggestion.trim()
+                suggestion
+                    .trim()
+                    .capitalizeFirstCharacter()
             }
             .filter { suggestion ->
                 suggestion.isNotBlank()
             }
             .distinct()
-            .take(REQUIRED_SUGGESTION_COUNT)
+            .take(
+                REQUIRED_SUGGESTION_COUNT
+            )
     }
 
     private fun validatePayload(
@@ -434,33 +452,51 @@ class QwenAiGateway @Inject constructor(
 
         if (
             reply.isBlank() ||
-            looksLikeJson(reply) ||
+            looksLikeJson(
+                value = reply
+            ) ||
             repliesAreEquivalent(
-                reply = reply,
-                learnerMessage = learnerMessage
+                reply =
+                    reply,
+                learnerMessage =
+                    learnerMessage
             )
         ) {
             return null
         }
 
-        return AiReply(
-            content = reply,
-            suggestions =
-                payload.suggestions
-                    .map { suggestion ->
-                        suggestion
-                            .trim()
-                            .replace(
-                                MULTIPLE_WHITESPACE_REGEX,
-                                " "
+        val suggestions =
+            payload.suggestions
+                .map { suggestion ->
+                    suggestion
+                        .trim()
+                        .replace(
+                            MULTIPLE_WHITESPACE_REGEX,
+                            " "
+                        )
+                        .capitalizeFirstCharacter()
+                }
+                .filter { suggestion ->
+                    suggestion.isNotBlank() &&
+                            !looksLikeJson(
+                                value = suggestion
+                            ) &&
+                            !repliesAreEquivalent(
+                                reply = suggestion,
+                                learnerMessage =
+                                    learnerMessage
                             )
-                    }
-                    .filter { suggestion ->
-                        suggestion.isNotBlank() &&
-                                !looksLikeJson(suggestion)
-                    }
-                    .distinct()
-                    .take(REQUIRED_SUGGESTION_COUNT)
+                }
+                .distinct()
+                .take(
+                    REQUIRED_SUGGESTION_COUNT
+                )
+
+        return AiReply(
+            content =
+                reply,
+            suggestions =
+                suggestions
         )
     }
 
@@ -468,14 +504,11 @@ class QwenAiGateway @Inject constructor(
         reply: String,
         learnerMessage: String
     ): Boolean {
-        val normalizedReply =
-            normalize(reply)
-
-        val normalizedLearnerMessage =
-            normalize(learnerMessage)
-
-        return normalizedReply ==
-                normalizedLearnerMessage
+        return normalize(
+            value = reply
+        ) == normalize(
+            value = learnerMessage
+        )
     }
 
     private fun normalize(
@@ -619,7 +652,7 @@ class QwenAiGateway @Inject constructor(
             3
 
         const val RESPONSE_TEMPERATURE =
-            0.55
+            0.72
 
         const val REPAIR_TEMPERATURE =
             0.15
@@ -630,4 +663,31 @@ class QwenAiGateway @Inject constructor(
         val NON_LETTER_OR_DIGIT_REGEX =
             Regex("[^\\p{L}\\p{N}]+")
     }
+}
+
+private fun String.capitalizeFirstCharacter():
+        String {
+    val firstVisibleCharacterIndex =
+        indexOfFirst { character ->
+            !character.isWhitespace()
+        }
+
+    if (firstVisibleCharacterIndex == -1) {
+        return this
+    }
+
+    val firstCharacter =
+        this[firstVisibleCharacterIndex]
+
+    if (firstCharacter.isUpperCase()) {
+        return this
+    }
+
+    return replaceRange(
+        range =
+            firstVisibleCharacterIndex..
+                    firstVisibleCharacterIndex,
+        replacement =
+            firstCharacter.uppercase()
+    )
 }

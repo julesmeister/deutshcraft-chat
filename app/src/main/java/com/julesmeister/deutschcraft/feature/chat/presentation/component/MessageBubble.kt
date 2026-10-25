@@ -1,10 +1,17 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
-
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,14 +23,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
+import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -33,11 +42,103 @@ import java.util.Locale
 fun MessageBubble(
     message: ChatMessage,
     correction: String?,
+    isLatestUserMessage: Boolean,
+    isLatestAssistantMessage: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isUserMessage =
         message.sender == MessageSender.USER
+
+    val infiniteTransition =
+        rememberInfiniteTransition(
+            label = "AssistantBubblePulse"
+        )
+
+    val pulseFraction by
+    infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec =
+            infiniteRepeatable(
+                animation =
+                    tween(
+                        durationMillis =
+                            PULSE_DURATION_MILLIS,
+                        easing =
+                            FastOutSlowInEasing
+                    ),
+                repeatMode =
+                    RepeatMode.Reverse
+            ),
+        label = "AssistantBubblePulseFraction"
+    )
+
+    val regularUserColor =
+        MaterialTheme.colorScheme.primaryContainer
+
+    /*
+     * Soft mint color used only for the most recent
+     * learner message.
+     */
+    val latestUserColor =
+        DeutschLime
+
+    val latestUserContentColor =
+        Color(0xFF17331A)
+
+    val assistantStartColor =
+        MaterialTheme.colorScheme.surfaceContainer
+
+    val assistantPulseColor =
+        MaterialTheme.colorScheme.surfaceContainerHigh
+
+    val bubbleColor =
+        when {
+            isUserMessage &&
+                    isLatestUserMessage -> {
+                latestUserColor
+            }
+
+            isUserMessage -> {
+                regularUserColor
+            }
+
+            isLatestAssistantMessage -> {
+                lerp(
+                    start =
+                        assistantStartColor,
+                    stop =
+                        assistantPulseColor,
+                    fraction =
+                        pulseFraction *
+                                PULSE_COLOR_STRENGTH
+                )
+            }
+
+            else -> {
+                assistantStartColor
+            }
+        }
+
+    val contentColor =
+        when {
+            isUserMessage &&
+                    isLatestUserMessage -> {
+                latestUserContentColor
+            }
+
+            isUserMessage -> {
+                MaterialTheme.colorScheme
+                    .onPrimaryContainer
+            }
+
+            else -> {
+                MaterialTheme.colorScheme
+                    .onSurface
+            }
+        }
+
 
     val bubbleShape =
         if (isUserMessage) {
@@ -56,57 +157,36 @@ fun MessageBubble(
             )
         }
 
-    val bubbleColor =
-        if (isUserMessage) {
-            MaterialTheme
-                .colorScheme
-                .primaryContainer
-        } else {
-            MaterialTheme
-                .colorScheme
-                .surfaceContainer
-        }
-
-    val contentColor =
-        if (isUserMessage) {
-            MaterialTheme
-                .colorScheme
-                .onPrimaryContainer
-        } else {
-            MaterialTheme
-                .colorScheme
-                .onSurface
-        }
-
     Row(
         modifier =
             modifier.fillMaxWidth(),
         horizontalArrangement =
             if (isUserMessage) {
-                androidx.compose.foundation.layout
-                    .Arrangement
-                    .End
+                Arrangement.End
             } else {
-                androidx.compose.foundation.layout
-                    .Arrangement
-                    .Start
+                Arrangement.Start
             }
     ) {
         Box(
             modifier = Modifier
                 .wrapContentWidth()
                 .widthIn(
-                    min = 72.dp,
-                    max = 320.dp
+                    min = MINIMUM_BUBBLE_WIDTH,
+                    max = MAXIMUM_BUBBLE_WIDTH
                 )
                 .animateContentSize(
-                    animationSpec = spring(
-                        dampingRatio = 0.82f,
-                        stiffness = 420f
-                    )
+                    animationSpec =
+                        spring(
+                            dampingRatio =
+                                CONTENT_ANIMATION_DAMPING,
+                            stiffness =
+                                CONTENT_ANIMATION_STIFFNESS
+                        )
                 )
                 .clip(bubbleShape)
-                .background(bubbleColor)
+                .background(
+                    color = bubbleColor
+                )
                 .clickable(
                     interactionSource =
                         remember {
@@ -121,7 +201,8 @@ fun MessageBubble(
                 )
         ) {
             Column(
-                modifier = Modifier.wrapContentWidth(),
+                modifier =
+                    Modifier.wrapContentWidth(),
                 horizontalAlignment =
                     if (isUserMessage) {
                         Alignment.End
@@ -130,31 +211,28 @@ fun MessageBubble(
                     }
             ) {
                 Text(
-                    text = message.content,
+                    text =
+                        message.content,
                     style =
                         MaterialTheme.typography.bodyLarge,
-                    color = contentColor
+                    color =
+                        contentColor
                 )
 
-                Text(
-                    text = formatMessageTime(
-                        timestamp =
-                            message.timestamp
-                    ),
-                    modifier = Modifier.padding(
-                        top = 4.dp
-                    ),
-                    style =
-                        MaterialTheme.typography.labelSmall,
-                    color =
-                        contentColor.copy(
-                            alpha = 0.65f
-                        ),
-                    textAlign =
+                MessageTimestamp(
+                    timestamp =
+                        message.timestamp,
+                    contentColor =
+                        contentColor,
+                    modifier =
                         if (isUserMessage) {
-                            TextAlign.End
+                            Modifier.align(
+                                Alignment.End
+                            )
                         } else {
-                            TextAlign.Start
+                            Modifier.align(
+                                Alignment.Start
+                            )
                         }
                 )
 
@@ -163,8 +241,14 @@ fun MessageBubble(
                     !correction.isNullOrBlank()
                 ) {
                     MessageCorrectionContent(
-                        correction = correction,
-                        contentColor = contentColor
+                        correction =
+                            correction,
+                        contentColor =
+                            contentColor,
+                        modifier =
+                            Modifier.align(
+                                Alignment.End
+                            )
                     )
                 }
             }
@@ -172,12 +256,36 @@ fun MessageBubble(
     }
 }
 
+@Composable
+private fun MessageTimestamp(
+    timestamp: Long,
+    contentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text =
+            formatMessageTime(
+                timestamp = timestamp
+            ),
+        modifier =
+            modifier.padding(
+                top = 4.dp
+            ),
+        style =
+            MaterialTheme.typography.labelSmall,
+        color =
+            contentColor.copy(
+                alpha = 0.65f
+            )
+    )
+}
+
 private fun formatMessageTime(
     timestamp: Long
 ): String {
     val formatter =
         DateTimeFormatter.ofPattern(
-            "HH:mm",
+            TIME_FORMAT_PATTERN,
             Locale.getDefault()
         )
 
@@ -188,3 +296,30 @@ private fun formatMessageTime(
         )
         .format(formatter)
 }
+
+private val MINIMUM_BUBBLE_WIDTH =
+    72.dp
+
+private val MAXIMUM_BUBBLE_WIDTH =
+    320.dp
+
+private const val PULSE_DURATION_MILLIS =
+    2_200
+
+/*
+ * Keeps the assistant pulse subtle.
+ *
+ * The transition animates between 0 and 1, but only
+ * 45% of that color difference is applied.
+ */
+private const val PULSE_COLOR_STRENGTH =
+    0.45f
+
+private const val CONTENT_ANIMATION_DAMPING =
+    0.82f
+
+private const val CONTENT_ANIMATION_STIFFNESS =
+    420f
+
+private const val TIME_FORMAT_PATTERN =
+    "HH:mm"

@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
+import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiState
 import kotlinx.coroutines.delay
 
@@ -37,11 +38,6 @@ fun ChatMessageList(
     val density =
         LocalDensity.current
 
-    /*
-     * This value changes while the keyboard opens and
-     * closes. It lets the list react after the keyboard
-     * changes the available screen height.
-     */
     val keyboardBottom =
         WindowInsets.ime.getBottom(
             density = density
@@ -57,16 +53,8 @@ fun ChatMessageList(
         uiState.isAssistantTyping
 
     /*
-     * The anchor appears after all messages and after the
-     * optional typing indicator.
-     *
-     * Examples:
-     *
-     * 4 messages, no typing:
-     * Bottom anchor index = 4
-     *
-     * 4 messages, typing indicator:
-     * Bottom anchor index = 5
+     * The bottom anchor appears after all messages and
+     * after the optional typing indicator.
      */
     val bottomAnchorIndex =
         messageCount +
@@ -77,11 +65,39 @@ fun ChatMessageList(
                 }
 
     /*
-     * Runs when ChatInputBar reports that its actual
-     * text field has gained focus.
+     * Identify the most recent learner message.
      *
-     * Waiting for two frames gives Compose time to begin
-     * recalculating the keyboard-adjusted screen layout.
+     * Only this user bubble receives the mint-green
+     * background.
+     */
+    val latestUserMessageId =
+        uiState.messages
+            .lastOrNull { message ->
+                message.sender ==
+                        MessageSender.USER
+            }
+            ?.id
+
+    /*
+     * Identify the most recent assistant message.
+     *
+     * Only this assistant bubble receives the subtle
+     * background-color pulse.
+     */
+    val latestAssistantMessageId =
+        uiState.messages
+            .lastOrNull { message ->
+                message.sender ==
+                        MessageSender.ASSISTANT
+            }
+            ?.id
+
+    /*
+     * Scroll when the actual composer receives focus.
+     *
+     * Two layout frames are allowed before starting the
+     * animation so Compose can begin applying the updated
+     * layout measurements.
      */
     LaunchedEffect(scrollRequestKey) {
         if (
@@ -99,12 +115,8 @@ fun ChatMessageList(
     }
 
     /*
-     * Runs as the keyboard inset changes.
-     *
-     * LaunchedEffect automatically cancels the previous
-     * pending execution when keyboardBottom changes again.
-     * Therefore, only the latest keyboard position should
-     * produce the final animated scroll.
+     * Scroll again after the keyboard changes the
+     * available chat height.
      */
     LaunchedEffect(keyboardBottom) {
         if (
@@ -124,13 +136,13 @@ fun ChatMessageList(
     }
 
     /*
-     * Scroll when conversation content changes:
+     * Keep the latest content visible when:
      *
-     * - User message is inserted
-     * - Sending starts
-     * - Assistant typing indicator appears
-     * - Assistant response arrives
-     * - AI suggestions arrive
+     * - A user message is added
+     * - Sending begins
+     * - The typing indicator appears or disappears
+     * - The assistant message arrives
+     * - Suggested replies appear
      */
     LaunchedEffect(
         messageCount,
@@ -156,8 +168,10 @@ fun ChatMessageList(
         !hasTypingIndicator
     ) {
         Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+            modifier =
+                modifier.fillMaxSize(),
+            contentAlignment =
+                Alignment.Center
         ) {
             ChatEmptyState()
         }
@@ -166,60 +180,82 @@ fun ChatMessageList(
     }
 
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        state = listState,
-        reverseLayout = false,
+        modifier =
+            modifier.fillMaxSize(),
+        state =
+            listState,
+        reverseLayout =
+            false,
         verticalArrangement =
             Arrangement.spacedBy(6.dp)
     ) {
         items(
-            items = uiState.messages,
+            items =
+                uiState.messages,
             key = { message ->
                 message.id
             }
         ) { message ->
             MessageBubble(
-                message = message,
+                message =
+                    message,
+
+                /*
+                 * Besser is persisted in Room and restored
+                 * as part of ChatMessage.
+                 */
                 correction =
-                    uiState.corrections[message.id],
+                    message.correction,
+
+                isLatestUserMessage =
+                    message.id ==
+                            latestUserMessageId,
+
+                isLatestAssistantMessage =
+                    message.id ==
+                            latestAssistantMessageId,
+
                 onClick = {
                     onMessageClick(message)
                 },
-                modifier = Modifier.padding(
-                    horizontal = 12.dp,
-                    vertical = 2.dp
-                )
+
+                modifier =
+                    Modifier.padding(
+                        horizontal = 12.dp,
+                        vertical = 2.dp
+                    )
             )
         }
 
         if (hasTypingIndicator) {
             item(
-                key = TYPING_INDICATOR_KEY
+                key =
+                    TYPING_INDICATOR_KEY
             ) {
                 TypingIndicator(
-                    modifier = Modifier.padding(
-                        horizontal = 12.dp,
-                        vertical = 4.dp
-                    )
+                    modifier =
+                        Modifier.padding(
+                            horizontal = 12.dp,
+                            vertical = 4.dp
+                        )
                 )
             }
         }
 
         /*
-         * This real list item represents the true bottom.
-         *
-         * Scrolling to the final message alone might do
-         * nothing if Compose considers part of that message
-         * visible. Scrolling to this anchor forces the end
-         * of the list into view.
+         * A real item after the final message gives the
+         * list a reliable scrolling target when the
+         * keyboard or suggestion section changes height.
          */
         item(
-            key = BOTTOM_ANCHOR_KEY
+            key =
+                BOTTOM_ANCHOR_KEY
         ) {
             Spacer(
-                modifier = Modifier.height(
-                    BOTTOM_ANCHOR_HEIGHT
-                )
+                modifier =
+                    Modifier.height(
+                        BOTTOM_ANCHOR_HEIGHT
+                    )
             )
         }
     }
@@ -227,11 +263,11 @@ fun ChatMessageList(
 
 private suspend fun awaitLayoutFrames() {
     withFrameNanos {
-        // Wait for focus to enter composition.
+        // Wait for the focus update.
     }
 
     withFrameNanos {
-        // Wait for the resized layout to be measured.
+        // Wait for the resized layout measurement.
     }
 }
 
@@ -248,4 +284,4 @@ private const val KEYBOARD_SCROLL_DELAY_MILLIS =
     140L
 
 private const val CONTENT_SCROLL_DELAY_MILLIS =
-    100L
+    140L

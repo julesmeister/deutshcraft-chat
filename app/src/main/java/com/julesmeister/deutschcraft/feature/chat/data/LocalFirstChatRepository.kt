@@ -181,4 +181,14 @@ class LocalFirstChatRepository @Inject constructor(
         const val PRIMARY_CONVERSATION_ID =
             "primary-conversation"
     }
+
+    override suspend fun updateMessageCorrection(
+        messageId: String,
+        correction: String?
+    ) {
+        localDataSource.updateMessageCorrection(
+            messageId = messageId,
+            correction = correction
+        )
+    }
 }

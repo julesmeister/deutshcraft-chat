@@ -3,7 +3,6 @@ package com.julesmeister.deutschcraft.feature.chat.presentation
 import android.util.Log
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import com.julesmeister.deutschcraft.feature.chat.data.correction.MessageCorrectionStore
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.InitializeChatUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.ObserveChatMessagesUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.SendChatMessageUseCase
@@ -23,9 +22,7 @@ class ChatSessionCoordinator @Inject constructor(
     private val observeChatMessages:
     ObserveChatMessagesUseCase,
     private val sendChatMessage:
-    SendChatMessageUseCase,
-    private val correctionStore:
-    MessageCorrectionStore
+    SendChatMessageUseCase
 ) {
 
     private val _uiState =
@@ -169,23 +166,18 @@ class ChatSessionCoordinator @Inject constructor(
                         conversationId =
                             conversationId
                     ).collect { messages ->
-                        val savedCorrections =
-                            correctionStore
-                                .getCorrections(
-                                    messageIds =
-                                        messages.map { message ->
-                                            message.id
-                                        }
-                                )
-
+                        /*
+                         * Messages and their persisted
+                         * corrections now come directly
+                         * from Room.
+                         *
+                         * Do not modify the composer or
+                         * temporary suggestions here.
+                         */
                         _uiState.update { state ->
-                            state
-                                .withMessagesAndCorrections(
-                                    messages =
-                                        messages,
-                                    savedCorrections =
-                                        savedCorrections
-                                )
+                            state.withMessages(
+                                messages = messages
+                            )
                         }
                     }
                 } catch (
@@ -215,6 +207,9 @@ class ChatSessionCoordinator @Inject constructor(
             return
         }
 
+        /*
+         * Typing must not remove suggested replies.
+         */
         _uiState.update { state ->
             state.withInput(
                 value = value
@@ -244,11 +239,13 @@ class ChatSessionCoordinator @Inject constructor(
                 ?: return
 
         val suggestedText =
-            selectedSuggestion.text.capitalizeFirstCharacter()
+            selectedSuggestion
+                .text
+                .capitalizeFirstCharacter()
 
         /*
-         * TextRange at text.length places the cursor
-         * immediately after the final character.
+         * TextRange at the final character position keeps
+         * the cursor at the end of the inserted suggestion.
          */
         val suggestedInput =
             TextFieldValue(
@@ -263,8 +260,7 @@ class ChatSessionCoordinator @Inject constructor(
 
         _uiState.update { state ->
             state.withInput(
-                value =
-                    suggestedInput
+                value = suggestedInput
             )
         }
     }
@@ -301,6 +297,11 @@ class ChatSessionCoordinator @Inject constructor(
             return
         }
 
+        /*
+         * Suggestions answer the previous assistant
+         * message, so clear them only when the learner
+         * sends the next message.
+         */
         _uiState.update { state ->
             state.sendingStarted()
         }
@@ -316,31 +317,6 @@ class ChatSessionCoordinator @Inject constructor(
             }
     }
 
-    private fun String.capitalizeFirstCharacter():
-            String {
-        val firstIndex =
-            indexOfFirst { character ->
-                !character.isWhitespace()
-            }
-
-        if (firstIndex == -1) {
-            return this
-        }
-
-        val firstCharacter =
-            this[firstIndex]
-
-        if (firstCharacter.isUpperCase()) {
-            return this
-        }
-
-        return replaceRange(
-            range = firstIndex..firstIndex,
-            replacement =
-                firstCharacter.uppercase()
-        )
-    }
-
     private suspend fun sendMessage(
         conversationId: String,
         messageText: String
@@ -354,25 +330,32 @@ class ChatSessionCoordinator @Inject constructor(
                         messageText
                 )
 
-            result.correction?.let { correction ->
-                correctionStore.save(
-                    correction =
-                        correction
-                )
-            }
+            val suggestions =
+                result
+                    .assistantReply
+                    .suggestions
 
+            /*
+             * The Besser correction is not handled here.
+             *
+             * SendChatMessageUseCase persists it directly
+             * into the original user-message row. Room then
+             * emits that updated ChatMessage automatically.
+             */
             _uiState.update { state ->
                 state.sendingSucceeded(
                     suggestions =
-                        result
-                            .assistantReply
-                            .suggestions,
-                    correction =
-                        result.correction,
+                        suggestions,
                     warning =
                         result.assessmentWarning
                 )
             }
+
+            Log.d(
+                COORDINATOR_TAG,
+                "Send completed with " +
+                        "${suggestions.size} suggestions."
+            )
         } catch (
             cancellationException:
             CancellationException
@@ -430,4 +413,31 @@ class ChatSessionCoordinator @Inject constructor(
             "The assistant could not respond. " +
                     "Your message was saved locally."
     }
+}
+
+private fun String.capitalizeFirstCharacter():
+        String {
+    val firstVisibleCharacterIndex =
+        indexOfFirst { character ->
+            !character.isWhitespace()
+        }
+
+    if (firstVisibleCharacterIndex == -1) {
+        return this
+    }
+
+    val firstCharacter =
+        this[firstVisibleCharacterIndex]
+
+    if (firstCharacter.isUpperCase()) {
+        return this
+    }
+
+    return replaceRange(
+        range =
+            firstVisibleCharacterIndex..
+                    firstVisibleCharacterIndex,
+        replacement =
+            firstCharacter.uppercase()
+    )
 }

@@ -11,11 +11,12 @@ data class ChatUiState(
     val messageInput: TextFieldValue =
         TextFieldValue(),
 
+    /*
+     * Suggestions remain temporary UI state.
+     * Only Besser corrections are persisted.
+     */
     val suggestions: List<ReplySuggestion> =
         emptyList(),
-
-    val corrections: Map<String, String> =
-        emptyMap(),
 
     val isInitializing: Boolean =
         true,
