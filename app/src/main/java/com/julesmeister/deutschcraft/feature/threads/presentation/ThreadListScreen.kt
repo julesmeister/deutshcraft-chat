@@ -13,6 +13,7 @@ import com.julesmeister.deutschcraft.feature.threads.presentation.state.remember
 @Composable
 fun ThreadListScreen(
     uiState: ThreadListUiState,
+    snackbarHostState: SnackbarHostState,
     onThreadClick: (String) -> Unit,
     onArchivedThreadsClick: () -> Unit,
     onNewThreadClick: () -> Unit,
@@ -21,9 +22,6 @@ fun ThreadListScreen(
     onErrorDismissed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val snackbarHostState = remember {
-        SnackbarHostState()
-    }
 
     val listState =
         rememberLazyListState()

@@ -1,11 +1,11 @@
 package com.julesmeister.deutschcraft.app.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.julesmeister.deutschcraft.app.navigati.StartupRoute
+import com.julesmeister.deutschcraft.feature.archivedthreads.presentation.ArchivedThreadsRoute
 import com.julesmeister.deutschcraft.feature.chat.presentation.ChatRoute
 import com.julesmeister.deutschcraft.feature.progress.presentation.ProgressRoute
 import com.julesmeister.deutschcraft.feature.threads.presentation.ThreadListRoute
@@ -17,18 +17,14 @@ fun DeutschCraftNavHost() {
 
     NavHost(
         navController = navController,
-        startDestination =
-            StartupDestination
+        startDestination = StartupDestination
     ) {
         composable<StartupDestination> {
             StartupRoute(
-                onOpenChat = {
-                        conversationId ->
-
+                onOpenChat = { conversationId ->
                     navController.navigate(
                         ChatDestination(
-                            conversationId =
-                                conversationId
+                            conversationId = conversationId
                         )
                     ) {
                         popUpTo(
@@ -54,13 +50,10 @@ fun DeutschCraftNavHost() {
 
         composable<ThreadListDestination> {
             ThreadListRoute(
-                onThreadClick = {
-                        conversationId: String ->
-
+                onThreadClick = { conversationId ->
                     navController.navigate(
                         ChatDestination(
-                            conversationId =
-                                conversationId
+                            conversationId = conversationId
                         )
                     )
                 },
@@ -75,15 +68,10 @@ fun DeutschCraftNavHost() {
         composable<ChatDestination> {
             ChatRoute(
                 onBackClick = {
-                    /*
-                     * If Chat was opened directly during
-                     * startup, Thread List might not be
-                     * present in the back stack.
-                     */
-                    val returned =
+                    val returnedToPreviousDestination =
                         navController.popBackStack()
 
-                    if (!returned) {
+                    if (!returnedToPreviousDestination) {
                         navController.navigate(
                             ThreadListDestination
                         ) {
@@ -103,6 +91,21 @@ fun DeutschCraftNavHost() {
             ProgressRoute(
                 onBackClick = {
                     navController.popBackStack()
+                }
+            )
+        }
+
+        composable<ArchivedThreadsDestination> {
+            ArchivedThreadsRoute(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onThreadClick = { conversationId ->
+                    navController.navigate(
+                        ChatDestination(
+                            conversationId = conversationId
+                        )
+                    )
                 }
             )
         }

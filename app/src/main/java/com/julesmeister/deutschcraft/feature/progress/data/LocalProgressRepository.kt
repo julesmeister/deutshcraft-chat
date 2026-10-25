@@ -24,7 +24,9 @@ class LocalProgressRepository @Inject constructor(
                 DefaultLearnerProfile.LOCAL_PROFILE_ID
             )
             .map { relation ->
-                relation?.let(::mapToProgressSummary)
+                relation?.let(
+                    ::mapToProgressSummary
+                )
             }
     }
 
@@ -34,7 +36,9 @@ class LocalProgressRepository @Inject constructor(
             .getProfileWithSkills(
                 DefaultLearnerProfile.LOCAL_PROFILE_ID
             )
-            ?.let(::mapToProgressSummary)
+            ?.let(
+                ::mapToProgressSummary
+            )
     }
 
     override suspend fun ensureProfileExists() {
@@ -53,7 +57,9 @@ class LocalProgressRepository @Inject constructor(
             }
 
         return ProgressSummary(
-            currentLevel = profile.currentLevel,
+            currentLevel =
+                profile.currentLevel,
+
             readinessPercentage =
                 profile.readinessPercentage,
 
@@ -82,7 +88,8 @@ class LocalProgressRepository @Inject constructor(
                     ?.score
                     ?: DEFAULT_SCORE,
 
-            overallScore = profile.overallScore,
+            overallScore =
+                profile.overallScore,
 
             assessedMessageCount =
                 profile.assessedMessageCount,

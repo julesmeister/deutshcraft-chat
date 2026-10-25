@@ -11,6 +11,7 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ChatRepository
 import com.julesmeister.deutschcraft.feature.chat.domain.Conversation
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
+import com.julesmeister.deutschcraft.feature.threads.domain.LocalThreadTitleGenerator
 import java.time.Clock
 import java.util.UUID
 import javax.inject.Inject
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.map
 
 class LocalFirstChatRepository @Inject constructor(
     private val localDataSource: ChatLocalDataSource,
+    private val titleGenerator: LocalThreadTitleGenerator,
     private val clock: Clock
 ) : ChatRepository {
 
@@ -104,11 +106,35 @@ class LocalFirstChatRepository @Inject constructor(
         )
     }
 
-    override suspend fun saveMessage(
-        message: ChatMessage
-    ) {
+    override suspend fun saveMessage(message: ChatMessage) {
         localDataSource.saveMessage(
             message = message.toEntity()
+        )
+
+        if (message.sender == MessageSender.USER) {
+            generateConversationTitleIfNeeded(
+                conversationId = message.conversationId,
+                messageContent = message.content
+            )
+        }
+    }
+
+    private suspend fun generateConversationTitleIfNeeded(
+        conversationId: String,
+        messageContent: String
+    ) {
+        if (messageContent.isBlank()) {
+            return
+        }
+
+        val generatedTitle = titleGenerator.generate(
+            message = messageContent
+        )
+
+        localDataSource.updateGeneratedConversationTitle(
+            conversationId = conversationId,
+            title = generatedTitle,
+            updatedAt = clock.millis()
         )
     }
 

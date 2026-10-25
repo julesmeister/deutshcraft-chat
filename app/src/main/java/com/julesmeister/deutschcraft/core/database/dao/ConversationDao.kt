@@ -95,6 +95,26 @@ interface ConversationDao {
         conversationId: String
     ): ConversationEntity?
 
+    @Query(
+        """
+    UPDATE conversations
+    SET
+        title = :title,
+        titleSource = :titleSource,
+        updatedAt = :updatedAt,
+        syncStatus = :syncStatus
+    WHERE id = :conversationId
+      AND titleSource = 'DEFAULT'
+    """
+    )
+    suspend fun updateGeneratedTitle(
+        conversationId: String,
+        title: String,
+        titleSource: ConversationTitleSource,
+        updatedAt: Long,
+        syncStatus: SyncStatusEntity
+    ): Int
+
     /*
      * Retrieve the newest open conversation.
      *

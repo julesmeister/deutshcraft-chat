@@ -42,6 +42,31 @@ interface ActivityDayDao {
 
     @Query(
         """
+    SELECT epochDay
+    FROM activity_days
+    WHERE profileId = :profileId
+    ORDER BY epochDay ASC
+    """
+    )
+    fun observeActiveEpochDays(
+        profileId: String
+    ): Flow<List<Long>>
+
+    @Query(
+        """
+    SELECT epochDay
+    FROM activity_days
+    WHERE profileId = :profileId
+    ORDER BY epochDay ASC
+    """
+    )
+    suspend fun getActiveEpochDays(
+        profileId: String
+    ): List<Long>
+
+
+    @Query(
+        """
         SELECT *
         FROM activity_days
         WHERE profileId = :profileId

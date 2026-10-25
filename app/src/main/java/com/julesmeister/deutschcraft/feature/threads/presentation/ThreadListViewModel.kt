@@ -17,13 +17,15 @@ import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.combine
 
 @HiltViewModel
 class ThreadListViewModel @Inject constructor(
@@ -32,10 +34,9 @@ class ThreadListViewModel @Inject constructor(
     private val clock: Clock
 ) : ViewModel() {
 
-    private val _uiState =
-        MutableStateFlow(
-            ThreadListUiState()
-        )
+    private val _uiState = MutableStateFlow(
+        ThreadListUiState()
+    )
 
     val uiState: StateFlow<ThreadListUiState> =
         _uiState.asStateFlow()
@@ -45,8 +46,7 @@ class ThreadListViewModel @Inject constructor(
      * persistent screen state.
      *
      * A Channel prevents navigation from happening
-     * again after configuration changes or
-     * recomposition.
+     * again after configuration changes or recomposition.
      */
     private val navigationEventChannel =
         Channel<ThreadListNavigationEvent>(
@@ -57,11 +57,27 @@ class ThreadListViewModel @Inject constructor(
             Flow<ThreadListNavigationEvent> =
         navigationEventChannel.receiveAsFlow()
 
+    /*
+     * A successful archive operation emits a one-time
+     * Snackbar event.
+     *
+     * The Route collects this event and displays:
+     *
+     * "Conversation title" archived    UNDO
+     */
+    private val _archiveSnackbarEvents =
+        MutableSharedFlow<ArchiveSnackbarEvent>(
+            extraBufferCapacity = 1
+        )
+
+    val archiveSnackbarEvents =
+        _archiveSnackbarEvents.asSharedFlow()
+
     init {
         observeThreads()
     }
 
-    /**
+    /*
      * Creates a real conversation in Room and emits
      * its ID so ThreadListRoute can navigate to Chat.
      */
@@ -90,8 +106,7 @@ class ThreadListViewModel @Inject constructor(
                         )
                 )
             } catch (
-                cancellationException:
-                CancellationException
+                cancellationException: CancellationException
             ) {
                 throw cancellationException
             } catch (throwable: Throwable) {
@@ -116,56 +131,38 @@ class ThreadListViewModel @Inject constructor(
         }
     }
 
-    fun dismissError() {
-        _uiState.update { currentState ->
-            currentState.copy(
-                errorMessage = null
-            )
-        }
-    }
-
-    fun restoreThread(
-        conversationId: String
-    ) {
-        viewModelScope.launch {
-            try {
-                threadRepository.restoreThread(
-                    conversationId = conversationId
-                )
-            } catch (
-                cancellationException:
-                CancellationException
-            ) {
-                throw cancellationException
-            } catch (throwable: Throwable) {
-                Log.e(
-                    VIEW_MODEL_TAG,
-                    "Failed to restore conversation " +
-                            conversationId,
-                    throwable
-                )
-
-                showError(
-                    message =
-                        "Die Unterhaltung konnte nicht " +
-                                "wiederhergestellt werden."
-                )
-            }
-        }
-    }
-
+    /*
+     * Archives a conversation.
+     *
+     * The conversation title is retrieved before Room
+     * removes the item from the active conversation flow.
+     *
+     * After the archive succeeds, a Snackbar event is
+     * emitted so the user can undo the operation.
+     */
     fun archiveThread(
         conversationId: String
     ) {
+        val conversationTitle =
+            findActiveThread(
+                conversationId = conversationId
+            )?.title ?: DEFAULT_CONVERSATION_TITLE
+
         viewModelScope.launch {
             try {
                 threadRepository.archiveThread(
-                    conversationId =
-                        conversationId
+                    conversationId = conversationId
+                )
+
+                _archiveSnackbarEvents.emit(
+                    ArchiveSnackbarEvent(
+                        conversationId = conversationId,
+                        conversationTitle =
+                            conversationTitle
+                    )
                 )
             } catch (
-                cancellationException:
-                CancellationException
+                cancellationException: CancellationException
             ) {
                 throw cancellationException
             } catch (throwable: Throwable) {
@@ -185,18 +182,51 @@ class ThreadListViewModel @Inject constructor(
         }
     }
 
+    /*
+     * Restores an archived conversation.
+     *
+     * This is used both by the archived conversations
+     * screen and by the UNDO Snackbar action.
+     */
+    fun restoreThread(
+        conversationId: String
+    ) {
+        viewModelScope.launch {
+            try {
+                threadRepository.restoreThread(
+                    conversationId = conversationId
+                )
+            } catch (
+                cancellationException: CancellationException
+            ) {
+                throw cancellationException
+            } catch (throwable: Throwable) {
+                Log.e(
+                    VIEW_MODEL_TAG,
+                    "Failed to restore conversation " +
+                            conversationId,
+                    throwable
+                )
+
+                showError(
+                    message =
+                        "Die Unterhaltung konnte nicht " +
+                                "wiederhergestellt werden."
+                )
+            }
+        }
+    }
+
     fun deleteThread(
         conversationId: String
     ) {
         viewModelScope.launch {
             try {
                 threadRepository.deleteThread(
-                    conversationId =
-                        conversationId
+                    conversationId = conversationId
                 )
             } catch (
-                cancellationException:
-                CancellationException
+                cancellationException: CancellationException
             ) {
                 throw cancellationException
             } catch (throwable: Throwable) {
@@ -216,17 +246,46 @@ class ThreadListViewModel @Inject constructor(
         }
     }
 
+    fun dismissError() {
+        _uiState.update { currentState ->
+            currentState.copy(
+                errorMessage = null
+            )
+        }
+    }
+
+    /*
+     * Finds the active thread before it disappears after
+     * archiving.
+     *
+     * We need its title for the Snackbar message.
+     */
+    private fun findActiveThread(
+        conversationId: String
+    ): ConversationThread? {
+        return _uiState.value.sections
+            .asSequence()
+            .flatMap { section ->
+                section.threads.asSequence()
+            }
+            .firstOrNull { thread ->
+                thread.id == conversationId
+            }
+    }
+
     private fun observeThreads() {
         viewModelScope.launch {
             try {
                 combine(
                     threadRepository.observeThreads(),
-                    threadRepository
-                        .observeArchivedThreads()
+                    threadRepository.observeArchivedThreads()
                 ) { activeThreads, archivedThreads ->
                     activeThreads to archivedThreads
                 }.collect {
-                        (activeThreads, archivedThreads) ->
+                        (
+                            activeThreads,
+                            archivedThreads
+                        ) ->
 
                     _uiState.update { currentState ->
                         currentState.copy(
@@ -241,8 +300,7 @@ class ThreadListViewModel @Inject constructor(
                     }
                 }
             } catch (
-                cancellationException:
-                CancellationException
+                cancellationException: CancellationException
             ) {
                 throw cancellationException
             } catch (throwable: Throwable) {
@@ -309,8 +367,7 @@ class ThreadListViewModel @Inject constructor(
                     ),
                     threads =
                         dailyThreads
-                            .sortedByDescending {
-                                    thread ->
+                            .sortedByDescending { thread ->
                                 thread.updatedAt
                             }
                 )
@@ -379,6 +436,9 @@ class ThreadListViewModel @Inject constructor(
 
         const val YESTERDAY_LABEL =
             "Gestern"
+
+        const val DEFAULT_CONVERSATION_TITLE =
+            "Unterhaltung"
 
         val DATE_FORMATTER:
                 DateTimeFormatter =

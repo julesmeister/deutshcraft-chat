@@ -1,23 +1,24 @@
 package com.julesmeister.deutschcraft.core.activity
 
+import com.julesmeister.deutschcraft.core.activity.model.StreakSummary
+import kotlinx.coroutines.flow.Flow
+
 interface ActivityTracker {
 
-    /**
-     * Records one sent user message for today's
-     * local calendar date.
+    /*
+     * Compatibility method used by the existing
+     * ChatViewModel or assessment pipeline.
      *
-     * Returns the learner's total active-day count.
+     * One call records one user-message activity.
      */
+    suspend fun recordActivity(
+        profileId: String
+    ): Int
+
     suspend fun recordMessageActivity(
         profileId: String
     ): Int
 
-    /**
-     * Records one completed assessment for today's
-     * local calendar date.
-     *
-     * Returns the learner's total active-day count.
-     */
     suspend fun recordAssessmentActivity(
         profileId: String
     ): Int
@@ -25,4 +26,23 @@ interface ActivityTracker {
     suspend fun getActiveDayCount(
         profileId: String
     ): Int
+
+    /*
+     * Compatibility method for callers that only need
+     * the current streak number.
+     */
+    suspend fun getStreakCount(
+        profileId: String
+    ): Int
+
+    /*
+     * Full streak information used by the Progress screen.
+     */
+    fun observeStreak(
+        profileId: String
+    ): Flow<StreakSummary>
+
+    suspend fun getStreak(
+        profileId: String
+    ): StreakSummary
 }

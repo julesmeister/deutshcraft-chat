@@ -5,6 +5,7 @@ import com.julesmeister.deutschcraft.core.database.DeutschCraftDatabase
 import com.julesmeister.deutschcraft.core.database.dao.ConversationDao
 import com.julesmeister.deutschcraft.core.database.dao.MessageDao
 import com.julesmeister.deutschcraft.core.database.entity.ConversationEntity
+import com.julesmeister.deutschcraft.core.database.entity.ConversationTitleSource
 import com.julesmeister.deutschcraft.core.database.entity.MessageEntity
 import com.julesmeister.deutschcraft.core.database.entity.SyncStatusEntity
 import javax.inject.Inject
@@ -79,5 +80,21 @@ class ChatLocalDataSource @Inject constructor(
         conversationDao.deleteConversationPermanently(
             conversationId
         )
+    }
+
+    suspend fun updateGeneratedConversationTitle(
+        conversationId: String,
+        title: String,
+        updatedAt: Long
+    ): Boolean {
+        val updatedRows = conversationDao.updateGeneratedTitle(
+            conversationId = conversationId,
+            title = title,
+            titleSource = ConversationTitleSource.LOCAL_GENERATED,
+            updatedAt = updatedAt,
+            syncStatus = SyncStatusEntity.LOCAL_ONLY
+        )
+
+        return updatedRows > 0
     }
 }
