@@ -37,6 +37,14 @@ class LocalFirstChatRepository @Inject constructor(
             }
     }
 
+    override suspend fun createConversation():
+            Conversation {
+        return createConversation(
+            conversationId =
+                UUID.randomUUID().toString()
+        )
+    }
+
     override suspend fun getConversation(
         conversationId: String
     ): Conversation? {

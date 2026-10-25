@@ -64,18 +64,9 @@ fun DeutschCraftNavHost() {
                         )
                     )
                 },
-                onNewThreadClick = {
-                    /*
-                     * Temporary behavior.
-                     *
-                     * The next step will create a proper
-                     * daily conversation before navigating.
-                     */
+                onArchivedThreadsClick = {
                     navController.navigate(
-                        ChatDestination(
-                            conversationId =
-                                PRIMARY_CONVERSATION_ID
-                        )
+                        ArchivedThreadsDestination
                     )
                 }
             )
@@ -117,6 +108,3 @@ fun DeutschCraftNavHost() {
         }
     }
 }
-
-private const val PRIMARY_CONVERSATION_ID =
-    "primary-conversation"

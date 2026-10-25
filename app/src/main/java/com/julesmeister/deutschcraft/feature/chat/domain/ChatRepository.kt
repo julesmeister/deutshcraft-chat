@@ -19,7 +19,11 @@ interface ChatRepository {
     suspend fun getOrCreatePrimaryConversation():
             Conversation
 
-    suspend fun getOpenConversationForToday(): Conversation?
+    suspend fun getOpenConversationForToday():
+            Conversation?
+
+    suspend fun createConversation():
+            Conversation
 
     suspend fun saveMessage(
         message: ChatMessage

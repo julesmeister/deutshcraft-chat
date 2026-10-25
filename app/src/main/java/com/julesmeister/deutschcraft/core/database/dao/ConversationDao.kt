@@ -224,6 +224,33 @@ interface ConversationDao {
         syncStatus: SyncStatusEntity
     ): Int
 
+    @Query(
+        """
+    SELECT *
+    FROM conversations
+    WHERE isArchived = 1
+    ORDER BY updatedAt DESC
+    """
+    )
+    fun observeArchivedConversations():
+            Flow<List<ConversationEntity>>
+
+    @Query(
+        """
+    UPDATE conversations
+    SET
+        isArchived = 0,
+        updatedAt = :updatedAt,
+        syncStatus = :syncStatus
+    WHERE id = :conversationId
+    """
+    )
+    suspend fun restoreConversation(
+        conversationId: String,
+        updatedAt: Long,
+        syncStatus: SyncStatusEntity
+    ): Int
+
     /*
      * Retrieve conversations awaiting future cloud
      * synchronization.

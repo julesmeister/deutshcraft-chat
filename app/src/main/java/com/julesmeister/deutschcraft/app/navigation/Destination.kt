@@ -20,3 +20,6 @@ data object ProgressDestination
 data class AssessmentDestination(
     val assessmentId: String
 )
+
+@Serializable
+data object ArchivedThreadsDestination

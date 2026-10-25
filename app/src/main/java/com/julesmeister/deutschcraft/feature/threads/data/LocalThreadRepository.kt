@@ -28,6 +28,17 @@ class LocalThreadRepository @Inject constructor(
             }
     }
 
+    override fun observeArchivedThreads():
+            Flow<List<ConversationThread>> {
+        return conversationDao
+            .observeArchivedConversations()
+            .map { conversations ->
+                conversations.map { conversation ->
+                    conversation.toThread()
+                }
+            }
+    }
+
     override suspend fun getThread(
         conversationId: String
     ): ConversationThread? {
@@ -44,15 +55,29 @@ class LocalThreadRepository @Inject constructor(
         val affectedRows =
             conversationDao.archiveConversation(
                 conversationId = conversationId,
-                updatedAt =
-                    clock.instant().toEpochMilli(),
+                updatedAt = currentTimestamp(),
                 syncStatus =
                     SyncStatusEntity.LOCAL_ONLY
             )
 
         check(affectedRows > 0) {
-            "Conversation $conversationId " +
-                    "could not be archived."
+            "Conversation $conversationId could not be archived."
+        }
+    }
+
+    override suspend fun restoreThread(
+        conversationId: String
+    ) {
+        val affectedRows =
+            conversationDao.restoreConversation(
+                conversationId = conversationId,
+                updatedAt = currentTimestamp(),
+                syncStatus =
+                    SyncStatusEntity.LOCAL_ONLY
+            )
+
+        check(affectedRows > 0) {
+            "Conversation $conversationId could not be restored."
         }
     }
 
@@ -66,9 +91,12 @@ class LocalThreadRepository @Inject constructor(
                 )
 
         check(affectedRows > 0) {
-            "Conversation $conversationId " +
-                    "could not be deleted."
+            "Conversation $conversationId could not be deleted."
         }
+    }
+
+    private fun currentTimestamp(): Long {
+        return clock.instant().toEpochMilli()
     }
 
     private fun ConversationEntity.toThread():

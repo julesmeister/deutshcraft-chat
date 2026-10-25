@@ -3,6 +3,7 @@ package com.julesmeister.deutschcraft.feature.threads.presentation
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.julesmeister.deutschcraft.feature.chat.domain.ChatRepository
 import com.julesmeister.deutschcraft.feature.threads.domain.ConversationThread
 import com.julesmeister.deutschcraft.feature.threads.domain.ThreadRepository
 import com.julesmeister.deutschcraft.feature.threads.domain.ThreadSection
@@ -14,16 +15,20 @@ import java.time.format.FormatStyle
 import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.combine
 
 @HiltViewModel
 class ThreadListViewModel @Inject constructor(
-    private val threadRepository:
-    ThreadRepository,
+    private val threadRepository: ThreadRepository,
+    private val chatRepository: ChatRepository,
     private val clock: Clock
 ) : ViewModel() {
 
@@ -32,12 +37,83 @@ class ThreadListViewModel @Inject constructor(
             ThreadListUiState()
         )
 
-    val uiState:
-            StateFlow<ThreadListUiState> =
+    val uiState: StateFlow<ThreadListUiState> =
         _uiState.asStateFlow()
+
+    /*
+     * Navigation is a one-time event rather than
+     * persistent screen state.
+     *
+     * A Channel prevents navigation from happening
+     * again after configuration changes or
+     * recomposition.
+     */
+    private val navigationEventChannel =
+        Channel<ThreadListNavigationEvent>(
+            capacity = Channel.BUFFERED
+        )
+
+    val navigationEvents:
+            Flow<ThreadListNavigationEvent> =
+        navigationEventChannel.receiveAsFlow()
 
     init {
         observeThreads()
+    }
+
+    /**
+     * Creates a real conversation in Room and emits
+     * its ID so ThreadListRoute can navigate to Chat.
+     */
+    fun createThread() {
+        if (_uiState.value.isCreatingThread) {
+            return
+        }
+
+        _uiState.update { currentState ->
+            currentState.copy(
+                isCreatingThread = true,
+                errorMessage = null
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                val conversation =
+                    chatRepository.createConversation()
+
+                navigationEventChannel.send(
+                    ThreadListNavigationEvent
+                        .OpenConversation(
+                            conversationId =
+                                conversation.id
+                        )
+                )
+            } catch (
+                cancellationException:
+                CancellationException
+            ) {
+                throw cancellationException
+            } catch (throwable: Throwable) {
+                Log.e(
+                    VIEW_MODEL_TAG,
+                    "Failed to create conversation.",
+                    throwable
+                )
+
+                showError(
+                    message =
+                        "Die Unterhaltung konnte " +
+                                "nicht erstellt werden."
+                )
+            } finally {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        isCreatingThread = false
+                    )
+                }
+            }
+        }
     }
 
     fun dismissError() {
@@ -45,6 +121,36 @@ class ThreadListViewModel @Inject constructor(
             currentState.copy(
                 errorMessage = null
             )
+        }
+    }
+
+    fun restoreThread(
+        conversationId: String
+    ) {
+        viewModelScope.launch {
+            try {
+                threadRepository.restoreThread(
+                    conversationId = conversationId
+                )
+            } catch (
+                cancellationException:
+                CancellationException
+            ) {
+                throw cancellationException
+            } catch (throwable: Throwable) {
+                Log.e(
+                    VIEW_MODEL_TAG,
+                    "Failed to restore conversation " +
+                            conversationId,
+                    throwable
+                )
+
+                showError(
+                    message =
+                        "Die Unterhaltung konnte nicht " +
+                                "wiederhergestellt werden."
+                )
+            }
         }
     }
 
@@ -113,20 +219,27 @@ class ThreadListViewModel @Inject constructor(
     private fun observeThreads() {
         viewModelScope.launch {
             try {
-                threadRepository
-                    .observeThreads()
-                    .collect { threads ->
-                        _uiState.update {
-                                currentState ->
-                            currentState.copy(
-                                sections =
-                                    groupThreadsByDate(
-                                        threads
-                                    ),
-                                isLoading = false
-                            )
-                        }
+                combine(
+                    threadRepository.observeThreads(),
+                    threadRepository
+                        .observeArchivedThreads()
+                ) { activeThreads, archivedThreads ->
+                    activeThreads to archivedThreads
+                }.collect {
+                        (activeThreads, archivedThreads) ->
+
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            sections =
+                                groupThreadsByDate(
+                                    threads = activeThreads
+                                ),
+                            archivedThreads =
+                                archivedThreads,
+                            isLoading = false
+                        )
                     }
+                }
             } catch (
                 cancellationException:
                 CancellationException
@@ -143,9 +256,8 @@ class ThreadListViewModel @Inject constructor(
                     currentState.copy(
                         isLoading = false,
                         errorMessage =
-                            "Die Unterhaltungen " +
-                                    "konnten nicht geladen " +
-                                    "werden."
+                            "Die Unterhaltungen konnten " +
+                                    "nicht geladen werden."
                     )
                 }
             }
@@ -159,10 +271,16 @@ class ThreadListViewModel @Inject constructor(
             return emptyList()
         }
 
-        val today = currentLocalDate()
-        val todayEpochDay = today.toEpochDay()
+        val today =
+            currentLocalDate()
+
+        val todayEpochDay =
+            today.toEpochDay()
+
         val yesterdayEpochDay =
-            today.minusDays(1).toEpochDay()
+            today
+                .minusDays(1)
+                .toEpochDay()
 
         return threads
             .groupBy { thread ->
@@ -173,7 +291,13 @@ class ThreadListViewModel @Inject constructor(
                     epochDay
                 }
             )
-            .map { (epochDay, dailyThreads) ->
+            .map { entry ->
+                val epochDay =
+                    entry.key
+
+                val dailyThreads =
+                    entry.value
+
                 ThreadSection(
                     id = epochDay,
                     title = createSectionTitle(
@@ -183,11 +307,12 @@ class ThreadListViewModel @Inject constructor(
                         yesterdayEpochDay =
                             yesterdayEpochDay
                     ),
-                    threads = dailyThreads
-                        .sortedByDescending {
-                                thread ->
-                            thread.updatedAt
-                        }
+                    threads =
+                        dailyThreads
+                            .sortedByDescending {
+                                    thread ->
+                                thread.updatedAt
+                            }
                 )
             }
     }
@@ -218,7 +343,9 @@ class ThreadListViewModel @Inject constructor(
         epochDay: Long
     ): String {
         val date =
-            LocalDate.ofEpochDay(epochDay)
+            LocalDate.ofEpochDay(
+                epochDay
+            )
 
         return date.format(
             DATE_FORMATTER

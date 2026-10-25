@@ -1,39 +1,45 @@
 package com.julesmeister.deutschcraft.feature.threads.presentation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-
 @Composable
 fun ThreadListRoute(
     onThreadClick: (String) -> Unit,
-    onNewThreadClick: () -> Unit,
+    onArchivedThreadsClick: () -> Unit,
     viewModel: ThreadListViewModel =
         hiltViewModel()
 ) {
     val uiState by viewModel.uiState
         .collectAsStateWithLifecycle()
 
+    LaunchedEffect(viewModel) {
+        viewModel.navigationEvents
+            .collect { event ->
+                when (event) {
+                    is ThreadListNavigationEvent
+                    .OpenConversation -> {
+                        onThreadClick(
+                            event.conversationId
+                        )
+                    }
+                }
+            }
+    }
+
     ThreadListScreen(
         uiState = uiState,
         onThreadClick = onThreadClick,
+        onArchivedThreadsClick =
+            onArchivedThreadsClick,
         onNewThreadClick =
-            onNewThreadClick,
-        onArchiveThread = {
-                conversationId ->
-            viewModel.archiveThread(
-                conversationId =
-                    conversationId
-            )
-        },
-        onDeleteThread = {
-                conversationId ->
-            viewModel.deleteThread(
-                conversationId =
-                    conversationId
-            )
-        },
+            viewModel::createThread,
+        onArchiveThread =
+            viewModel::archiveThread,
+        onDeleteThread =
+            viewModel::deleteThread,
         onErrorDismissed =
             viewModel::dismissError
     )
