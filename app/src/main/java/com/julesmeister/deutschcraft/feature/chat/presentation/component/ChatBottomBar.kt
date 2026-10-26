@@ -1,5 +1,14 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,11 +23,9 @@ import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiAction
 import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiState
 
 /*
- * onAddClick is intentionally retained.
- *
- * The current Telegram-style composer does not display an
- * add button, but this callback remains available for a
- * future attachment or learning-tools action.
+ * onAddClick remains available for future learning-tool or
+ * attachment support even though no add button is displayed
+ * in the current composer.
  */
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -29,15 +36,6 @@ fun ChatBottomBar(
     onInputFocused: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    /*
-     * There is deliberately no background on this Column.
-     *
-     * The conversation remains visible through the spaces:
-     *
-     * - Around the suggestion pills
-     * - Between suggestions and composer
-     * - To the left and right of the composer
-     */
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -54,15 +52,95 @@ fun ChatBottomBar(
                     BOTTOM_BAR_BOTTOM_PADDING
             )
     ) {
+        AnimatedVisibility(
+            visible =
+                uiState.missionOffer != null,
+            enter =
+                fadeIn(
+                    animationSpec =
+                        tween(
+                            durationMillis =
+                                OFFER_ENTER_DURATION_MILLIS
+                        )
+                ) +
+                        slideInVertically(
+                            initialOffsetY = {
+                                it / 3
+                            },
+                            animationSpec =
+                                tween(
+                                    durationMillis =
+                                        OFFER_ENTER_DURATION_MILLIS,
+                                    easing =
+                                        FastOutSlowInEasing
+                                )
+                        ) +
+                        scaleIn(
+                            initialScale =
+                                OFFER_ENTER_SCALE
+                        ),
+            exit =
+                fadeOut(
+                    animationSpec =
+                        tween(
+                            durationMillis =
+                                OFFER_EXIT_DURATION_MILLIS
+                        )
+                ) +
+                        slideOutVertically(
+                            targetOffsetY = {
+                                it / 4
+                            },
+                            animationSpec =
+                                tween(
+                                    durationMillis =
+                                        OFFER_EXIT_DURATION_MILLIS
+                                )
+                        ) +
+                        scaleOut(
+                            targetScale =
+                                OFFER_EXIT_SCALE
+                        )
+        ) {
+            uiState.missionOffer?.let { offer ->
+                MissionOfferCard(
+                    opportunity =
+                        offer,
+                    isStarting =
+                        uiState.isStartingMission,
+                    onStartClick = {
+                        onAction(
+                            ChatUiAction
+                                .StartOfferedMission
+                        )
+                    },
+                    onDismissClick = {
+                        onAction(
+                            ChatUiAction
+                                .DismissMissionOffer
+                        )
+                    }
+                )
+            }
+        }
+
+        if (uiState.missionOffer != null) {
+            Spacer(
+                modifier =
+                    Modifier.height(
+                        OFFER_CONTENT_SPACING
+                    )
+            )
+        }
+
         FloatingReplySuggestions(
             suggestions =
                 uiState.suggestions,
             enabled =
                 !uiState.isInitializing &&
-                        !uiState.isSending,
-            onSuggestionClick = {
-                    suggestionId ->
-
+                        !uiState.isSending &&
+                        !uiState.isStartingMission,
+            onSuggestionClick = { suggestionId ->
                 onAction(
                     ChatUiAction
                         .SuggestionSelected(
@@ -88,7 +166,8 @@ fun ChatBottomBar(
             value =
                 uiState.messageInput,
             enabled =
-                !uiState.isInitializing,
+                !uiState.isInitializing &&
+                        !uiState.isStartingMission,
             isSending =
                 uiState.isSending,
             onValueChange = { value ->
@@ -122,5 +201,20 @@ private val BOTTOM_BAR_TOP_PADDING =
 private val BOTTOM_BAR_BOTTOM_PADDING =
     10.dp
 
+private val OFFER_CONTENT_SPACING =
+    10.dp
+
 private val SUGGESTION_COMPOSER_SPACING =
     8.dp
+
+private const val OFFER_ENTER_DURATION_MILLIS =
+    340
+
+private const val OFFER_EXIT_DURATION_MILLIS =
+    220
+
+private const val OFFER_ENTER_SCALE =
+    0.96f
+
+private const val OFFER_EXIT_SCALE =
+    0.98f

@@ -5,12 +5,15 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionObjectiveProgress
+import com.julesmeister.deutschcraft.feature.mission.domain.generated.MissionOpportunity
 
 internal fun ChatUiState.initializationSucceeded():
         ChatUiState {
     return copy(
-        isInitializing = false,
-        errorMessage = null
+        isInitializing =
+            false,
+        errorMessage =
+            null
     )
 }
 
@@ -18,11 +21,20 @@ internal fun ChatUiState.initializationFailed(
     message: String
 ): ChatUiState {
     return copy(
-        isInitializing = false,
-        isSending = false,
-        isAssistantTyping = false,
-        isAssessing = false,
-        errorMessage = message
+        isInitializing =
+            false,
+        isSending =
+            false,
+        isAssistantTyping =
+            false,
+        isAssessing =
+            false,
+        isCheckingMissionOpportunity =
+            false,
+        isStartingMission =
+            false,
+        errorMessage =
+            message
     )
 }
 
@@ -30,7 +42,8 @@ internal fun ChatUiState.withMessages(
     messages: List<ChatMessage>
 ): ChatUiState {
     return copy(
-        messages = messages
+        messages =
+            messages
     )
 }
 
@@ -38,7 +51,8 @@ internal fun ChatUiState.withInput(
     value: TextFieldValue
 ): ChatUiState {
     return copy(
-        messageInput = value
+        messageInput =
+            value
     )
 }
 
@@ -82,10 +96,96 @@ internal fun ChatUiState.sendingFailed(
     message: String
 ): ChatUiState {
     return copy(
-        isSending = false,
-        isAssistantTyping = false,
-        isAssessing = false,
-        errorMessage = message
+        isSending =
+            false,
+        isAssistantTyping =
+            false,
+        isAssessing =
+            false,
+        isCheckingMissionOpportunity =
+            false,
+        errorMessage =
+            message
+    )
+}
+
+internal fun ChatUiState.missionCheckStarted():
+        ChatUiState {
+    if (
+        activeMissionId != null ||
+        missionOffer != null
+    ) {
+        return this
+    }
+
+    return copy(
+        isCheckingMissionOpportunity =
+            true
+    )
+}
+
+internal fun ChatUiState.missionCheckFinished(
+    offer: MissionOpportunity?
+): ChatUiState {
+    return copy(
+        missionOffer =
+            if (activeMissionId == null) {
+                offer
+            } else {
+                null
+            },
+        isCheckingMissionOpportunity =
+            false
+    )
+}
+
+internal fun ChatUiState.missionOfferDismissed():
+        ChatUiState {
+    return copy(
+        missionOffer =
+            null,
+        isCheckingMissionOpportunity =
+            false
+    )
+}
+
+internal fun ChatUiState.missionStartStarted():
+        ChatUiState {
+    if (
+        missionOffer == null ||
+        isStartingMission
+    ) {
+        return this
+    }
+
+    return copy(
+        isStartingMission =
+            true,
+        errorMessage =
+            null
+    )
+}
+
+internal fun ChatUiState.missionStartSucceeded():
+        ChatUiState {
+    return copy(
+        missionOffer =
+            null,
+        isStartingMission =
+            false,
+        isCheckingMissionOpportunity =
+            false
+    )
+}
+
+internal fun ChatUiState.missionStartFailed(
+    message: String
+): ChatUiState {
+    return copy(
+        isStartingMission =
+            false,
+        errorMessage =
+            message
     )
 }
 
@@ -135,6 +235,12 @@ internal fun ChatUiState.withActiveMission(
         }
 
     return copy(
+        missionOffer =
+            null,
+        isCheckingMissionOpportunity =
+            false,
+        isStartingMission =
+            false,
         activeMissionId =
             mission.id,
         activeMissionTitle =
@@ -171,13 +277,15 @@ internal fun ChatUiState.objectiveCompletionShown(
     }
 
     return copy(
-        objectiveCompletionEvent = null
+        objectiveCompletionEvent =
+            null
     )
 }
 
 internal fun ChatUiState.errorDismissed():
         ChatUiState {
     return copy(
-        errorMessage = null
+        errorMessage =
+            null
     )
 }

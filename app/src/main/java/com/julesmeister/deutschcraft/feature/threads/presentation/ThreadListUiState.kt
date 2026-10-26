@@ -1,5 +1,6 @@
 package com.julesmeister.deutschcraft.feature.threads.presentation
 
+import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionThreadRecommendation
 import com.julesmeister.deutschcraft.feature.threads.domain.ConversationThread
 import com.julesmeister.deutschcraft.feature.threads.domain.ThreadSection
 
@@ -11,23 +12,46 @@ data class ThreadListUiState(
     List<ConversationThread> =
         emptyList(),
 
-    val isLoading: Boolean = true,
+    /*
+     * One AI-generated conversation waiting to be opened.
+     *
+     * It is rendered like a normal thread with a lime
+     * background.
+     */
+    val missionRecommendation:
+    MissionThreadRecommendation? =
+        null,
 
-    val isCreatingThread: Boolean = false,
+    val isLoading: Boolean =
+        true,
 
-    val errorMessage: String? = null
+    val isLoadingMissionRecommendation: Boolean =
+        false,
+
+    val isCreatingThread: Boolean =
+        false,
+
+    val isStartingRecommendedMission: Boolean =
+        false,
+
+    val errorMessage: String? =
+        null
 ) {
+
     val isEmpty: Boolean
         get() {
             return !isLoading &&
-                    sections.isEmpty()
+                    sections.isEmpty() &&
+                    missionRecommendation == null
         }
 
     val archivedThreadCount: Int
-        get() = archivedThreads.size
+        get() =
+            archivedThreads.size
 
     val hasArchivedThreads: Boolean
-        get() = archivedThreads.isNotEmpty()
+        get() =
+            archivedThreads.isNotEmpty()
 
     val totalThreadCount: Int
         get() {

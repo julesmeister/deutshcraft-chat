@@ -16,30 +16,39 @@ fun ThreadListRoute(
     onThreadClick: (String) -> Unit,
     onArchivedThreadsClick: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ThreadListViewModel = hiltViewModel()
+    viewModel: ThreadListViewModel =
+        hiltViewModel()
 ) {
-    val uiState by viewModel.uiState
+    val uiState by
+    viewModel
+        .uiState
         .collectAsStateWithLifecycle()
 
     /*
      * The Route owns the SnackbarHostState.
      *
-     * It passes the same instance to ThreadListScreen,
-     * which eventually renders it through ThreadListScaffold.
+     * The same instance is passed to ThreadListScreen,
+     * where ThreadListScaffold renders the Snackbar host.
      */
-    val snackbarHostState = remember {
-        SnackbarHostState()
-    }
+    val snackbarHostState =
+        remember {
+            SnackbarHostState()
+        }
 
     /*
      * Collect one-time navigation events.
      *
-     * This handles newly created conversations.
+     * This handles:
+     *
+     * - Newly created regular conversations
+     * - Newly started recommended mission conversations
      */
     LaunchedEffect(viewModel) {
         viewModel.navigationEvents.collect { event ->
             when (event) {
-                is ThreadListNavigationEvent.OpenConversation -> {
+                is ThreadListNavigationEvent
+                .OpenConversation -> {
+
                     onThreadClick(
                         event.conversationId
                     )
@@ -49,23 +58,27 @@ fun ThreadListRoute(
     }
 
     /*
-     * Collect successful archive events.
-     *
-     * The Snackbar appears only after the database
-     * archive operation succeeds.
+     * Show the archive confirmation only after the database
+     * operation succeeds.
      */
     LaunchedEffect(viewModel) {
         viewModel.archiveSnackbarEvents.collect { event ->
             val snackbarResult =
                 snackbarHostState.showSnackbar(
-                    message = buildString {
-                        append("\"")
-                        append(event.conversationTitle)
-                        append("\" archiviert")
-                    },
-                    actionLabel = "RÜCKGÄNGIG",
-                    withDismissAction = true,
-                    duration = SnackbarDuration.Long
+                    message =
+                        buildString {
+                            append("\"")
+                            append(
+                                event.conversationTitle
+                            )
+                            append("\" archiviert")
+                        },
+                    actionLabel =
+                        "RÜCKGÄNGIG",
+                    withDismissAction =
+                        true,
+                    duration =
+                        SnackbarDuration.Long
                 )
 
             if (
@@ -81,27 +94,37 @@ fun ThreadListRoute(
     }
 
     /*
-     * Display database or repository errors using the
-     * same Snackbar host.
+     * Display database, repository, or mission-start errors
+     * with the same Snackbar host.
      */
-    LaunchedEffect(uiState.errorMessage) {
+    LaunchedEffect(
+        uiState.errorMessage
+    ) {
         val errorMessage =
             uiState.errorMessage
                 ?: return@LaunchedEffect
 
         snackbarHostState.showSnackbar(
-            message = errorMessage,
-            withDismissAction = true,
-            duration = SnackbarDuration.Long
+            message =
+                errorMessage,
+            withDismissAction =
+                true,
+            duration =
+                SnackbarDuration.Long
         )
 
         viewModel.dismissError()
     }
 
     ThreadListScreen(
-        uiState = uiState,
-        snackbarHostState = snackbarHostState,
-        onThreadClick = onThreadClick,
+        uiState =
+            uiState,
+        snackbarHostState =
+            snackbarHostState,
+        onThreadClick =
+            onThreadClick,
+        onRecommendedMissionClick =
+            viewModel::startRecommendedMission,
         onArchivedThreadsClick =
             onArchivedThreadsClick,
         onNewThreadClick =
@@ -110,7 +133,9 @@ fun ThreadListRoute(
             viewModel::archiveThread,
         onDeleteThread =
             viewModel::deleteThread,
-        modifier = modifier,
-        onErrorDismissed = viewModel::dismissError,
+        onErrorDismissed =
+            viewModel::dismissError,
+        modifier =
+            modifier
     )
 }

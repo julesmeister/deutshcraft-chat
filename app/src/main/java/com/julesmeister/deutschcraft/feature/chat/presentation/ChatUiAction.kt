@@ -15,6 +15,20 @@ sealed interface ChatUiAction {
         val suggestionId: String
     ) : ChatUiAction
 
+    /*
+     * Accepts the currently displayed AI-generated mission.
+     */
+    data object StartOfferedMission :
+        ChatUiAction
+
+    /*
+     * Removes the current mission offer and prevents the
+     * same generated mission title from being offered again
+     * in this conversation during the current process.
+     */
+    data object DismissMissionOffer :
+        ChatUiAction
+
     data class ObjectiveCompletionShown(
         val eventId: String
     ) : ChatUiAction

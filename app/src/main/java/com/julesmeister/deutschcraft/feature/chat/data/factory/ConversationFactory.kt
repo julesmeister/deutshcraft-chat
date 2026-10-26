@@ -13,12 +13,22 @@ import java.util.UUID
 import javax.inject.Inject
 
 class ConversationFactory @Inject constructor(
-    private val localDataSource: ChatLocalDataSource,
-    private val clock: Clock
+    private val localDataSource:
+    ChatLocalDataSource,
+    private val clock:
+    Clock
 ) {
 
     suspend fun create(
-        conversationId: String
+        conversationId: String,
+        title: String =
+            DEFAULT_CONVERSATION_TITLE,
+        titleSource: ConversationTitleSource =
+            ConversationTitleSource.DEFAULT,
+        cefrLevel: CefrLevel =
+            CefrLevel.A1,
+        openingMessage: String =
+            INITIAL_GREETING
     ): Conversation {
         val currentInstant =
             clock.instant()
@@ -28,18 +38,35 @@ class ConversationFactory @Inject constructor(
 
         val localDate =
             currentInstant
-                .atZone(clock.zone)
+                .atZone(
+                    clock.zone
+                )
                 .toLocalDate()
+
+        val cleanTitle =
+            title
+                .trim()
+                .ifBlank {
+                    DEFAULT_CONVERSATION_TITLE
+                }
+
+        val cleanOpeningMessage =
+            openingMessage
+                .trim()
+                .ifBlank {
+                    INITIAL_GREETING
+                }
 
         val conversation =
             Conversation(
-                id = conversationId,
+                id =
+                    conversationId,
                 title =
-                    DEFAULT_CONVERSATION_TITLE,
+                    cleanTitle,
                 titleSource =
-                    ConversationTitleSource.DEFAULT,
+                    titleSource,
                 cefrLevel =
-                    CefrLevel.A1,
+                    cefrLevel,
                 localDate =
                     localDate.toString(),
                 epochDay =
@@ -72,7 +99,7 @@ class ConversationFactory @Inject constructor(
                 conversationId =
                     conversation.id,
                 content =
-                    INITIAL_GREETING,
+                    cleanOpeningMessage,
                 sender =
                     MessageSender.ASSISTANT,
                 sequenceNumber =
@@ -82,16 +109,21 @@ class ConversationFactory @Inject constructor(
             )
 
         localDataSource.saveMessage(
-            message = greeting.toEntity()
+            message =
+                greeting.toEntity()
         )
 
         /*
-         * Saving the greeting changes the preview,
-         * message count, and updated timestamp.
+         * Saving the opening message changes:
+         *
+         * - Preview text
+         * - Message count
+         * - Updated timestamp
          */
         return localDataSource
             .getConversation(
-                conversationId = conversation.id
+                conversationId =
+                    conversation.id
             )
             ?.toDomain()
             ?: conversation

@@ -1,11 +1,7 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import android.util.Log
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import com.julesmeister.deutschcraft.feature.chat.data.cache.ReplySuggestionCache
-import com.julesmeister.deutschcraft.feature.chat.domain.usecase.InitializeChatUseCase
-import com.julesmeister.deutschcraft.feature.chat.domain.usecase.SendChatMessageUseCase
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -17,14 +13,16 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class ChatSessionCoordinator @Inject constructor(
-    private val initializeChat:
-    InitializeChatUseCase,
-    private val sendChatMessage:
-    SendChatMessageUseCase,
+    private val sessionInitializer:
+    ChatSessionInitializer,
+    private val messageSender:
+    ChatMessageSender,
     private val sessionObservers:
     ChatSessionObservers,
-    private val replySuggestionCache:
-    ReplySuggestionCache
+    private val suggestionHandler:
+    ChatSuggestionHandler,
+    private val missionOfferCoordinator:
+    ChatMissionOfferCoordinator
 ) {
 
     private val _uiState =
@@ -42,6 +40,12 @@ class ChatSessionCoordinator @Inject constructor(
         null
 
     private var sendingJob: Job? =
+        null
+
+    private var missionCheckJob: Job? =
+        null
+
+    private var missionActionJob: Job? =
         null
 
     fun start(
@@ -99,6 +103,17 @@ class ChatSessionCoordinator @Inject constructor(
                 )
             }
 
+            ChatUiAction.StartOfferedMission -> {
+                startOfferedMission(
+                    scope =
+                        scope
+                )
+            }
+
+            ChatUiAction.DismissMissionOffer -> {
+                dismissMissionOffer()
+            }
+
             is ChatUiAction.ObjectiveCompletionShown -> {
                 consumeObjectiveCompletion(
                     eventId =
@@ -115,17 +130,24 @@ class ChatSessionCoordinator @Inject constructor(
     fun stop() {
         initializationJob?.cancel()
         sendingJob?.cancel()
+        missionCheckJob?.cancel()
+        missionActionJob?.cancel()
 
-        initializationJob = null
-        sendingJob = null
-        activeConversationId = null
+        initializationJob =
+            null
 
-        /*
-         * Do not clear ReplySuggestionCache here.
-         *
-         * stop() is called when leaving the chat. Clearing
-         * the cache would recreate the original problem.
-         */
+        sendingJob =
+            null
+
+        missionCheckJob =
+            null
+
+        missionActionJob =
+            null
+
+        activeConversationId =
+            null
+
         sessionObservers.stop()
     }
 
@@ -134,42 +156,35 @@ class ChatSessionCoordinator @Inject constructor(
         scope: CoroutineScope
     ) {
         try {
-            val conversation =
-                initializeChat(
-                    conversationId =
+            val result =
+                sessionInitializer.initialize(
+                    requestedConversationId =
                         requestedConversationId
                 )
 
             activeConversationId =
-                conversation.id
+                result.conversationId
 
-            /*
-             * Restore the temporary suggestions previously
-             * generated for this conversation.
-             *
-             * The cache is a Hilt singleton, so it survives
-             * navigation while the process remains alive.
-             */
-            restoreCachedSuggestions(
+            val cachedMissionOffer =
+                missionOfferCoordinator.restoreOffer(
+                    conversationId =
+                        result.conversationId
+                )
+
+            _uiState.update { state ->
+                state.copy(
+                    suggestions =
+                        result.cachedSuggestions,
+                    missionOffer =
+                        cachedMissionOffer
+                )
+            }
+
+            observeConversation(
                 conversationId =
-                        conversation.id
-            )
-
-            sessionObservers.observeConversation(
-                  conversationId =
-                      conversation.id,
-                            scope =
-                            scope,
-                onMessagesChanged =
-                     ::applyMessageUpdate,
-                  onMissionChanged =
-                      ::applyMissionUpdate,
-                   onMessageObservationFailed = {
-                    showError(
-                        message =
-                            MESSAGE_LOAD_ERROR
-                    )
-                }
+                    result.conversationId,
+                scope =
+                    scope
             )
 
             _uiState.update { state ->
@@ -197,22 +212,26 @@ class ChatSessionCoordinator @Inject constructor(
         }
     }
 
-    private fun restoreCachedSuggestions(
-        conversationId: String
+    private fun observeConversation(
+        conversationId: String,
+        scope: CoroutineScope
     ) {
-        val cachedSuggestions =
-            replySuggestionCache
-                .getSuggestions(
-                    conversationId =
-                        conversationId
+        sessionObservers.observeConversation(
+            conversationId =
+                conversationId,
+            scope =
+                scope,
+            onMessagesChanged =
+                ::applyMessageUpdate,
+            onMissionChanged =
+                ::applyMissionUpdate,
+            onMessageObservationFailed = {
+                showError(
+                    message =
+                        MESSAGE_LOAD_ERROR
                 )
-
-        _uiState.update { state ->
-            state.copy(
-                suggestions =
-                    cachedSuggestions
-            )
-        }
+            }
+        )
     }
 
     private fun applyMessageUpdate(
@@ -240,10 +259,27 @@ class ChatSessionCoordinator @Inject constructor(
     private fun applyMissionUpdate(
         update: ChatMissionUpdate
     ) {
+        val mission =
+            update.mission
+
+        if (mission != null) {
+            val conversationId =
+                activeConversationId
+
+            if (conversationId != null) {
+                missionOfferCoordinator.clearOffer(
+                    conversationId =
+                        conversationId
+                )
+            }
+
+            missionCheckJob?.cancel()
+        }
+
         _uiState.update { state ->
             state.withActiveMission(
                 mission =
-                    update.mission,
+                    mission,
                 newlyCompletedObjective =
                     update.newlyCompletedObjective
             )
@@ -271,48 +307,23 @@ class ChatSessionCoordinator @Inject constructor(
         val currentState =
             _uiState.value
 
-        if (
-            currentState.isInitializing ||
-            currentState.isSending
-        ) {
-            return
-        }
-
-        val selectedSuggestion =
-            currentState.suggestions
-                .firstOrNull { suggestion ->
-                    suggestion.id ==
-                            suggestionId
-                }
+        val updatedInput =
+            suggestionHandler
+                .createInputFromSuggestion(
+                    suggestions =
+                        currentState.suggestions,
+                    suggestionId =
+                        suggestionId,
+                    isEnabled =
+                        !currentState.isInitializing &&
+                                !currentState.isSending
+                )
                 ?: return
 
-        val suggestedText =
-            selectedSuggestion
-                .text
-                .capitalizeFirstCharacter()
-
-        val suggestedInput =
-            TextFieldValue(
-                text =
-                    suggestedText,
-                selection =
-                    TextRange(
-                        index =
-                            suggestedText.length
-                    )
-            )
-
-        /*
-         * Selecting a suggestion fills the composer but
-         * does not consume the suggestions yet.
-         *
-         * They are consumed when the learner actually sends
-         * the next message.
-         */
         _uiState.update { state ->
             state.withInput(
                 value =
-                    suggestedInput
+                    updatedInput
             )
         }
     }
@@ -349,14 +360,7 @@ class ChatSessionCoordinator @Inject constructor(
             return
         }
 
-        /*
-         * The existing suggestions belong to the previous
-         * assistant response.
-         *
-         * Once a new learner message is sent, those
-         * suggestions are no longer actionable.
-         */
-        replySuggestionCache.clearSuggestions(
+        messageSender.clearSuggestions(
             conversationId =
                 conversationId
         )
@@ -371,56 +375,48 @@ class ChatSessionCoordinator @Inject constructor(
                     conversationId =
                         conversationId,
                     messageText =
-                        messageText
+                        messageText,
+                    scope =
+                        scope
                 )
             }
     }
 
     private suspend fun sendMessage(
         conversationId: String,
-        messageText: String
+        messageText: String,
+        scope: CoroutineScope
     ) {
         try {
             val result =
-                sendChatMessage(
+                messageSender.send(
                     conversationId =
                         conversationId,
                     messageText =
                         messageText
                 )
 
-            val suggestions =
-                result
-                    .assistantReply
-                    .suggestions
-
-            /*
-             * Store the latest generated suggestions in the
-             * in-memory conversation cache.
-             *
-             * Returning to this chat during the same app
-             * process will restore these suggestions.
-             */
-            replySuggestionCache.replaceSuggestions(
-                conversationId =
-                    conversationId,
-                suggestions =
-                    suggestions
-            )
-
             _uiState.update { state ->
                 state.sendingSucceeded(
                     suggestions =
-                        suggestions,
+                        result.suggestions,
                     warning =
-                        result.assessmentWarning
+                        result.warning
                 )
             }
 
-            Log.d(
-                COORDINATOR_TAG,
-                "Send completed with " +
-                        "${suggestions.size} suggestions."
+            /*
+             * Mission detection begins only after the normal
+             * assistant response succeeds.
+             *
+             * It runs in a separate coroutine so the chat
+             * response remains the primary experience.
+             */
+            checkForMissionOpportunity(
+                conversationId =
+                    conversationId,
+                scope =
+                    scope
             )
         } catch (
             cancellationException:
@@ -434,15 +430,7 @@ class ChatSessionCoordinator @Inject constructor(
                 throwable
             )
 
-            /*
-             * Do not restore the old suggestions after a
-             * failed send.
-             *
-             * The learner already attempted to answer the
-             * previous assistant response, and their
-             * message may have been saved locally.
-             */
-            replySuggestionCache.clearSuggestions(
+            messageSender.clearSuggestions(
                 conversationId =
                     conversationId
             )
@@ -453,6 +441,148 @@ class ChatSessionCoordinator @Inject constructor(
                         SEND_ERROR
                 )
             }
+        }
+    }
+
+    private fun checkForMissionOpportunity(
+        conversationId: String,
+        scope: CoroutineScope
+    ) {
+        val currentState =
+            _uiState.value
+
+        if (
+            currentState.activeMissionId != null ||
+            currentState.missionOffer != null ||
+            currentState.isCheckingMissionOpportunity ||
+            missionCheckJob?.isActive == true
+        ) {
+            return
+        }
+
+        _uiState.update { state ->
+            state.missionCheckStarted()
+        }
+
+        missionCheckJob =
+            scope.launch {
+                try {
+                    val offer =
+                        missionOfferCoordinator
+                            .detectOffer(
+                                conversationId =
+                                    conversationId,
+                                hasActiveMission =
+                                    _uiState.value
+                                        .activeMissionId != null
+                            )
+
+                    _uiState.update { state ->
+                        state.missionCheckFinished(
+                            offer =
+                                offer
+                        )
+                    }
+                } catch (
+                    cancellationException:
+                    CancellationException
+                ) {
+                    throw cancellationException
+                } catch (throwable: Throwable) {
+                    /*
+                     * Mission detection must stay silent.
+                     * Chat has already completed successfully.
+                     */
+                    Log.e(
+                        COORDINATOR_TAG,
+                        "Mission check failed.",
+                        throwable
+                    )
+
+                    _uiState.update { state ->
+                        state.missionCheckFinished(
+                            offer =
+                                null
+                        )
+                    }
+                }
+            }
+    }
+
+    private fun startOfferedMission(
+        scope: CoroutineScope
+    ) {
+        val conversationId =
+            activeConversationId
+                ?: return
+
+        val currentState =
+            _uiState.value
+
+        if (
+            currentState.missionOffer == null ||
+            currentState.isStartingMission ||
+            currentState.activeMissionId != null ||
+            missionActionJob?.isActive == true
+        ) {
+            return
+        }
+
+        _uiState.update { state ->
+            state.missionStartStarted()
+        }
+
+        missionActionJob =
+            scope.launch {
+                try {
+                    missionOfferCoordinator
+                        .acceptOffer(
+                            conversationId =
+                                conversationId
+                        )
+
+                    /*
+                     * Room observation will provide the full
+                     * active mission. The local offer can be
+                     * removed immediately.
+                     */
+                    _uiState.update { state ->
+                        state.missionStartSucceeded()
+                    }
+                } catch (
+                    cancellationException:
+                    CancellationException
+                ) {
+                    throw cancellationException
+                } catch (throwable: Throwable) {
+                    Log.e(
+                        COORDINATOR_TAG,
+                        "Mission could not be started.",
+                        throwable
+                    )
+
+                    _uiState.update { state ->
+                        state.missionStartFailed(
+                            message =
+                                MISSION_START_ERROR
+                        )
+                    }
+                }
+            }
+    }
+
+    private fun dismissMissionOffer() {
+        val conversationId =
+            activeConversationId
+                ?: return
+
+        missionOfferCoordinator.dismissOffer(
+            conversationId =
+                conversationId
+        )
+
+        _uiState.update { state ->
+            state.missionOfferDismissed()
         }
     }
 
@@ -493,8 +623,8 @@ class ChatSessionCoordinator @Inject constructor(
                     "the conversation."
 
         const val MESSAGE_LOAD_ERROR =
-            "The saved conversation could " +
-                    "not be loaded."
+            "The saved conversation could not " +
+                    "be loaded."
 
         const val CONVERSATION_LOADING_ERROR =
             "The conversation is still loading."
@@ -502,5 +632,8 @@ class ChatSessionCoordinator @Inject constructor(
         const val SEND_ERROR =
             "The assistant could not respond. " +
                     "Your message was saved locally."
+
+        const val MISSION_START_ERROR =
+            "The mission could not be started."
     }
 }

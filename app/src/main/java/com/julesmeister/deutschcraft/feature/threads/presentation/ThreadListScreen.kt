@@ -4,7 +4,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.julesmeister.deutschcraft.feature.threads.presentation.component.ThreadDialogs
 import com.julesmeister.deutschcraft.feature.threads.presentation.component.rememberThreadArchivePullState
@@ -15,6 +14,7 @@ fun ThreadListScreen(
     uiState: ThreadListUiState,
     snackbarHostState: SnackbarHostState,
     onThreadClick: (String) -> Unit,
+    onRecommendedMissionClick: () -> Unit,
     onArchivedThreadsClick: () -> Unit,
     onNewThreadClick: () -> Unit,
     onArchiveThread: (String) -> Unit,
@@ -22,13 +22,13 @@ fun ThreadListScreen(
     onErrorDismissed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-
     val listState =
         rememberLazyListState()
 
     val archivePullState =
         rememberThreadArchivePullState(
-            listState = listState,
+            listState =
+                listState,
             archiveEnabled =
                 uiState.hasArchivedThreads
         )
@@ -36,56 +36,80 @@ fun ThreadListScreen(
     val dialogsState =
         rememberThreadListDialogsState()
 
-    LaunchedEffect(uiState.errorMessage) {
+    /*
+     * ThreadListRoute normally handles errors using the
+     * shared SnackbarHostState.
+     *
+     * This remains here so ThreadListScreen can still work
+     * correctly if it is used without the Route.
+     */
+    LaunchedEffect(
+        uiState.errorMessage
+    ) {
         val errorMessage =
             uiState.errorMessage
                 ?: return@LaunchedEffect
 
         snackbarHostState.showSnackbar(
-            message = errorMessage
+            message =
+                errorMessage
         )
 
         onErrorDismissed()
     }
 
-    LaunchedEffect(uiState.hasArchivedThreads) {
+    /*
+     * Hide the archive row if there are no longer any
+     * archived conversations.
+     */
+    LaunchedEffect(
+        uiState.hasArchivedThreads
+    ) {
         if (!uiState.hasArchivedThreads) {
             archivePullState.hideArchiveRow()
         }
     }
 
     ThreadListScaffold(
-        modifier = modifier,
+        modifier =
+            modifier,
         snackbarHostState =
             snackbarHostState,
         isCreatingThread =
-            uiState.isCreatingThread,
+            uiState.isCreatingThread ||
+                    uiState.isStartingRecommendedMission,
         onNewThreadClick =
             onNewThreadClick
     ) { innerPadding ->
         ThreadListContent(
-            uiState = uiState,
+            uiState =
+                uiState,
             archivePullState =
                 archivePullState,
-            listState = listState,
-            innerPadding = innerPadding,
+            listState =
+                listState,
+            innerPadding =
+                innerPadding,
             onThreadClick =
                 onThreadClick,
+            onRecommendedMissionClick =
+                onRecommendedMissionClick,
             onNewThreadClick =
                 onNewThreadClick,
             onArchivedThreadsClick =
                 onArchivedThreadsClick,
-            onThreadActionsRequested = {
-                    thread ->
+            onThreadActionsRequested = { thread ->
                 dialogsState.showActions(
-                    thread = thread
+                    thread =
+                        thread
                 )
             }
         )
     }
 
     ThreadDialogs(
-        dialogsState = dialogsState,
+        dialogsState =
+            dialogsState,
         onArchiveThread =
             onArchiveThread,
         onDeleteThread =
