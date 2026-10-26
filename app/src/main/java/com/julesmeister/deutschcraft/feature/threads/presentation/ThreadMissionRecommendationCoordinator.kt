@@ -10,34 +10,13 @@ import com.julesmeister.deutschcraft.feature.mission.domain.usecase.StartRecomme
 import com.julesmeister.deutschcraft.feature.threads.domain.ConversationThread
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
-/*
- * Coordinates the mission recommendation displayed at the
- * top of the thread-list screen.
- *
- * This is separate from the in-chat mission-offer system.
- *
- * Thread-list mission flow:
- *
- * Threads screen
- *      ↓
- * ThreadMissionRecommendationCoordinator
- *      ↓
- * LoadMissionThreadRecommendationUseCase
- *      ↓
- * MissionThreadRecommendationCache
- *
- * In-chat mission flow:
- *
- * Active chat
- *      ↓
- * ChatMissionOfferCoordinator
- *      ↓
- * DetectMissionOpportunityUseCase
- */
 class ThreadMissionRecommendationCoordinator
 @Inject constructor(
-    private val loadMissionRecommendation:
+    private val loadRecommendation:
     LoadMissionThreadRecommendationUseCase,
     private val startRecommendedMission:
     StartRecommendedMissionThreadUseCase,
@@ -45,25 +24,24 @@ class ThreadMissionRecommendationCoordinator
     MissionThreadRecommendationCache
 ) {
 
-    /*
-     * Restores the currently cached recommendation when the
-     * thread-list screen is recreated.
-     *
-     * This prevents unnecessary recommendation regeneration
-     * during configuration changes or navigation.
-     */
+    private var prefetchJob:
+            Job? =
+        null
+
+    private var prefetchLevel:
+            CefrLevel? =
+        null
+
     fun restoreCachedRecommendation():
             MissionThreadRecommendation? {
         return recommendationCache.get()
     }
 
     /*
-     * Loads a CEFR-appropriate mission recommendation for
-     * the thread-list mission cell.
+     * Loads or advances the visible recommendation.
      *
-     * The learner level is derived from the most recently
-     * updated active conversation until a dedicated
-     * profile-level CEFR source is connected.
+     * When forceRefresh is true, a prefetched item is used
+     * immediately whenever available.
      */
     suspend fun loadRecommendation(
         activeThreads:
@@ -77,177 +55,145 @@ class ThreadMissionRecommendationCoordinator
                     activeThreads
             )
 
-        return try {
-            val recommendation =
-                loadMissionRecommendation(
-                    cefrLevel =
-                        learnerLevel,
-                    forceRefresh =
-                        forceRefresh
-                )
-
-            Log.d(
-                COORDINATOR_TAG,
-                buildString {
-                    append(
-                        "Thread mission recommendation loaded. "
-                    )
-                    append("cefrLevel=")
-                    append(learnerLevel.name)
-                    append(", forceRefresh=")
-                    append(forceRefresh)
-                    append(", recommendation=")
-                    append(
-                        recommendation?.title
-                    )
-                }
+        return if (forceRefresh) {
+            loadRecommendation.advance(
+                cefrLevel =
+                    learnerLevel
             )
-
-            recommendation
-        } catch (
-            cancellationException:
-            CancellationException
-        ) {
-            throw cancellationException
-        } catch (throwable: Throwable) {
-            /*
-             * The thread-list recommendation is
-             * supplementary.
-             *
-             * Failure must not prevent the learner from
-             * viewing or opening existing conversations.
-             */
-            Log.e(
-                COORDINATOR_TAG,
-                "Thread mission recommendation could not " +
-                        "be loaded.",
-                throwable
+        } else {
+            loadRecommendation(
+                cefrLevel =
+                    learnerLevel
             )
-
-            restoreCachedRecommendation()
         }
     }
 
     /*
-     * Forces the recommendation generator to provide another
-     * topic.
+     * Ensures five recommendations are cached.
      *
-     * The use case behind this function must exclude the
-     * previously displayed semantic scenario, not only its
-     * title.
+     * This method launches background work and returns
+     * immediately.
      *
-     * For example, these must all count as CAFE_ORDERING:
-     *
-     * - Bestellung im Café
-     * - Morgenkaffee
-     * - Im Café
-     * - Einen Kaffee bestellen
+     * If the queue is initially empty, each accepted item is
+     * reported through onFirstRecommendationAvailable. The
+     * first item can therefore be displayed without waiting
+     * for items two through five.
      */
-    suspend fun loadAnotherRecommendation(
+    fun prefetchRecommendations(
         activeThreads:
-        List<ConversationThread>
-    ): MissionThreadRecommendation? {
-        return loadRecommendation(
-            activeThreads =
-                activeThreads,
-            forceRefresh =
-                true
-        )
+        List<ConversationThread>,
+        scope: CoroutineScope,
+        onFirstRecommendationAvailable:
+            (MissionThreadRecommendation) -> Unit,
+        onFailure:
+            (String) -> Unit =
+            {}
+    ) {
+        val learnerLevel =
+            determineLearnerLevel(
+                activeThreads =
+                    activeThreads
+            )
+
+        if (
+            prefetchJob?.isActive ==
+            true &&
+            prefetchLevel ==
+            learnerLevel
+        ) {
+            return
+        }
+
+        if (
+            prefetchLevel != null &&
+            prefetchLevel !=
+            learnerLevel
+        ) {
+            prefetchJob?.cancel()
+        }
+
+        prefetchLevel =
+            learnerLevel
+
+        prefetchJob =
+            scope.launch {
+                try {
+                    loadRecommendation.prefetchUntilFull(
+                        cefrLevel =
+                            learnerLevel,
+                        onRecommendationAvailable = {
+                                _,
+                                _ ->
+
+                            /*
+                             * The queue's first item is the
+                             * visible recommendation.
+                             */
+                            recommendationCache
+                                .get()
+                                ?.let(
+                                    onFirstRecommendationAvailable
+                                )
+                        }
+                    )
+                } catch (
+                    cancellationException:
+                    CancellationException
+                ) {
+                    throw cancellationException
+                } catch (throwable: Throwable) {
+                    Log.e(
+                        COORDINATOR_TAG,
+                        "Mission recommendation prefetch " +
+                                "failed.",
+                        throwable
+                    )
+
+                    onFailure(
+                        PREFETCH_ERROR
+                    )
+                } finally {
+                    prefetchJob =
+                        null
+                }
+            }
     }
 
-    /*
-     * Starts the mission represented by the thread-list
-     * recommendation.
-     *
-     * The start use case is responsible for:
-     *
-     * - Creating the conversation
-     * - Persisting the generated mission template
-     * - Persisting its objectives
-     * - Starting the conversation mission
-     * - Returning the created conversation for navigation
-     */
     suspend fun startRecommendation(
         recommendation:
         MissionThreadRecommendation
     ): Conversation {
-        require(
-            recommendation.title.isNotBlank()
-        ) {
-            "The recommended mission title must not be blank."
-        }
-
-        return try {
-            val conversation =
-                startRecommendedMission(
-                    recommendation =
-                        recommendation
-                )
-
-            /*
-             * Clear the cached cell after the learner starts
-             * it. The next visit to the thread list should
-             * produce a different recommendation.
-             */
-            recommendationCache.clear()
-
-            Log.d(
-                COORDINATOR_TAG,
-                buildString {
-                    append(
-                        "Recommended mission thread started. "
-                    )
-                    append("title=")
-                    append(recommendation.title)
-                    append(", conversationId=")
-                    append(conversation.id)
-                }
+        val conversation =
+            startRecommendedMission(
+                recommendation =
+                    recommendation
             )
 
-            conversation
-        } catch (
-            cancellationException:
-            CancellationException
-        ) {
-            throw cancellationException
-        } catch (throwable: Throwable) {
-            Log.e(
-                COORDINATOR_TAG,
-                "The recommended mission thread could not " +
-                        "be started.",
-                throwable
-            )
+        recommendationCache.remove(
+            recommendationId =
+                recommendation.id
+        )
 
-            throw throwable
-        }
+        return conversation
     }
 
-    /*
-     * Clears the visible cached recommendation.
-     *
-     * This does not necessarily erase recommendation
-     * history. Semantic scenario history should be owned by
-     * LoadMissionThreadRecommendationUseCase or its
-     * repository.
-     */
     fun clearCachedRecommendation() {
         recommendationCache.clear()
+    }
+
+    fun cancelPrefetch() {
+        prefetchJob?.cancel()
+        prefetchJob =
+            null
+        prefetchLevel =
+            null
     }
 
     private fun determineLearnerLevel(
         activeThreads:
         List<ConversationThread>
     ): CefrLevel {
-        /*
-         * Prefer the CEFR level of the most recently updated
-         * conversation.
-         *
-         * This is a temporary local-first strategy until the
-         * thread-list feature observes the persistent learner
-         * profile directly.
-         */
         return activeThreads
-            .asSequence()
             .maxByOrNull { thread ->
                 thread.updatedAt
             }
@@ -258,5 +204,9 @@ class ThreadMissionRecommendationCoordinator
     private companion object {
         const val COORDINATOR_TAG =
             "ThreadMissionRecommendation"
+
+        const val PREFETCH_ERROR =
+            "Weitere Empfehlungen konnten nicht " +
+                    "vorbereitet werden."
     }
 }

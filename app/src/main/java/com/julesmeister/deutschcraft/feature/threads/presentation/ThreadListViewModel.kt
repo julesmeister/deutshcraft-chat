@@ -18,7 +18,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class ThreadListViewModel @Inject constructor(
+class ThreadListViewModel
+@Inject constructor(
     private val threadController:
     ThreadListThreadController,
     private val missionController:
@@ -45,7 +46,8 @@ class ThreadListViewModel @Inject constructor(
 
     val navigationEvents:
             Flow<ThreadListNavigationEvent> =
-        navigationEventChannel.receiveAsFlow()
+        navigationEventChannel
+            .receiveAsFlow()
 
     private val _archiveSnackbarEvents =
         MutableSharedFlow<ArchiveSnackbarEvent>(
@@ -54,7 +56,8 @@ class ThreadListViewModel @Inject constructor(
         )
 
     val archiveSnackbarEvents =
-        _archiveSnackbarEvents.asSharedFlow()
+        _archiveSnackbarEvents
+            .asSharedFlow()
 
     init {
         restoreMissionRecommendation()
@@ -99,10 +102,8 @@ class ThreadListViewModel @Inject constructor(
      * Starts the recommendation currently displayed in the
      * top mission cell.
      *
-     * This is used both when:
-     *
-     * - The learner taps the mission card
-     * - The learner swipes the mission card to the right
+     * The recommendation is normally started by tapping the
+     * cell. Swiping left only displays another suggestion.
      */
     fun startRecommendedMission() {
         val currentState =
@@ -154,13 +155,15 @@ class ThreadListViewModel @Inject constructor(
     }
 
     /*
-     * Requests a different mission for the top recommendation
-     * cell.
+     * Advances to the next recommendation in the prefetched
+     * queue.
      *
-     * This is called when the learner swipes the card left.
+     * When the queue has been filled successfully, this does
+     * not make a Qwen request. It removes the current item and
+     * immediately returns the next cached recommendation.
      *
-     * forceRefresh = true ensures the cache is not simply
-     * returned again.
+     * Afterward, background prefetch replenishes the queue to
+     * five items.
      */
     fun showAnotherMissionRecommendation() {
         val currentState =
@@ -175,13 +178,10 @@ class ThreadListViewModel @Inject constructor(
         }
 
         val activeThreads =
-            currentState
-                .sections
-                .asSequence()
-                .flatMap { section ->
-                    section.threads.asSequence()
-                }
-                .toList()
+            activeThreadsFromState(
+                state =
+                    currentState
+            )
 
         _uiState.update { state ->
             state.copy(
@@ -217,6 +217,17 @@ class ThreadListViewModel @Inject constructor(
                             }
                     )
                 }
+
+                /*
+                 * One queue item was consumed.
+                 *
+                 * Refill the hidden queue back to five without
+                 * blocking the newly displayed suggestion.
+                 */
+                prefetchMissionRecommendations(
+                    activeThreads =
+                        activeThreads
+                )
             } catch (
                 cancellationException:
                 CancellationException
@@ -224,8 +235,8 @@ class ThreadListViewModel @Inject constructor(
                 throw cancellationException
             } catch (throwable: Throwable) {
                 /*
-                 * Keep the previous recommendation visible if
-                 * generating another one fails.
+                 * The existing recommendation remains in state
+                 * if queue advancement fails.
                  */
                 _uiState.update { state ->
                     state.copy(
@@ -330,7 +341,34 @@ class ThreadListViewModel @Inject constructor(
             )
         }
 
-        loadMissionRecommendationIfNeeded(
+        val visibleRecommendation =
+            _uiState
+                .value
+                .missionRecommendation
+
+        if (visibleRecommendation != null) {
+            /*
+             * A recommendation was restored from the queue.
+             *
+             * Keep it visible and fill any missing hidden queue
+             * items in the background.
+             */
+            prefetchMissionRecommendations(
+                activeThreads =
+                    snapshot.activeThreads
+            )
+
+            return
+        }
+
+        /*
+         * No visible recommendation exists.
+         *
+         * Load only the first recommendation now. The first
+         * valid result is shown immediately. Recommendations
+         * two through five are generated afterward.
+         */
+        loadFirstMissionRecommendation(
             activeThreads =
                 snapshot.activeThreads
         )
@@ -349,7 +387,14 @@ class ThreadListViewModel @Inject constructor(
         }
     }
 
-    private fun loadMissionRecommendationIfNeeded(
+    /*
+     * Loads the initial visible recommendation.
+     *
+     * The learner does not wait for the complete five-item
+     * queue. The first recommendation is displayed as soon as
+     * it is ready.
+     */
+    private fun loadFirstMissionRecommendation(
         activeThreads:
         List<ConversationThread>
     ) {
@@ -372,13 +417,123 @@ class ThreadListViewModel @Inject constructor(
                             recommendation
                     )
                 }
+
+                /*
+                 * Recommendation #1 is now visible.
+                 *
+                 * Continue generating recommendations #2 to #5
+                 * in the background.
+                 */
+                prefetchMissionRecommendations(
+                    activeThreads =
+                        activeThreads
+                )
             },
             onFailure = {
                 _uiState.update { state ->
                     state.recommendationLoadingFailed()
                 }
+
+                /*
+                 * The existing initial loader may fail because
+                 * of a temporary generation or validation
+                 * issue.
+                 *
+                 * Let the queue prefetcher continue trying. Its
+                 * first accepted item will be shown immediately.
+                 */
+                prefetchMissionRecommendations(
+                    activeThreads =
+                        activeThreads
+                )
             }
         )
+    }
+
+    /*
+     * Fills the recommendation queue to five.
+     *
+     * If no recommendation is currently displayed, the first
+     * accepted prefetched recommendation is applied to the UI
+     * immediately. Remaining recommendations stay hidden.
+     */
+    private fun prefetchMissionRecommendations(
+        activeThreads:
+        List<ConversationThread>
+    ) {
+        missionRecommendationCoordinator
+            .prefetchRecommendations(
+                activeThreads =
+                    activeThreads,
+                scope =
+                    viewModelScope,
+                onFirstRecommendationAvailable = {
+                        recommendation ->
+
+                    val currentState =
+                        _uiState.value
+
+                    if (
+                        currentState
+                            .missionRecommendation ==
+                        null
+                    ) {
+                        _uiState.update { state ->
+                            state.copy(
+                                missionRecommendation =
+                                    recommendation,
+                                isLoadingMissionRecommendation =
+                                    false,
+                                errorMessage =
+                                    null
+                            )
+                        }
+                    }
+                },
+                onFailure = {
+                    /*
+                     * Prefetch is supplementary.
+                     *
+                     * If one recommendation is already visible,
+                     * background failure must not show a snackbar
+                     * or remove the visible recommendation.
+                     */
+                    if (
+                        _uiState
+                            .value
+                            .missionRecommendation ==
+                        null
+                    ) {
+                        _uiState.update { state ->
+                            state.copy(
+                                isLoadingMissionRecommendation =
+                                    false
+                            )
+                        }
+                    }
+                }
+            )
+    }
+
+    /*
+     * Reconstructs the current active thread list from the
+     * already-built sections.
+     *
+     * This gives recommendation selection the most recently
+     * observed CEFR level when the learner swipes.
+     */
+    private fun activeThreadsFromState(
+        state: ThreadListUiState
+    ): List<ConversationThread> {
+        return state
+            .sections
+            .asSequence()
+            .flatMap { section ->
+                section
+                    .threads
+                    .asSequence()
+            }
+            .toList()
     }
 
     private suspend fun navigateToConversation(
@@ -424,6 +579,10 @@ class ThreadListViewModel @Inject constructor(
 
     override fun onCleared() {
         missionController.cancel()
+
+        missionRecommendationCoordinator
+            .cancelPrefetch()
+
         super.onCleared()
     }
 
