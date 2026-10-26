@@ -7,6 +7,7 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatRepository
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.engagement.domain.ScheduleIdlePromptUseCase
+import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import java.time.Clock
 import java.util.UUID
 import javax.inject.Inject
@@ -31,7 +32,10 @@ class SendChatMessageUseCase @Inject constructor(
 
     suspend operator fun invoke(
         conversationId: String,
-        messageText: String
+        messageText: String,
+        activeMission:
+        ConversationMission? =
+            null
     ): SendChatMessageResult =
         coroutineScope {
             val cleanMessage =
@@ -63,21 +67,18 @@ class SendChatMessageUseCase @Inject constructor(
             )
 
             /*
-             * Record the latest learner activity and
-             * replace the existing idle reminder.
-             *
-             * If reminders are enabled, a new reminder is
-             * scheduled for approximately three hours after
-             * this message.
-             *
-             * If reminders are disabled, any existing idle
-             * reminder is cancelled.
+             * Record the latest learner activity and replace
+             * the existing idle reminder.
              */
             scheduleIdlePrompt()
 
             /*
              * Correction and assistant generation are
              * independent requests and can run concurrently.
+             *
+             * The active mission is passed into assistant
+             * generation so Emil can temporarily adopt the
+             * scenario role and guide the current objective.
              */
             val correctionDeferred =
                 async {
@@ -94,13 +95,15 @@ class SendChatMessageUseCase @Inject constructor(
                             conversationId =
                                 conversationId,
                             message =
-                                cleanMessage
+                                cleanMessage,
+                            activeMission =
+                                activeMission
                         )
                 }
 
             /*
-             * Record learner activity for progress and
-             * streak tracking.
+             * Record learner activity for progress and streak
+             * tracking.
              */
             val activeDayCount =
                 activityTracker
@@ -113,8 +116,8 @@ class SendChatMessageUseCase @Inject constructor(
             /*
              * Assessment is supplementary.
              *
-             * A failed assessment produces a warning but
-             * does not prevent the assistant from replying.
+             * A failed assessment produces a warning but does
+             * not prevent the assistant from replying.
              */
             val assessmentWarning =
                 assessWithoutBreakingChat(
@@ -125,13 +128,7 @@ class SendChatMessageUseCase @Inject constructor(
                 )
 
             /*
-             * Await the correction independently.
-             *
-             * When a correction exists,
-             * updateMessageCorrection() updates the original
-             * user-message row in Room. The active Room flow
-             * then emits the updated message and the bubble
-             * displays its persisted Besser section.
+             * Await correction independently.
              */
             correctionDeferred.await()
 

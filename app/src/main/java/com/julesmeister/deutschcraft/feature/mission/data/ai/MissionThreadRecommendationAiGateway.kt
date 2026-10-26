@@ -1,18 +1,20 @@
 package com.julesmeister.deutschcraft.feature.mission.data.ai
 
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
+import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionScenarioDefinition
 import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionThreadRecommendation
 
 /*
- * AI boundary responsible for generating one mission
- * conversation recommendation for the thread list.
+ * AI boundary that expands a scenario already selected by
+ * the application.
  *
- * A null result means that no valid recommendation could
- * be generated.
+ * The AI must not choose or replace the semantic scenario.
  */
 interface MissionThreadRecommendationAiGateway {
 
     suspend fun generateRecommendation(
-        cefrLevel: CefrLevel
+        cefrLevel: CefrLevel,
+        selectedScenario:
+        MissionScenarioDefinition
     ): MissionThreadRecommendation?
 }

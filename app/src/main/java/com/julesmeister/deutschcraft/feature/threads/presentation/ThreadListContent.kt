@@ -16,14 +16,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.threads.domain.ConversationThread
 import com.julesmeister.deutschcraft.feature.threads.presentation.component.ArchivePullIndicator
 import com.julesmeister.deutschcraft.feature.threads.presentation.component.ArchivedThreadsRow
-import com.julesmeister.deutschcraft.feature.threads.presentation.component.RecommendedMissionThreadRow
+import com.julesmeister.deutschcraft.feature.threads.presentation.component.SwipeableRecommendedMissionThreadRow
 import com.julesmeister.deutschcraft.feature.threads.presentation.component.ThreadArchivePullState
 import com.julesmeister.deutschcraft.feature.threads.presentation.component.ThreadListEmptyState
 import com.julesmeister.deutschcraft.feature.threads.presentation.component.ThreadListLoadingState
@@ -38,6 +38,7 @@ fun ThreadListContent(
     innerPadding: PaddingValues,
     onThreadClick: (String) -> Unit,
     onRecommendedMissionClick: () -> Unit,
+    onShowAnotherMission: () -> Unit,
     onNewThreadClick: () -> Unit,
     onArchivedThreadsClick: () -> Unit,
     onThreadActionsRequested:
@@ -46,11 +47,11 @@ fun ThreadListContent(
 ) {
     when {
         /*
-         * The regular thread data is loading.
+         * Regular thread loading owns the complete loading
+         * screen.
          *
-         * Mission recommendation loading does not replace the
-         * complete screen with a loading state because the
-         * saved threads should remain usable.
+         * Loading another mission recommendation does not
+         * replace the thread list.
          */
         uiState.isLoading -> {
             ThreadListLoadingState(
@@ -63,9 +64,8 @@ fun ThreadListContent(
         }
 
         /*
-         * Only show the empty screen if there are no saved
-         * conversations, archived threads, or recommended
-         * mission row.
+         * Show the empty state only if no active thread,
+         * archived thread, or recommendation exists.
          */
         uiState.isEmpty &&
                 !uiState.hasArchivedThreads -> {
@@ -127,8 +127,7 @@ fun ThreadListContent(
                     ) {
                         ArchivePullIndicator(
                             progress =
-                                archivePullState
-                                    .pullProgress
+                                archivePullState.pullProgress
                         )
                     }
                 }
@@ -155,9 +154,7 @@ fun ThreadListContent(
                                     )
                             ) +
                                     slideInVertically(
-                                        initialOffsetY = {
-                                                height ->
-
+                                        initialOffsetY = { height ->
                                             -height / 2
                                         },
                                         animationSpec =
@@ -174,8 +171,7 @@ fun ThreadListContent(
                     ) {
                         ArchivedThreadsRow(
                             count =
-                                uiState
-                                    .archivedThreadCount,
+                                uiState.archivedThreadCount,
                             onClick =
                                 onArchivedThreadsClick
                         )
@@ -183,12 +179,13 @@ fun ThreadListContent(
                 }
 
                 /*
-                 * The generated mission recommendation looks
-                 * like a conversation already waiting for the
-                 * learner.
+                 * Recommended mission thread.
                  *
-                 * It has no section heading and no visible
-                 * "mission" or "recommended" label.
+                 * Tap:
+                 * Start mission.
+                 *
+                 * Swipe left:
+                 * Replace it with another recommendation.
                  */
                 item(
                     key =
@@ -196,8 +193,7 @@ fun ThreadListContent(
                 ) {
                     AnimatedVisibility(
                         visible =
-                            uiState
-                                .missionRecommendation !=
+                            uiState.missionRecommendation !=
                                     null,
                         enter =
                             expandVertically(
@@ -214,9 +210,7 @@ fun ThreadListContent(
                                     )
                             ) +
                                     slideInVertically(
-                                        initialOffsetY = {
-                                                height ->
-
+                                        initialOffsetY = { height ->
                                             -height / 3
                                         }
                                     ) +
@@ -227,27 +221,31 @@ fun ThreadListContent(
                                     Alignment.Top
                             ) +
                                     slideOutVertically(
-                                        targetOffsetY = {
-                                                height ->
-
+                                        targetOffsetY = { height ->
                                             -height / 4
                                         }
                                     ) +
                                     fadeOut()
                     ) {
-                        uiState
-                            .missionRecommendation
-                            ?.let { recommendation ->
-                                RecommendedMissionThreadRow(
-                                    recommendation =
-                                        recommendation,
-                                    isStarting =
-                                        uiState
-                                            .isStartingRecommendedMission,
-                                    onClick =
-                                        onRecommendedMissionClick
-                                )
-                            }
+                        val recommendation =
+                            uiState.missionRecommendation
+
+                        if (recommendation != null) {
+                            SwipeableRecommendedMissionThreadRow(
+                                recommendation =
+                                    recommendation,
+                                isLoadingAnother =
+                                    uiState
+                                        .isLoadingMissionRecommendation,
+                                isStarting =
+                                    uiState
+                                        .isStartingRecommendedMission,
+                                onShowAnotherMission =
+                                    onShowAnotherMission,
+                                onStartMission =
+                                    onRecommendedMissionClick
+                            )
+                        }
                     }
                 }
 

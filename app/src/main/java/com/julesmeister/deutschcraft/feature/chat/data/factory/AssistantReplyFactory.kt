@@ -10,6 +10,9 @@ import com.julesmeister.deutschcraft.feature.chat.domain.AssistantReply
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
+import com.julesmeister.deutschcraft.feature.mission.domain.ActiveMissionConversationContext
+import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
+import com.julesmeister.deutschcraft.feature.mission.domain.MissionConversationContextMapper
 import java.time.Clock
 import java.util.UUID
 import javax.inject.Inject
@@ -22,13 +25,17 @@ class AssistantReplyFactory @Inject constructor(
     DeutschCraftAiGateway,
     private val replySuggestionFactory:
     ReplySuggestionFactory,
+    private val missionContextMapper:
+    MissionConversationContextMapper,
     private val clock:
     Clock
 ) {
 
     suspend fun create(
         conversationId: String,
-        learnerMessage: String
+        learnerMessage: String,
+        activeMission: ConversationMission? =
+            null
     ): AssistantReply {
         val learnerLevel =
             getLearnerLevel(
@@ -46,6 +53,12 @@ class AssistantReplyFactory @Inject constructor(
                     entity.toDomain()
                 }
 
+        val missionContext =
+            missionContextMapper.map(
+                mission =
+                    activeMission
+            )
+
         val aiReply =
             generateAiReply(
                 learnerMessage =
@@ -53,15 +66,16 @@ class AssistantReplyFactory @Inject constructor(
                 conversationHistory =
                     conversationHistory,
                 learnerLevel =
-                    learnerLevel
+                    learnerLevel,
+                missionContext =
+                    missionContext
             )
 
         val nextSequenceNumber =
-            localDataSource
-                .getNextSequenceNumber(
-                    conversationId =
-                        conversationId
-                )
+            localDataSource.getNextSequenceNumber(
+                conversationId =
+                    conversationId
+            )
 
         val assistantMessage =
             ChatMessage(
@@ -107,7 +121,9 @@ class AssistantReplyFactory @Inject constructor(
     private suspend fun generateAiReply(
         learnerMessage: String,
         conversationHistory: List<ChatMessage>,
-        learnerLevel: CefrLevel
+        learnerLevel: CefrLevel,
+        missionContext:
+        ActiveMissionConversationContext?
     ): AiReply {
         return try {
             aiGateway.generateReply(
@@ -116,7 +132,9 @@ class AssistantReplyFactory @Inject constructor(
                 conversationHistory =
                     conversationHistory,
                 cefrLevel =
-                    learnerLevel
+                    learnerLevel,
+                activeMissionContext =
+                    missionContext
             )
         } catch (
             cancellationException:
@@ -133,7 +151,9 @@ class AssistantReplyFactory @Inject constructor(
 
             createOfflineFallback(
                 learnerLevel =
-                    learnerLevel
+                    learnerLevel,
+                missionContext =
+                    missionContext
             )
         }
     }
@@ -152,9 +172,9 @@ class AssistantReplyFactory @Inject constructor(
                             " "
                         )
                 }
-                .filter { suggestion ->
-                    suggestion.isNotBlank()
-                }
+                .filter(
+                    String::isNotBlank
+                )
                 .distinct()
                 .take(
                     REQUIRED_SUGGESTION_COUNT
@@ -189,23 +209,39 @@ class AssistantReplyFactory @Inject constructor(
     }
 
     private fun createOfflineFallback(
-        learnerLevel: CefrLevel
+        learnerLevel: CefrLevel,
+        missionContext:
+        ActiveMissionConversationContext?
     ): AiReply {
         val suggestions =
-            replySuggestionFactory
-                .create(
-                    cefrLevel =
-                        learnerLevel
+            missionContext
+                ?.currentObjective
+                ?.examplePhrases
+                ?.filter(
+                    String::isNotBlank
                 )
-                .map { suggestion ->
-                    suggestion.text
+                ?.take(
+                    REQUIRED_SUGGESTION_COUNT
+                )
+                .orEmpty()
+                .ifEmpty {
+                    replySuggestionFactory
+                        .create(
+                            cefrLevel =
+                                learnerLevel
+                        )
+                        .map { suggestion ->
+                            suggestion.text
+                        }
                 }
 
         return AiReply(
             content =
                 offlineReplyContent(
                     learnerLevel =
-                        learnerLevel
+                        learnerLevel,
+                    missionContext =
+                        missionContext
                 ),
             suggestions =
                 suggestions
@@ -213,12 +249,30 @@ class AssistantReplyFactory @Inject constructor(
     }
 
     private fun offlineReplyContent(
-        learnerLevel: CefrLevel
+        learnerLevel: CefrLevel,
+        missionContext:
+        ActiveMissionConversationContext?
     ): String {
+        if (missionContext != null) {
+            return buildString {
+                append(
+                    missionContext.assistantRole
+                )
+                append(": ")
+                append(
+                    missionContext
+                        .currentObjective
+                        .description
+                        .ifBlank {
+                            "Wie kann ich Ihnen helfen?"
+                        }
+                )
+            }
+        }
+
         return when (learnerLevel) {
             CefrLevel.A1 -> {
-                "Das ist interessant. " +
-                        "Kannst du mehr erzählen?"
+                "Das ist interessant. Kannst du mehr erzählen?"
             }
 
             CefrLevel.A2 -> {

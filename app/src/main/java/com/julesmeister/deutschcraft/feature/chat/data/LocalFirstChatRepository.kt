@@ -10,6 +10,7 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatRepository
 import com.julesmeister.deutschcraft.feature.chat.domain.Conversation
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
+import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import com.julesmeister.deutschcraft.feature.threads.domain.LocalThreadTitleGenerator
 import java.time.Clock
 import java.util.UUID
@@ -18,14 +19,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class LocalFirstChatRepository @Inject constructor(
-    private val localDataSource: ChatLocalDataSource,
+    private val localDataSource:
+    ChatLocalDataSource,
     private val conversationFactory:
     ConversationFactory,
     private val assistantReplyFactory:
     AssistantReplyFactory,
     private val titleGenerator:
     LocalThreadTitleGenerator,
-    private val clock: Clock
+    private val clock:
+    Clock
 ) : ChatRepository {
 
     override fun observeMessages(
@@ -107,7 +110,9 @@ class LocalFirstChatRepository @Inject constructor(
         val todayEpochDay =
             clock
                 .instant()
-                .atZone(clock.zone)
+                .atZone(
+                    clock.zone
+                )
                 .toLocalDate()
                 .toEpochDay()
 
@@ -122,7 +127,8 @@ class LocalFirstChatRepository @Inject constructor(
         message: ChatMessage
     ) {
         localDataSource.saveMessage(
-            message = message.toEntity()
+            message =
+                message.toEntity()
         )
 
         if (
@@ -138,19 +144,35 @@ class LocalFirstChatRepository @Inject constructor(
     override suspend fun getNextSequenceNumber(
         conversationId: String
     ): Long {
-        return localDataSource
-            .getNextSequenceNumber(
-                conversationId = conversationId
-            )
+        return localDataSource.getNextSequenceNumber(
+            conversationId = conversationId
+        )
     }
 
     override suspend fun generateAssistantReply(
         conversationId: String,
-        message: String
+        message: String,
+        activeMission: ConversationMission?
     ): AssistantReply {
         return assistantReplyFactory.create(
-            conversationId = conversationId,
-            learnerMessage = message
+            conversationId =
+                conversationId,
+            learnerMessage =
+                message,
+            activeMission =
+                activeMission
+        )
+    }
+
+    override suspend fun updateMessageCorrection(
+        messageId: String,
+        correction: String?
+    ) {
+        localDataSource.updateMessageCorrection(
+            messageId =
+                messageId,
+            correction =
+                correction
         )
     }
 
@@ -163,7 +185,8 @@ class LocalFirstChatRepository @Inject constructor(
 
         val generatedTitle =
             titleGenerator.generate(
-                message = message.content
+                message =
+                    message.content
             )
 
         localDataSource
@@ -180,15 +203,5 @@ class LocalFirstChatRepository @Inject constructor(
     private companion object {
         const val PRIMARY_CONVERSATION_ID =
             "primary-conversation"
-    }
-
-    override suspend fun updateMessageCorrection(
-        messageId: String,
-        correction: String?
-    ) {
-        localDataSource.updateMessageCorrection(
-            messageId = messageId,
-            correction = correction
-        )
     }
 }

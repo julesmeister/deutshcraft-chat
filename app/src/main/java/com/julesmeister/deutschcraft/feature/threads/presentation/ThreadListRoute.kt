@@ -158,6 +158,9 @@ fun ThreadListRoute(
         onErrorDismissed =
             viewModel::dismissError,
         modifier =
-            modifier
+            modifier,
+        onShowAnotherMission = {
+            viewModel.showAnotherMissionRecommendation()
+        },
     )
 }

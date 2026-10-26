@@ -14,7 +14,24 @@ fun ThreadListScreen(
     uiState: ThreadListUiState,
     snackbarHostState: SnackbarHostState,
     onThreadClick: (String) -> Unit,
+
+    /*
+     * Starts the currently displayed recommended mission.
+     *
+     * Called by:
+     *
+     * - Tapping the card
+     * - Swiping the card right
+     */
     onRecommendedMissionClick: () -> Unit,
+
+    /*
+     * Requests another CEFR-appropriate recommendation.
+     *
+     * Called when the mission card is swiped left.
+     */
+    onShowAnotherMission: () -> Unit,
+
     onArchivedThreadsClick: () -> Unit,
     onNewThreadClick: () -> Unit,
     onProgressClick: () -> Unit,
@@ -91,6 +108,8 @@ fun ThreadListScreen(
                 onThreadClick,
             onRecommendedMissionClick =
                 onRecommendedMissionClick,
+            onShowAnotherMission =
+                onShowAnotherMission,
             onNewThreadClick =
                 onNewThreadClick,
             onArchivedThreadsClick =

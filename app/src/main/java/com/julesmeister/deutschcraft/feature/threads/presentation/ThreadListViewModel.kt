@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.julesmeister.deutschcraft.feature.threads.domain.ConversationThread
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,6 +23,8 @@ class ThreadListViewModel @Inject constructor(
     ThreadListThreadController,
     private val missionController:
     ThreadListMissionController,
+    private val missionRecommendationCoordinator:
+    ThreadMissionRecommendationCoordinator,
     private val threadSectionBuilder:
     ThreadSectionBuilder
 ) : ViewModel() {
@@ -42,8 +45,7 @@ class ThreadListViewModel @Inject constructor(
 
     val navigationEvents:
             Flow<ThreadListNavigationEvent> =
-        navigationEventChannel
-            .receiveAsFlow()
+        navigationEventChannel.receiveAsFlow()
 
     private val _archiveSnackbarEvents =
         MutableSharedFlow<ArchiveSnackbarEvent>(
@@ -52,8 +54,7 @@ class ThreadListViewModel @Inject constructor(
         )
 
     val archiveSnackbarEvents =
-        _archiveSnackbarEvents
-            .asSharedFlow()
+        _archiveSnackbarEvents.asSharedFlow()
 
     init {
         restoreMissionRecommendation()
@@ -94,6 +95,15 @@ class ThreadListViewModel @Inject constructor(
         )
     }
 
+    /*
+     * Starts the recommendation currently displayed in the
+     * top mission cell.
+     *
+     * This is used both when:
+     *
+     * - The learner taps the mission card
+     * - The learner swipes the mission card to the right
+     */
     fun startRecommendedMission() {
         val currentState =
             _uiState.value
@@ -101,6 +111,14 @@ class ThreadListViewModel @Inject constructor(
         val recommendation =
             currentState.missionRecommendation
                 ?: return
+
+        if (
+            currentState.isCreatingThread ||
+            currentState.isStartingRecommendedMission ||
+            currentState.isLoadingMissionRecommendation
+        ) {
+            return
+        }
 
         missionController.startRecommendation(
             recommendation =
@@ -133,6 +151,92 @@ class ThreadListViewModel @Inject constructor(
                 }
             }
         )
+    }
+
+    /*
+     * Requests a different mission for the top recommendation
+     * cell.
+     *
+     * This is called when the learner swipes the card left.
+     *
+     * forceRefresh = true ensures the cache is not simply
+     * returned again.
+     */
+    fun showAnotherMissionRecommendation() {
+        val currentState =
+            _uiState.value
+
+        if (
+            currentState.isLoadingMissionRecommendation ||
+            currentState.isStartingRecommendedMission ||
+            currentState.isCreatingThread
+        ) {
+            return
+        }
+
+        val activeThreads =
+            currentState
+                .sections
+                .asSequence()
+                .flatMap { section ->
+                    section.threads.asSequence()
+                }
+                .toList()
+
+        _uiState.update { state ->
+            state.copy(
+                isLoadingMissionRecommendation =
+                    true,
+                errorMessage =
+                    null
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                val recommendation =
+                    missionRecommendationCoordinator
+                        .loadRecommendation(
+                            activeThreads =
+                                activeThreads,
+                            forceRefresh =
+                                true
+                        )
+
+                _uiState.update { state ->
+                    state.copy(
+                        missionRecommendation =
+                            recommendation,
+                        isLoadingMissionRecommendation =
+                            false,
+                        errorMessage =
+                            if (recommendation == null) {
+                                DIFFERENT_MISSION_UNAVAILABLE
+                            } else {
+                                null
+                            }
+                    )
+                }
+            } catch (
+                cancellationException:
+                CancellationException
+            ) {
+                throw cancellationException
+            } catch (throwable: Throwable) {
+                /*
+                 * Keep the previous recommendation visible if
+                 * generating another one fails.
+                 */
+                _uiState.update { state ->
+                    state.copy(
+                        isLoadingMissionRecommendation =
+                            false,
+                        errorMessage =
+                            DIFFERENT_MISSION_ERROR
+                    )
+                }
+            }
+        }
     }
 
     fun archiveThread(
@@ -326,5 +430,11 @@ class ThreadListViewModel @Inject constructor(
     private companion object {
         const val DEFAULT_CONVERSATION_TITLE =
             "Unterhaltung"
+
+        const val DIFFERENT_MISSION_ERROR =
+            "Eine andere Mission konnte nicht geladen werden."
+
+        const val DIFFERENT_MISSION_UNAVAILABLE =
+            "Im Moment ist keine andere Mission verfügbar."
     }
 }

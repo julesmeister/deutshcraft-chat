@@ -1,5 +1,6 @@
 package com.julesmeister.deutschcraft.feature.chat.domain
 
+import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import kotlinx.coroutines.flow.Flow
 
 interface ChatRepository {
@@ -35,7 +36,10 @@ interface ChatRepository {
 
     suspend fun generateAssistantReply(
         conversationId: String,
-        message: String
+        message: String,
+        activeMission:
+        ConversationMission? =
+            null
     ): AssistantReply
 
     suspend fun updateMessageCorrection(

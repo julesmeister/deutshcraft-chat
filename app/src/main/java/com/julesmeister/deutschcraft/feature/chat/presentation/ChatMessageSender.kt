@@ -1,6 +1,7 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import android.util.Log
+import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.AdaptiveLearningFeedback
 import com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.AdaptiveLearningMessageResult
 import com.julesmeister.deutschcraft.feature.adaptivelearning.domain.usecase.RunAdaptiveLearningForMessageUseCase
@@ -31,30 +32,25 @@ class ChatMessageSender @Inject constructor(
     suspend fun send(
         conversationId: String,
         messageText: String,
-        activeMission: ConversationMission?
+        activeMission:
+        ConversationMission?
     ): ChatMessageSendResult {
         /*
-         * Complete the normal chat operation first.
+         * The active mission must enter the send use case
+         * before assistant generation begins.
          *
-         * SendChatMessageUseCase remains responsible for:
-         *
-         * - Saving the learner message
-         * - Generating Emil's reply
-         * - Saving Emil's reply
-         * - Running the existing language assessment
-         * - Saving detected mistakes
-         * - Generating reply suggestions
-         *
-         * Adaptive learning runs only after this operation
-         * succeeds, because it consumes the saved assessment
-         * and detected-mistake records.
+         * This is the critical connection that allows Emil
+         * to adopt the mission role and focus on the current
+         * objective.
          */
         val result =
             sendChatMessage(
                 conversationId =
                     conversationId,
                 messageText =
-                    messageText
+                    messageText,
+                activeMission =
+                    activeMission
             )
 
         val suggestions =
@@ -85,16 +81,14 @@ class ChatMessageSender @Inject constructor(
             warning =
                 result.assessmentWarning,
             adaptiveLearningFeedback =
-                learningResult.adaptiveLearningFeedback
+                learningResult
+                    .adaptiveLearningFeedback
         )
     }
 
     /*
      * Compatibility overload for callers that do not yet
-     * provide active mission state.
-     *
-     * Adaptive learning still runs because it does not
-     * require an active mission.
+     * supply active mission state.
      */
     suspend fun send(
         conversationId: String,
@@ -115,13 +109,18 @@ class ChatMessageSender @Inject constructor(
      * once, then shares them between mission evaluation and
      * adaptive learning.
      *
-     * At this point SendChatMessageUseCase has already saved
-     * both the learner message and Emil's reply.
+     * At this point, SendChatMessageUseCase has already saved:
+     *
+     * - The learner message
+     * - The assistant response
+     * - Any assessment evidence
+     * - Any correction
      */
     private suspend fun processSavedLearnerMessage(
         conversationId: String,
         submittedMessageText: String,
-        activeMission: ConversationMission?
+        activeMission:
+        ConversationMission?
     ): ChatLearningProcessingResult {
         return try {
             val conversation =
@@ -135,21 +134,14 @@ class ChatMessageSender @Inject constructor(
                         Log.w(
                             SENDER_TAG,
                             "Post-send learning processing " +
-                                    "skipped because the conversation " +
-                                    "was not found. " +
+                                    "was skipped because the " +
+                                    "conversation was not found. " +
                                     "conversationId=$conversationId"
                         )
 
                         return ChatLearningProcessingResult()
                     }
 
-            /*
-             * Load and map messages once.
-             *
-             * The final saved message may belong to Emil, so
-             * it must not automatically be treated as the
-             * learner message being evaluated.
-             */
             val savedMessages =
                 localDataSource
                     .getMessages(
@@ -174,9 +166,9 @@ class ChatMessageSender @Inject constructor(
                         Log.w(
                             SENDER_TAG,
                             "Post-send learning processing " +
-                                    "skipped because the newly saved " +
-                                    "learner message could not be " +
-                                    "identified. " +
+                                    "was skipped because the newly " +
+                                    "saved learner message could " +
+                                    "not be identified. " +
                                     "conversationId=$conversationId"
                         )
 
@@ -184,12 +176,11 @@ class ChatMessageSender @Inject constructor(
                     }
 
             /*
-             * Include both learner and assistant turns.
+             * Stop at the current learner message.
              *
-             * Mission evaluation can inspect previous learner
-             * turns, while adaptive communication evaluation
-             * uses Emil's turns to understand what behavior
-             * the learner was invited to demonstrate.
+             * The assistant response has already been saved,
+             * but it must not be included as if it occurred
+             * before the learner message under evaluation.
              */
             val recentMessages =
                 savedMessages
@@ -209,7 +200,9 @@ class ChatMessageSender @Inject constructor(
             Log.d(
                 SENDER_TAG,
                 buildString {
-                    append("Processing saved learner message. ")
+                    append(
+                        "Processing saved learner message. "
+                    )
                     append("messageId=")
                     append(savedLearnerMessage.id)
                     append(", conversationId=")
@@ -257,10 +250,11 @@ class ChatMessageSender @Inject constructor(
             throw cancellationException
         } catch (throwable: Throwable) {
             /*
-             * The chat operation already succeeded.
+             * The normal chat operation has already
+             * succeeded.
              *
              * Mission or adaptive-learning failures must not
-             * transform the successful send into an error.
+             * convert the successful send into an error.
              */
             Log.e(
                 SENDER_TAG,
@@ -273,11 +267,12 @@ class ChatMessageSender @Inject constructor(
     }
 
     private suspend fun evaluateMissionIfActive(
-        activeMission: ConversationMission?,
+        activeMission:
+        ConversationMission?,
         learnerMessage: ChatMessage,
-        recentMessages: List<ChatMessage>,
-        cefrLevel:
-        com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
+        recentMessages:
+        List<ChatMessage>,
+        cefrLevel: CefrLevel
     ) {
         if (activeMission == null) {
             Log.d(
@@ -317,9 +312,9 @@ class ChatMessageSender @Inject constructor(
     private suspend fun runAdaptiveLearning(
         learnerMessage: ChatMessage,
         conversationId: String,
-        recentMessages: List<ChatMessage>,
-        cefrLevel:
-        com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
+        recentMessages:
+        List<ChatMessage>,
+        cefrLevel: CefrLevel
     ): AdaptiveLearningMessageResult {
         return try {
             val result =
@@ -369,12 +364,10 @@ class ChatMessageSender @Inject constructor(
             submittedMessageText.trim()
 
         /*
-         * Choose the newest USER message matching the text
-         * that was submitted.
+         * Select the newest matching USER message.
          *
-         * maxByOrNull protects against selecting an older
-         * duplicate when the learner has sent the same text
-         * previously.
+         * This avoids selecting an older duplicate when the
+         * learner sends identical text more than once.
          */
         return messages
             .asSequence()
@@ -393,12 +386,15 @@ class ChatMessageSender @Inject constructor(
 
     private fun logAdaptiveLearningResult(
         learnerMessage: ChatMessage,
-        result: AdaptiveLearningMessageResult
+        result:
+        AdaptiveLearningMessageResult
     ) {
         Log.d(
             ADAPTIVE_LEARNING_TAG,
             buildString {
-                append("Adaptive processing finished. ")
+                append(
+                    "Adaptive processing finished. "
+                )
                 append("messageId=")
                 append(learnerMessage.id)
                 append(", recorded=")
@@ -459,13 +455,6 @@ class ChatMessageSender @Inject constructor(
         const val ADAPTIVE_FEEDBACK_TAG =
             "AdaptiveFeedback"
 
-        /*
-         * Provides up to six learner-assistant exchanges.
-         *
-         * This is sufficient for understanding the current
-         * communication opportunity without sending the
-         * entire thread to Qwen.
-         */
         const val RECENT_LEARNING_MESSAGE_COUNT =
             12
     }
@@ -487,10 +476,6 @@ private data class ChatLearningProcessingResult(
 
 /*
  * Public result returned to the chat presentation layer.
- *
- * adaptiveLearningFeedback has a default value so existing
- * call sites that construct this result with suggestions and
- * warning continue to compile.
  */
 data class ChatMessageSendResult(
     val suggestions:
