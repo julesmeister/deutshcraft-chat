@@ -34,26 +34,45 @@ fun ChatMessageList(
     scrollRequestKey: Int = 0,
     bottomOverlayHeight: Dp = 0.dp
 ) {
-    val listState =
-        rememberLazyListState()
-
-    val density =
-        LocalDensity.current
-
-    val keyboardBottom =
-        WindowInsets.ime.getBottom(
-            density = density
-        )
-
     val messageCount =
         uiState.messages.size
-
-    val suggestionCount =
-        uiState.suggestions.size
 
     val hasTypingIndicator =
         uiState.isAssistantTyping
 
+    /*
+     * Do not create LazyListState while the conversation is
+     * still empty.
+     *
+     * Room usually emits an empty state first and the saved
+     * messages afterward. Creating the state during that
+     * empty emission permanently initializes it at index 0.
+     */
+    if (
+        messageCount == 0 &&
+        !hasTypingIndicator
+    ) {
+        ChatMessageListEmptyState(
+            modifier =
+                modifier
+        )
+
+        return
+    }
+
+    val suggestionCount =
+        uiState.suggestions.size
+
+    /*
+     * LazyColumn contains:
+     *
+     * messageCount message items
+     * + optional typing indicator
+     * + one bottom-anchor item
+     *
+     * Therefore this value is the index of the bottom
+     * anchor.
+     */
     val bottomAnchorIndex =
         calculateBottomAnchorIndex(
             messageCount =
@@ -62,23 +81,55 @@ fun ChatMessageList(
                 hasTypingIndicator
         )
 
+    /*
+     * This state is now created only after messages exist.
+     *
+     * The conversation therefore opens directly at the
+     * bottom anchor instead of rendering index 0 first and
+     * scrolling afterward.
+     */
+    val listState =
+        rememberLazyListState(
+            initialFirstVisibleItemIndex =
+                bottomAnchorIndex
+        )
+
+    val density =
+        LocalDensity.current
+
+    val keyboardBottom =
+        WindowInsets.ime.getBottom(
+            density =
+                density
+        )
+
     val latestUserMessageId =
-        uiState.messages
-            .latestMessageId(
-                sender =
-                    MessageSender.USER
-            )
+        remember(
+            uiState.messages
+        ) {
+            uiState.messages
+                .lastOrNull { message ->
+                    message.sender ==
+                            MessageSender.USER
+                }
+                ?.id
+        }
 
     val latestAssistantMessageId =
-        uiState.messages
-            .latestMessageId(
-                sender =
-                    MessageSender.ASSISTANT
-            )
+        remember(
+            uiState.messages
+        ) {
+            uiState.messages
+                .lastOrNull { message ->
+                    message.sender ==
+                            MessageSender.ASSISTANT
+                }
+                ?.id
+        }
 
     /*
-     * Messages already present when this list first opens
-     * should not replay their entrance animations.
+     * Existing messages should not replay their entrance
+     * animations when the conversation opens.
      */
     val seenMessageIds =
         remember {
@@ -112,18 +163,6 @@ fun ChatMessageList(
             scrollRequestKey
     )
 
-    if (
-        uiState.messages.isEmpty() &&
-        !hasTypingIndicator
-    ) {
-        ChatMessageListEmptyState(
-            modifier =
-                modifier
-        )
-
-        return
-    }
-
     LazyColumn(
         modifier =
             modifier.fillMaxSize(),
@@ -131,15 +170,6 @@ fun ChatMessageList(
             listState,
         reverseLayout =
             false,
-
-        /*
-         * The list receives exactly the measured floating
-         * bottom-bar height.
-         *
-         * This does not paint a black panel. It only gives
-         * the final message enough scroll range to move
-         * above the floating composer and suggestions.
-         */
         contentPadding =
             PaddingValues(
                 top =
@@ -213,11 +243,8 @@ fun ChatMessageList(
         }
 
         /*
-         * Retained as a tiny stable scrolling target.
-         *
-         * The measured content padding handles composer
-         * clearance. This anchor remains only for existing
-         * scroll calculations.
+         * Stable final item used as the bottom scrolling
+         * target.
          */
         item(
             key =
@@ -257,15 +284,6 @@ private fun calculateBottomAnchorIndex(
             } else {
                 0
             }
-}
-
-private fun List<ChatMessage>.latestMessageId(
-    sender: MessageSender
-): String? {
-    return lastOrNull { message ->
-        message.sender ==
-                sender
-    }?.id
 }
 
 private val MESSAGE_LIST_TOP_PADDING =

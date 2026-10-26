@@ -145,8 +145,8 @@ fun ChatScreen(
                     uiState.isAssistantTyping,
                 isAssessing =
                     uiState.isAssessing,
-                streakDays =
-                    uiState.currentStreak,
+                onBackClick =
+                    onBackClick,
                 activeMissionTitle =
                     uiState.activeMissionTitle,
                 currentMissionObjective =
@@ -163,17 +163,7 @@ fun ChatScreen(
                                     eventId
                             )
                     )
-                },
-                onBackClick =
-                    onBackClick,
-                onProgressClick =
-                    onProgressClick,
-                onNewConversationClick =
-                    onNewConversationClick,
-                onSettingsClick =
-                    onSettingsClick,
-                onClearConversationClick =
-                    onClearConversationClick
+                }
             )
         },
         snackbarHost = {

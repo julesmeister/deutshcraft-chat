@@ -1,52 +1,72 @@
 package com.julesmeister.deutschcraft.feature.threads.presentation
 
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.julesmeister.deutschcraft.feature.threads.presentation.component.CreateThreadFab
-import com.julesmeister.deutschcraft.feature.threads.presentation.component.DeutschCraftSnackbar
 import com.julesmeister.deutschcraft.feature.threads.presentation.component.ThreadListTopBar
+import com.julesmeister.deutschcraft.ui.theme.DeutschLime
+import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
 
 @Composable
 fun ThreadListScaffold(
     snackbarHostState: SnackbarHostState,
     isCreatingThread: Boolean,
+    streakDays: Int,
+    onProgressClick: () -> Unit,
     onNewThreadClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
-    content: @Composable (PaddingValues) -> Unit
+    content: @Composable (
+        PaddingValues
+    ) -> Unit
 ) {
     Scaffold(
-        modifier = modifier,
+        modifier =
+            modifier.fillMaxSize(),
         topBar = {
-            ThreadListTopBar()
+            ThreadListTopBar(
+                streakDays =
+                    streakDays,
+                onProgressClick =
+                    onProgressClick,
+                onNewConversationClick =
+                    onNewThreadClick,
+                onSettingsClick =
+                    onSettingsClick
+            )
         },
         snackbarHost = {
             SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = 16.dp,
-                        vertical = 12.dp
-                    )
-            ) { snackbarData ->
-                DeutschCraftSnackbar(
-                    snackbarData = snackbarData
+                hostState =
+                    snackbarHostState
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick =
+                    onNewThreadClick,
+                containerColor =
+                    DeutschLime,
+                contentColor =
+                    DeutschTextOnLime
+            ) {
+                Icon(
+                    imageVector =
+                        Icons.Outlined.Add,
+                    contentDescription =
+                        "New conversation"
                 )
             }
         },
-        floatingActionButton = {
-            CreateThreadFab(
-                isCreatingThread = isCreatingThread,
-                onClick = onNewThreadClick
-            )
-        },
-        content = content
+        content =
+            content
     )
 }

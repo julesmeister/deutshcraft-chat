@@ -15,6 +15,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun ThreadListRoute(
     onThreadClick: (String) -> Unit,
     onArchivedThreadsClick: () -> Unit,
+    onProgressClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ThreadListViewModel =
         hiltViewModel()
@@ -27,8 +29,8 @@ fun ThreadListRoute(
     /*
      * The Route owns the SnackbarHostState.
      *
-     * The same instance is passed to ThreadListScreen,
-     * where ThreadListScaffold renders the Snackbar host.
+     * The same instance is passed into ThreadListScreen and
+     * rendered by ThreadListScaffold.
      */
     val snackbarHostState =
         remember {
@@ -38,64 +40,80 @@ fun ThreadListRoute(
     /*
      * Collect one-time navigation events.
      *
-     * This handles:
+     * This supports:
      *
-     * - Newly created regular conversations
-     * - Newly started recommended mission conversations
+     * - Opening an existing thread
+     * - Opening a newly created conversation
+     * - Opening a newly started recommended mission
      */
-    LaunchedEffect(viewModel) {
-        viewModel.navigationEvents.collect { event ->
-            when (event) {
-                is ThreadListNavigationEvent
-                .OpenConversation -> {
+    LaunchedEffect(
+        viewModel
+    ) {
+        viewModel
+            .navigationEvents
+            .collect { event ->
+                when (event) {
+                    is ThreadListNavigationEvent
+                    .OpenConversation -> {
 
-                    onThreadClick(
-                        event.conversationId
+                        onThreadClick(
+                            event.conversationId
+                        )
+                    }
+                }
+            }
+    }
+
+    /*
+     * Display an archive result only after the repository
+     * operation succeeds.
+     *
+     * The learner can restore the archived conversation
+     * through the Snackbar action.
+     */
+    LaunchedEffect(
+        viewModel
+    ) {
+        viewModel
+            .archiveSnackbarEvents
+            .collect { event ->
+                val snackbarResult =
+                    snackbarHostState.showSnackbar(
+                        message =
+                            buildString {
+                                append("\"")
+
+                                append(
+                                    event.conversationTitle
+                                )
+
+                                append(
+                                    "\" archiviert"
+                                )
+                            },
+                        actionLabel =
+                            "RÜCKGÄNGIG",
+                        withDismissAction =
+                            true,
+                        duration =
+                            SnackbarDuration.Long
+                    )
+
+                if (
+                    snackbarResult ==
+                    SnackbarResult.ActionPerformed
+                ) {
+                    viewModel.restoreThread(
+                        conversationId =
+                            event.conversationId
                     )
                 }
             }
-        }
     }
 
     /*
-     * Show the archive confirmation only after the database
-     * operation succeeds.
-     */
-    LaunchedEffect(viewModel) {
-        viewModel.archiveSnackbarEvents.collect { event ->
-            val snackbarResult =
-                snackbarHostState.showSnackbar(
-                    message =
-                        buildString {
-                            append("\"")
-                            append(
-                                event.conversationTitle
-                            )
-                            append("\" archiviert")
-                        },
-                    actionLabel =
-                        "RÜCKGÄNGIG",
-                    withDismissAction =
-                        true,
-                    duration =
-                        SnackbarDuration.Long
-                )
-
-            if (
-                snackbarResult ==
-                SnackbarResult.ActionPerformed
-            ) {
-                viewModel.restoreThread(
-                    conversationId =
-                        event.conversationId
-                )
-            }
-        }
-    }
-
-    /*
-     * Display database, repository, or mission-start errors
-     * with the same Snackbar host.
+     * Display database, repository, conversation-creation,
+     * or mission-start errors through the shared Snackbar.
      */
     LaunchedEffect(
         uiState.errorMessage
@@ -129,6 +147,10 @@ fun ThreadListRoute(
             onArchivedThreadsClick,
         onNewThreadClick =
             viewModel::createThread,
+        onProgressClick =
+            onProgressClick,
+        onSettingsClick =
+            onSettingsClick,
         onArchiveThread =
             viewModel::archiveThread,
         onDeleteThread =

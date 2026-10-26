@@ -22,6 +22,16 @@ data class ThreadListUiState(
     MissionThreadRecommendation? =
         null,
 
+    /*
+     * Global learning streak displayed in the thread-list
+     * top bar.
+     *
+     * This information belongs on the home/dashboard screen
+     * rather than inside an individual conversation.
+     */
+    val currentStreak: Int =
+        0,
+
     val isLoading: Boolean =
         true,
 
@@ -38,6 +48,16 @@ data class ThreadListUiState(
         null
 ) {
 
+    /*
+     * The screen is considered empty only when:
+     *
+     * - Thread loading has completed
+     * - There are no saved active threads
+     * - There is no generated mission recommendation
+     *
+     * Archived conversations are handled separately through
+     * hasArchivedThreads.
+     */
     val isEmpty: Boolean
         get() {
             return !isLoading &&

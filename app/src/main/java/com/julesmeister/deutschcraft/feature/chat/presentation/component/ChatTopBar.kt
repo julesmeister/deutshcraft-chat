@@ -6,21 +6,15 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -41,12 +35,7 @@ import com.julesmeister.deutschcraft.feature.chat.presentation.MissionObjectiveC
 fun ChatTopBar(
     isAssistantTyping: Boolean,
     isAssessing: Boolean,
-    streakDays: Int,
     onBackClick: () -> Unit,
-    onProgressClick: () -> Unit,
-    onNewConversationClick: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onClearConversationClick: () -> Unit,
     modifier: Modifier = Modifier,
     activeMissionTitle: String? = null,
     currentMissionObjective: String? = null,
@@ -56,42 +45,29 @@ fun ChatTopBar(
     onObjectiveCompletionShown:
         (String) -> Unit = {}
 ) {
-    var isMenuExpanded by remember {
-        mutableStateOf(false)
-    }
-
     TopAppBar(
         modifier =
             modifier.fillMaxWidth(),
         colors =
-            TopAppBarDefaults
-                .topAppBarColors(
-                    containerColor =
-                        MaterialTheme
-                            .colorScheme
-                            .background,
-                    scrolledContainerColor =
-                        MaterialTheme
-                            .colorScheme
-                            .background,
-                    titleContentColor =
-                        MaterialTheme
-                            .colorScheme
-                            .onBackground,
-                    navigationIconContentColor =
-                        MaterialTheme
-                            .colorScheme
-                            .onBackground,
-                    actionIconContentColor =
-                        MaterialTheme
-                            .colorScheme
-                            .onBackground
-                ),
+            TopAppBarDefaults.topAppBarColors(
+                containerColor =
+                    MaterialTheme
+                        .colorScheme
+                        .background,
+                scrolledContainerColor =
+                    MaterialTheme
+                        .colorScheme
+                        .background,
+                titleContentColor =
+                    MaterialTheme
+                        .colorScheme
+                        .onBackground,
+                navigationIconContentColor =
+                    MaterialTheme
+                        .colorScheme
+                        .onBackground
+            ),
         navigationIcon = {
-            /*
-             * Keeps the back button away from the physical
-             * left edge of the screen.
-             */
             AnimatedTopBarIconButton(
                 onClick =
                     onBackClick,
@@ -113,9 +89,15 @@ fun ChatTopBar(
         },
         title = {
             /*
-             * TopAppBar aligns its title beside the
-             * navigation button rather than centering it
-             * across the full screen.
+             * The chat top bar is now conversation-focused.
+             *
+             * Progress, settings, conversation creation, and
+             * other global actions belong on the thread
+             * screen.
+             *
+             * This title still displays active mission
+             * progress because that information directly
+             * supports the conversation currently in view.
              */
             AnimatedChatTopBarTitle(
                 isAssistantTyping =
@@ -132,106 +114,28 @@ fun ChatTopBar(
                     objectiveCompletionEvent,
                 onObjectiveCompletionShown =
                     onObjectiveCompletionShown,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            start =
-                                TITLE_START_PADDING,
-                            end =
-                                TITLE_END_PADDING
-                        )
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start =
+                            TITLE_START_PADDING,
+                        end =
+                            TITLE_END_PADDING
+                    )
             )
         },
         actions = {
-            ProgressStreakButton(
-                streakDays =
-                    streakDays,
-                onClick =
-                    onProgressClick
-            )
-
             /*
-             * Explicit space prevents the progress pill
-             * and menu button from appearing connected.
+             * Deliberately empty.
+             *
+             * The chat screen no longer displays:
+             *
+             * - Progress/streak button
+             * - New conversation action
+             * - Clear conversation action
+             * - Settings action
+             * - Overflow menu
              */
-            Spacer(
-                modifier =
-                    Modifier.width(
-                        ACTION_SPACING
-                    )
-            )
-
-            Box(
-                modifier =
-                    Modifier.padding(
-                        end =
-                            TOP_BAR_EDGE_PADDING
-                    )
-            ) {
-                AnimatedTopBarIconButton(
-                    onClick = {
-                        isMenuExpanded = true
-                    }
-                ) {
-                    Icon(
-                        imageVector =
-                            Icons.Outlined.MoreVert,
-                        contentDescription =
-                            "More options"
-                    )
-                }
-
-                DropdownMenu(
-                    expanded =
-                        isMenuExpanded,
-                    onDismissRequest = {
-                        isMenuExpanded = false
-                    }
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text =
-                                    "New conversation"
-                            )
-                        },
-                        onClick = {
-                            isMenuExpanded = false
-
-                            onNewConversationClick()
-                        }
-                    )
-
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text =
-                                    "Clear conversation"
-                            )
-                        },
-                        onClick = {
-                            isMenuExpanded = false
-
-                            onClearConversationClick()
-                        }
-                    )
-
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text =
-                                    "Settings"
-                            )
-                        },
-                        onClick = {
-                            isMenuExpanded = false
-
-                            onSettingsClick()
-                        }
-                    )
-                }
-            }
         }
     )
 }
@@ -242,7 +146,8 @@ private fun AnimatedTopBarIconButton(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    var isPressed by remember {
+    var isPressed by
+    remember {
         mutableStateOf(false)
     }
 
@@ -262,7 +167,7 @@ private fun AnimatedTopBarIconButton(
                     FastOutSlowInEasing
             ),
         label =
-            "TopBarIconPressScale"
+            "ChatTopBarIconPressScale"
     )
 
     Box(
@@ -301,12 +206,14 @@ private fun AnimatedTopBarIconButton(
             ) {
                 detectTapGestures(
                     onPress = {
-                        isPressed = true
+                        isPressed =
+                            true
 
                         try {
                             tryAwaitRelease()
                         } finally {
-                            isPressed = false
+                            isPressed =
+                                false
                         }
                     },
                     onTap = {
@@ -324,31 +231,18 @@ private fun AnimatedTopBarIconButton(
 private val TOP_BAR_ICON_BUTTON_SIZE =
     40.dp
 
-/*
- * Left and right breathing room from the screen edges.
- */
 private val TOP_BAR_EDGE_PADDING =
     8.dp
 
-/*
- * Small visual gap between the back button and the
- * animated title area.
- */
 private val TITLE_START_PADDING =
     8.dp
 
 /*
- * Prevents long mission titles from crowding the progress
- * control.
+ * There are no longer any actions on the right side of the
+ * top bar, so the title can use more horizontal space.
  */
 private val TITLE_END_PADDING =
-    8.dp
-
-/*
- * Separates the progress pill from the three-dot menu.
- */
-private val ACTION_SPACING =
-    6.dp
+    16.dp
 
 private const val NORMAL_ICON_SCALE =
     1f

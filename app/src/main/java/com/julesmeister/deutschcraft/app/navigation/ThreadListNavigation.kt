@@ -29,16 +29,26 @@ internal fun NavGraphBuilder.threadListDestination(
                         conversationId =
                             conversationId
                     )
-                ) {
-                    launchSingleTop = true
-                }
+                )
             },
             onArchivedThreadsClick = {
                 navController.navigate(
                     ArchivedThreadsDestination
-                ) {
-                    launchSingleTop = true
-                }
+                )
+            },
+            onProgressClick = {
+                navController.navigate(
+                    ProgressDestination
+                )
+            },
+            onSettingsClick = {
+                /*
+                 * Settings navigation has not been added to the
+                 * navigation graph yet.
+                 *
+                 * Keep this callback empty until
+                 * SettingsDestination is implemented.
+                 */
             }
         )
     }

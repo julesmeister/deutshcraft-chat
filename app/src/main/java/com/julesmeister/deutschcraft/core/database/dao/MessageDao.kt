@@ -115,4 +115,18 @@ interface MessageDao {
 
     @Query("DELETE FROM messages")
     suspend fun deleteAllMessages()
+
+    @Query(
+        """
+    SELECT *
+    FROM messages
+    WHERE conversationId = :conversationId
+    ORDER BY sequenceNumber DESC
+    LIMIT :messageLimit
+    """
+    )
+    fun observeRecentMessages(
+        conversationId: String,
+        messageLimit: Int
+    ): Flow<List<MessageEntity>>
 }

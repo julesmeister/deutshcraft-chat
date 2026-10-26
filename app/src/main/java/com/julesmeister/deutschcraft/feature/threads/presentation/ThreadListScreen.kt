@@ -17,6 +17,8 @@ fun ThreadListScreen(
     onRecommendedMissionClick: () -> Unit,
     onArchivedThreadsClick: () -> Unit,
     onNewThreadClick: () -> Unit,
+    onProgressClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     onArchiveThread: (String) -> Unit,
     onDeleteThread: (String) -> Unit,
     onErrorDismissed: () -> Unit,
@@ -36,13 +38,6 @@ fun ThreadListScreen(
     val dialogsState =
         rememberThreadListDialogsState()
 
-    /*
-     * ThreadListRoute normally handles errors using the
-     * shared SnackbarHostState.
-     *
-     * This remains here so ThreadListScreen can still work
-     * correctly if it is used without the Route.
-     */
     LaunchedEffect(
         uiState.errorMessage
     ) {
@@ -58,10 +53,6 @@ fun ThreadListScreen(
         onErrorDismissed()
     }
 
-    /*
-     * Hide the archive row if there are no longer any
-     * archived conversations.
-     */
     LaunchedEffect(
         uiState.hasArchivedThreads
     ) {
@@ -78,8 +69,14 @@ fun ThreadListScreen(
         isCreatingThread =
             uiState.isCreatingThread ||
                     uiState.isStartingRecommendedMission,
+        streakDays =
+            uiState.currentStreak,
+        onProgressClick =
+            onProgressClick,
         onNewThreadClick =
-            onNewThreadClick
+            onNewThreadClick,
+        onSettingsClick =
+            onSettingsClick
     ) { innerPadding ->
         ThreadListContent(
             uiState =
