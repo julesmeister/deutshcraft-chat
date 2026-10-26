@@ -109,6 +109,7 @@ fun SettingsScreen(
                     Text(
                         text =
                             "Settings",
+                        modifier = Modifier.padding(start = 8.dp),
                         fontWeight =
                             FontWeight.Bold
                     )

@@ -13,28 +13,21 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,12 +67,6 @@ internal fun AnimatedChatTopBarTitle(
                 String::isNotBlank
             )
 
-    /*
-     * This is learner-facing guidance from the objective's
-     * description.
-     *
-     * The internal completionHint is not displayed.
-     */
     val missionGuidance =
         currentMissionGuidance
             ?.trim()
@@ -87,76 +74,9 @@ internal fun AnimatedChatTopBarTitle(
                 String::isNotBlank
             )
 
-    var missionDisplayIndex by
-    remember(
-        missionTitle,
-        missionObjective,
-        missionGuidance
-    ) {
-        mutableIntStateOf(
-            NORMAL_DISPLAY_INDEX
-        )
-    }
-
     /*
-     * When a mission is active, rotate through:
-     *
-     * 1. Normal Emil status
-     * 2. Mission title and progress
-     * 3. Current objective and learner guidance
-     *
-     * Typing, assessment, and completion feedback interrupt
-     * this rotation because they have higher visual priority.
-     */
-    LaunchedEffect(
-        missionTitle,
-        missionObjective,
-        missionGuidance,
-        isAssistantTyping,
-        isAssessing,
-        objectiveCompletionEvent?.eventId
-    ) {
-        missionDisplayIndex =
-            NORMAL_DISPLAY_INDEX
-
-        if (
-            missionTitle == null ||
-            isAssistantTyping ||
-            isAssessing ||
-            objectiveCompletionEvent != null
-        ) {
-            return@LaunchedEffect
-        }
-
-        while (true) {
-            delay(
-                NORMAL_STATUS_DISPLAY_MILLIS
-            )
-
-            missionDisplayIndex =
-                MISSION_PROGRESS_DISPLAY_INDEX
-
-            delay(
-                MISSION_PROGRESS_DISPLAY_MILLIS
-            )
-
-            if (missionObjective != null) {
-                missionDisplayIndex =
-                    MISSION_OBJECTIVE_DISPLAY_INDEX
-
-                delay(
-                    MISSION_OBJECTIVE_DISPLAY_MILLIS
-                )
-            }
-
-            missionDisplayIndex =
-                NORMAL_DISPLAY_INDEX
-        }
-    }
-
-    /*
-     * Objective-completion feedback remains visible for a
-     * short period before being consumed from ChatUiState.
+     * Objective-completion feedback remains visible briefly
+     * before it is consumed from ChatUiState.
      */
     LaunchedEffect(
         objectiveCompletionEvent?.eventId
@@ -174,65 +94,44 @@ internal fun AnimatedChatTopBarTitle(
         )
     }
 
-    val status =
+    val temporaryStatus =
         when {
             objectiveCompletionEvent != null -> {
-                ChatTopBarStatus.ObjectiveCompleted(
-                    eventId =
-                        objectiveCompletionEvent.eventId,
-                    objectiveTitle =
-                        objectiveCompletionEvent
-                            .objectiveTitle
-                )
+                ChatTopBarTemporaryStatus
+                    .ObjectiveCompleted(
+                        eventId =
+                            objectiveCompletionEvent.eventId,
+                        objectiveTitle =
+                            objectiveCompletionEvent
+                                .objectiveTitle
+                    )
             }
 
             isAssistantTyping -> {
-                ChatTopBarStatus.AssistantTyping
+                ChatTopBarTemporaryStatus
+                    .AssistantTyping
             }
 
             isAssessing -> {
-                ChatTopBarStatus.Assessing
-            }
-
-            missionTitle == null -> {
-                ChatTopBarStatus.Normal
-            }
-
-            missionDisplayIndex ==
-                    MISSION_PROGRESS_DISPLAY_INDEX -> {
-
-                ChatTopBarStatus.MissionProgress(
-                    title =
-                        missionTitle,
-                    percentage =
-                        missionProgressPercentage
-                            .coerceIn(
-                                minimumValue = 0,
-                                maximumValue = 100
-                            )
-                )
-            }
-
-            missionDisplayIndex ==
-                    MISSION_OBJECTIVE_DISPLAY_INDEX &&
-                    missionObjective != null -> {
-
-                ChatTopBarStatus.MissionObjective(
-                    objective =
-                        missionObjective,
-                    guidance =
-                        missionGuidance
-                )
+                ChatTopBarTemporaryStatus
+                    .Assessing
             }
 
             else -> {
-                ChatTopBarStatus.Normal
+                null
             }
         }
 
+    /*
+     * Normal and mission content stay structurally stable.
+     *
+     * Temporary states such as typing, assessment, and
+     * completion temporarily replace that content, then the
+     * learner returns to the swipeable mission pager.
+     */
     AnimatedContent(
         targetState =
-            status,
+            temporaryStatus,
         modifier = modifier
             .fillMaxWidth()
             .heightIn(
@@ -305,14 +204,31 @@ internal fun AnimatedChatTopBarTitle(
         contentAlignment =
             Alignment.CenterStart,
         label =
-            "ChatTopBarStatus"
+            "ChatTopBarTemporaryStatus"
     ) { displayedStatus ->
         when (displayedStatus) {
-            ChatTopBarStatus.Normal -> {
-                NormalStatus()
+            null -> {
+                if (missionTitle == null) {
+                    NormalStatus()
+                } else {
+                    MissionTopBarPager(
+                        missionTitle =
+                            missionTitle,
+                        currentObjective =
+                            missionObjective,
+                        currentGuidance =
+                            missionGuidance,
+                        missionProgressPercentage =
+                            missionProgressPercentage,
+                        modifier =
+                            Modifier.fillMaxWidth()
+                    )
+                }
             }
 
-            ChatTopBarStatus.AssistantTyping -> {
+            ChatTopBarTemporaryStatus
+                .AssistantTyping -> {
+
                 SimpleStatus(
                     icon =
                         "•••",
@@ -323,7 +239,9 @@ internal fun AnimatedChatTopBarTitle(
                 )
             }
 
-            ChatTopBarStatus.Assessing -> {
+            ChatTopBarTemporaryStatus
+                .Assessing -> {
+
                 SimpleStatus(
                     icon =
                         "🧠",
@@ -334,25 +252,9 @@ internal fun AnimatedChatTopBarTitle(
                 )
             }
 
-            is ChatTopBarStatus.MissionProgress -> {
-                MissionProgressStatus(
-                    title =
-                        displayedStatus.title,
-                    percentage =
-                        displayedStatus.percentage
-                )
-            }
+            is ChatTopBarTemporaryStatus
+            .ObjectiveCompleted -> {
 
-            is ChatTopBarStatus.MissionObjective -> {
-                MissionGuidanceStatus(
-                    objective =
-                        displayedStatus.objective,
-                    guidance =
-                        displayedStatus.guidance
-                )
-            }
-
-            is ChatTopBarStatus.ObjectiveCompleted -> {
                 MissionObjectiveCompletedStatus(
                     eventId =
                         displayedStatus.eventId,
@@ -538,228 +440,22 @@ private fun SimpleStatus(
     }
 }
 
-@Composable
-private fun MissionProgressStatus(
-    title: String,
-    percentage: Int
-) {
-    val safePercentage =
-        percentage.coerceIn(
-            minimumValue = 0,
-            maximumValue = 100
-        )
+private sealed interface ChatTopBarTemporaryStatus {
 
-    Column(
-        modifier =
-            Modifier.fillMaxWidth(),
-        horizontalAlignment =
-            Alignment.Start
-    ) {
-        Text(
-            text =
-                "🎯 $title",
-            modifier =
-                Modifier.fillMaxWidth(),
-            style =
-                MaterialTheme
-                    .typography
-                    .titleSmall,
-            fontWeight =
-                FontWeight.SemiBold,
-            textAlign =
-                TextAlign.Start,
-            maxLines =
-                1,
-            overflow =
-                TextOverflow.Ellipsis
-        )
+    data object AssistantTyping :
+        ChatTopBarTemporaryStatus
 
-        Spacer(
-            modifier =
-                Modifier.height(
-                    MISSION_PROGRESS_VERTICAL_SPACING
-                )
-        )
+    data object Assessing :
+        ChatTopBarTemporaryStatus
 
-        Row(
-            modifier =
-                Modifier.fillMaxWidth(),
-            horizontalArrangement =
-                Arrangement.Start,
-            verticalAlignment =
-                Alignment.CenterVertically
-        ) {
-            LinearProgressIndicator(
-                progress = {
-                    safePercentage / 100f
-                },
-                modifier = Modifier
-                    .width(
-                        MISSION_PROGRESS_WIDTH
-                    )
-                    .height(
-                        MISSION_PROGRESS_HEIGHT
-                    )
-                    .clip(
-                        CircleShape
-                    )
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.width(
-                        MISSION_PERCENTAGE_SPACING
-                    )
-            )
-
-            Text(
-                text =
-                    "$safePercentage%",
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelSmall,
-                fontWeight =
-                    FontWeight.Bold,
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .primary,
-                textAlign =
-                    TextAlign.Start
-            )
-        }
-    }
+    data class ObjectiveCompleted(
+        val eventId: String,
+        val objectiveTitle: String
+    ) : ChatTopBarTemporaryStatus
 }
-
-@Composable
-private fun MissionGuidanceStatus(
-    objective: String,
-    guidance: String?
-) {
-    Row(
-        modifier =
-            Modifier.fillMaxWidth(),
-        verticalAlignment =
-            Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(
-                    MISSION_GUIDANCE_ICON_SIZE
-                )
-                .clip(
-                    RoundedCornerShape(
-                        MISSION_GUIDANCE_ICON_RADIUS
-                    )
-                )
-                .background(
-                    color =
-                        DeutschLime.copy(
-                            alpha =
-                                MISSION_GUIDANCE_ICON_ALPHA
-                        )
-                ),
-            contentAlignment =
-                Alignment.Center
-        ) {
-            Text(
-                text =
-                    "💡",
-                textAlign =
-                    TextAlign.Center
-            )
-        }
-
-        Spacer(
-            modifier =
-                Modifier.width(
-                    MISSION_GUIDANCE_SPACING
-                )
-        )
-
-        Column(
-            modifier =
-                Modifier.weight(1f),
-            horizontalAlignment =
-                Alignment.Start
-        ) {
-            Text(
-                text =
-                    objective,
-                modifier =
-                    Modifier.fillMaxWidth(),
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleSmall,
-                fontWeight =
-                    FontWeight.SemiBold,
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onBackground,
-                textAlign =
-                    TextAlign.Start,
-                maxLines =
-                    1,
-                overflow =
-                    TextOverflow.Ellipsis
-            )
-
-            Text(
-                text =
-                    guidance
-                        ?: DEFAULT_MISSION_GUIDANCE,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            top =
-                                MISSION_GUIDANCE_TEXT_SPACING
-                        ),
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelSmall,
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
-                textAlign =
-                    TextAlign.Start,
-                maxLines =
-                    1,
-                overflow =
-                    TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-private const val NORMAL_DISPLAY_INDEX =
-    0
-
-private const val MISSION_PROGRESS_DISPLAY_INDEX =
-    1
-
-private const val MISSION_OBJECTIVE_DISPLAY_INDEX =
-    2
-
-private const val NORMAL_STATUS_DISPLAY_MILLIS =
-    4_500L
-
-private const val MISSION_PROGRESS_DISPLAY_MILLIS =
-    4_000L
-
-private const val MISSION_OBJECTIVE_DISPLAY_MILLIS =
-    5_000L
 
 private const val OBJECTIVE_COMPLETION_DISPLAY_MILLIS =
     1_650L
-
-private const val DEFAULT_MISSION_GUIDANCE =
-    "Continue the conversation to complete this objective."
 
 private val TOP_BAR_CONTENT_MINIMUM_HEIGHT =
     42.dp
@@ -781,33 +477,6 @@ private val STATUS_ICON_CORNER_RADIUS =
 
 private val STATUS_CONTENT_SPACING =
     8.dp
-
-private val MISSION_PROGRESS_VERTICAL_SPACING =
-    4.dp
-
-private val MISSION_PROGRESS_WIDTH =
-    76.dp
-
-private val MISSION_PROGRESS_HEIGHT =
-    4.dp
-
-private val MISSION_PERCENTAGE_SPACING =
-    6.dp
-
-private val MISSION_GUIDANCE_ICON_SIZE =
-    32.dp
-
-private val MISSION_GUIDANCE_ICON_RADIUS =
-    12.dp
-
-private val MISSION_GUIDANCE_SPACING =
-    8.dp
-
-private val MISSION_GUIDANCE_TEXT_SPACING =
-    1.dp
-
-private const val MISSION_GUIDANCE_ICON_ALPHA =
-    0.15f
 
 private const val STATUS_SIZE_ANIMATION_MILLIS =
     380
