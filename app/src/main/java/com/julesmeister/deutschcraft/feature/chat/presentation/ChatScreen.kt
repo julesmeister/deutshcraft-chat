@@ -35,9 +35,6 @@ fun ChatScreen(
     onSettingsClick: () -> Unit = {},
     onClearConversationClick: () -> Unit = {},
     onAddClick: () -> Unit = {},
-    activeMissionTitle: String? = null,
-    currentMissionObjective: String? = null,
-    missionProgressPercentage: Int = 0,
     messageActionViewModel:
     MessageActionViewModel = hiltViewModel()
 ) {
@@ -120,11 +117,21 @@ fun ChatScreen(
                 streakDays =
                     uiState.currentStreak,
                 activeMissionTitle =
-                    activeMissionTitle,
+                    uiState.activeMissionTitle,
                 currentMissionObjective =
-                    currentMissionObjective,
+                    uiState.currentMissionObjective,
                 missionProgressPercentage =
-                    missionProgressPercentage,
+                    uiState.missionProgressPercentage,
+                objectiveCompletionEvent =
+                    uiState.objectiveCompletionEvent,
+                onObjectiveCompletionShown = { eventId ->
+                    onAction(
+                        ChatUiAction
+                            .ObjectiveCompletionShown(
+                                eventId = eventId
+                            )
+                    )
+                },
                 onBackClick =
                     onBackClick,
                 onProgressClick =

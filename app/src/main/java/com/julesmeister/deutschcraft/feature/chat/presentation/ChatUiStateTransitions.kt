@@ -3,6 +3,8 @@ package com.julesmeister.deutschcraft.feature.chat.presentation
 import androidx.compose.ui.text.input.TextFieldValue
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
+import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
+import com.julesmeister.deutschcraft.feature.mission.domain.MissionObjectiveProgress
 
 internal fun ChatUiState.initializationSucceeded():
         ChatUiState {
@@ -87,18 +89,95 @@ internal fun ChatUiState.sendingFailed(
     )
 }
 
-internal fun ChatUiState.errorDismissed():
-        ChatUiState {
-    return copy(
-        errorMessage = null
-    )
-}
-
 internal fun ChatUiState.withCurrentStreak(
     streakDays: Int
 ): ChatUiState {
     return copy(
         currentStreak =
             streakDays.coerceAtLeast(0)
+    )
+}
+
+internal fun ChatUiState.withActiveMission(
+    mission: ConversationMission?,
+    newlyCompletedObjective:
+    MissionObjectiveProgress?
+): ChatUiState {
+    if (mission == null) {
+        return copy(
+            activeMissionId =
+                null,
+            activeMissionTitle =
+                null,
+            currentMissionObjective =
+                null,
+            missionProgressPercentage =
+                0
+        )
+    }
+
+    val completionEvent =
+        newlyCompletedObjective?.let { progress ->
+            val completionTimestamp =
+                progress.completedAt
+                    ?: System.currentTimeMillis()
+
+            MissionObjectiveCompletionEvent(
+                eventId =
+                    "${mission.id}:" +
+                            "${progress.objective.id}:" +
+                            completionTimestamp,
+                objectiveId =
+                    progress.objective.id,
+                objectiveTitle =
+                    progress.objective.title
+            )
+        }
+
+    return copy(
+        activeMissionId =
+            mission.id,
+        activeMissionTitle =
+            mission.template.title,
+        currentMissionObjective =
+            mission.currentObjective
+                ?.objective
+                ?.title,
+        missionProgressPercentage =
+            mission
+                .progress
+                .percentage
+                .coerceIn(
+                    minimumValue = 0,
+                    maximumValue = 100
+                ),
+        objectiveCompletionEvent =
+            completionEvent
+                ?: objectiveCompletionEvent
+    )
+}
+
+internal fun ChatUiState.objectiveCompletionShown(
+    eventId: String
+): ChatUiState {
+    val activeEvent =
+        objectiveCompletionEvent
+
+    if (
+        activeEvent == null ||
+        activeEvent.eventId != eventId
+    ) {
+        return this
+    }
+
+    return copy(
+        objectiveCompletionEvent = null
+    )
+}
+
+internal fun ChatUiState.errorDismissed():
+        ChatUiState {
+    return copy(
+        errorMessage = null
     )
 }

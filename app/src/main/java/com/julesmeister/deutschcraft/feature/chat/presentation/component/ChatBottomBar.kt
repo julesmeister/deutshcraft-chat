@@ -1,16 +1,27 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiAction
 import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiState
 
+/*
+ * onAddClick remains temporarily for compatibility with
+ * the existing ChatScreen call.
+ *
+ * The composer no longer displays an attachment button.
+ */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ChatBottomBar(
     uiState: ChatUiState,
@@ -22,16 +33,24 @@ fun ChatBottomBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                color =
-                    MaterialTheme.colorScheme.background
+            .windowInsetsPadding(
+                WindowInsets.navigationBars
             )
-            .navigationBarsPadding()
-            .imePadding()
+            .windowInsetsPadding(
+                WindowInsets.ime
+            )
+            .padding(
+                start = 12.dp,
+                end = 12.dp,
+                bottom = 10.dp
+            )
     ) {
-        ChatSuggestionSection(
+        FloatingReplySuggestions(
             suggestions =
                 uiState.suggestions,
+            enabled =
+                !uiState.isInitializing &&
+                        !uiState.isSending,
             onSuggestionClick = { suggestionId ->
                 onAction(
                     ChatUiAction.SuggestionSelected(
@@ -44,13 +63,20 @@ fun ChatBottomBar(
             }
         )
 
-        ChatInputBar(
+        if (uiState.suggestions.isNotEmpty()) {
+            Spacer(
+                modifier =
+                    Modifier.height(8.dp)
+            )
+        }
+
+        ChatComposer(
             value =
                 uiState.messageInput,
-            isSending =
-                uiState.isSending,
             enabled =
                 !uiState.isInitializing,
+            isSending =
+                uiState.isSending,
             onValueChange = { value ->
                 onAction(
                     ChatUiAction.MessageInputChanged(
@@ -60,14 +86,10 @@ fun ChatBottomBar(
                 )
             },
             onSendClick = {
-                onInputFocused()
-
                 onAction(
                     ChatUiAction.SendMessage
                 )
             },
-            onAddClick =
-                onAddClick,
             onInputFocused =
                 onInputFocused,
             modifier =

@@ -12,11 +12,33 @@ data class ChatUiState(
         TextFieldValue(),
 
     /*
-     * Suggestions remain temporary UI state.
-     * Only Besser corrections are persisted.
+     * Suggested responses remain temporary UI state.
      */
     val suggestions: List<ReplySuggestion> =
         emptyList(),
+
+    /*
+     * Current mission information comes from Room.
+     */
+    val activeMissionId: String? =
+        null,
+
+    val activeMissionTitle: String? =
+        null,
+
+    val currentMissionObjective: String? =
+        null,
+
+    val missionProgressPercentage: Int =
+        0,
+
+    /*
+     * A one-time UI event emitted when an objective changes
+     * from incomplete to complete during this chat session.
+     */
+    val objectiveCompletionEvent:
+    MissionObjectiveCompletionEvent? =
+        null,
 
     val isInitializing: Boolean =
         true,
@@ -33,5 +55,6 @@ data class ChatUiState(
     val errorMessage: String? =
         null,
 
-    val currentStreak: Int = 0,
+    val currentStreak: Int =
+        0
 )

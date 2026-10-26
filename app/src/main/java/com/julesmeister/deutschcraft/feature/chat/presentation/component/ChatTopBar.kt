@@ -1,13 +1,12 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -23,18 +22,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.animation.core.animateFloatAsState
+import com.julesmeister.deutschcraft.feature.chat.presentation.MissionObjectiveCompletionEvent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,7 +47,11 @@ fun ChatTopBar(
     modifier: Modifier = Modifier,
     activeMissionTitle: String? = null,
     currentMissionObjective: String? = null,
-    missionProgressPercentage: Int = 0
+    missionProgressPercentage: Int = 0,
+    objectiveCompletionEvent:
+    MissionObjectiveCompletionEvent? = null,
+    onObjectiveCompletionShown:
+        (String) -> Unit = {}
 ) {
     var isMenuExpanded by remember {
         mutableStateOf(false)
@@ -82,9 +83,7 @@ fun ChatTopBar(
         navigationIcon = {
             AnimatedTopBarIconButton(
                 onClick =
-                    onBackClick,
-                contentDescription =
-                    "Back"
+                    onBackClick
             ) {
                 Icon(
                     imageVector =
@@ -92,7 +91,7 @@ fun ChatTopBar(
                             .Outlined
                             .ArrowBack,
                     contentDescription =
-                        null
+                        "Back"
                 )
             }
         },
@@ -107,7 +106,11 @@ fun ChatTopBar(
                 currentMissionObjective =
                     currentMissionObjective,
                 missionProgressPercentage =
-                    missionProgressPercentage
+                    missionProgressPercentage,
+                objectiveCompletionEvent =
+                    objectiveCompletionEvent,
+                onObjectiveCompletionShown =
+                    onObjectiveCompletionShown
             )
         },
         actions = {
@@ -115,26 +118,20 @@ fun ChatTopBar(
                 streakDays =
                     streakDays,
                 onClick =
-                    onProgressClick,
-                modifier =
-                    Modifier.padding(
-                        end = 4.dp
-                    )
+                    onProgressClick
             )
 
             Box {
                 AnimatedTopBarIconButton(
                     onClick = {
                         isMenuExpanded = true
-                    },
-                    contentDescription =
-                        "More options"
+                    }
                 ) {
                     Icon(
                         imageVector =
                             Icons.Outlined.MoreVert,
                         contentDescription =
-                            null
+                            "More options"
                     )
                 }
 
@@ -147,10 +144,7 @@ fun ChatTopBar(
                 ) {
                     DropdownMenuItem(
                         text = {
-                            Text(
-                                text =
-                                    "New conversation"
-                            )
+                            Text("New conversation")
                         },
                         onClick = {
                             isMenuExpanded = false
@@ -160,10 +154,7 @@ fun ChatTopBar(
 
                     DropdownMenuItem(
                         text = {
-                            Text(
-                                text =
-                                    "Clear conversation"
-                            )
+                            Text("Clear conversation")
                         },
                         onClick = {
                             isMenuExpanded = false
@@ -173,10 +164,7 @@ fun ChatTopBar(
 
                     DropdownMenuItem(
                         text = {
-                            Text(
-                                text =
-                                    "Settings"
-                            )
+                            Text("Settings")
                         },
                         onClick = {
                             isMenuExpanded = false
@@ -192,113 +180,63 @@ fun ChatTopBar(
 @Composable
 private fun AnimatedTopBarIconButton(
     onClick: () -> Unit,
-    contentDescription: String,
     content: @Composable () -> Unit
 ) {
     var isPressed by remember {
         mutableStateOf(false)
     }
 
-    val animatedScale by
+    val scale by
     animateFloatAsState(
         targetValue =
             if (isPressed) {
-                PRESSED_ICON_SCALE
+                0.9f
             } else {
-                NORMAL_ICON_SCALE
+                1f
             },
         animationSpec =
             tween(
-                durationMillis =
-                    ICON_PRESS_ANIMATION_DURATION_MILLIS,
+                durationMillis = 130,
                 easing =
                     FastOutSlowInEasing
             ),
         label =
-            "TopBarIconPressScale"
+            "TopBarIconScale"
     )
-
-    val interactionSource =
-        remember {
-            MutableInteractionSource()
-        }
 
     Box(
         modifier = Modifier
-            .size(
-                TOP_BAR_ICON_BUTTON_SIZE
-            )
+            .size(40.dp)
             .graphicsLayer {
-                scaleX =
-                    animatedScale
-
-                scaleY =
-                    animatedScale
+                scaleX = scale
+                scaleY = scale
             }
-            .clip(
-                CircleShape
-            )
+            .clip(CircleShape)
             .background(
-                color =
-                    if (isPressed) {
-                        MaterialTheme
-                            .colorScheme
-                            .surfaceContainerHigh
-                    } else {
-                        MaterialTheme
-                            .colorScheme
-                            .surfaceContainer
-                            .copy(
-                                alpha =
-                                    NORMAL_BUTTON_ALPHA
-                            )
-                    }
+                MaterialTheme
+                    .colorScheme
+                    .surfaceContainer
+                    .copy(alpha = 0.68f)
             )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
                         isPressed = true
 
-                        tryAwaitRelease()
-
-                        isPressed = false
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            isPressed = false
+                        }
                     },
                     onTap = {
                         onClick()
                     }
                 )
-            }
-            .clickable(
-                interactionSource =
-                    interactionSource,
-                indication =
-                    null,
-                enabled =
-                    false,
-                role =
-                    Role.Button,
-                onClick = {
-                    // Tap is handled by pointerInput.
-                }
-            ),
+            },
         contentAlignment =
-            androidx.compose.ui.Alignment.Center
+            Alignment.Center
     ) {
         content()
     }
 }
-
-private val TOP_BAR_ICON_BUTTON_SIZE =
-    40.dp
-
-private const val NORMAL_ICON_SCALE =
-    1f
-
-private const val PRESSED_ICON_SCALE =
-    0.88f
-
-private const val NORMAL_BUTTON_ALPHA =
-    0.68f
-
-private const val ICON_PRESS_ANIMATION_DURATION_MILLIS =
-    130

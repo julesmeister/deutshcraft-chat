@@ -15,6 +15,10 @@ sealed interface ChatUiAction {
         val suggestionId: String
     ) : ChatUiAction
 
+    data class ObjectiveCompletionShown(
+        val eventId: String
+    ) : ChatUiAction
+
     data object ErrorDismissed :
         ChatUiAction
 }

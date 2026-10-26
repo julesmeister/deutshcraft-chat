@@ -1,75 +1,105 @@
 # DeutschCraft
 
-**DeutschCraft** is a Telegram-inspired Android chat application for learning German through natural conversation.
+**DeutschCraft** is an offline-first, Telegram-inspired Android application for learning German through natural, AI-powered conversation.
 
-Instead of presenting traditional lessons, quizzes, or classroom-style exercises, DeutschCraft allows users to chat naturally with an AI companion while assessment, vocabulary tracking, and CEFR evaluation happen quietly in the background.
+Instead of presenting traditional lessons, quizzes, or classroom-style exercises, DeutschCraft allows learners to chat naturally with an AI conversation companion while assessment, corrections, vocabulary analysis, CEFR evaluation, mission tracking, and progress measurement happen quietly in the background.
 
-The goal is simple:
-
-> **Conversation first. Learning second.**
-
-DeutschCraft should feel like a modern messaging app, not a language-learning platform.
+> **Conversation first. Learning happens naturally.**
 
 ---
 
 # Vision
 
-Most language-learning apps feel like:
+Most language-learning applications follow this structure:
 
 ```text
-Learning
-    ↓
+Learning activity
+      ↓
+Practice exercise
+      ↓
 Conversation
 ```
 
-DeutschCraft should feel like:
+DeutschCraft reverses that relationship:
 
 ```text
-Conversation
-    ↓
-Learning happens naturally
+Natural conversation
+        ↓
+Real communication practice
+        ↓
+Learning happens quietly
 ```
 
-The user opens DeutschCraft because they want to chat.
+The learner opens DeutschCraft because they want to talk, express ideas, and practice communicating in German.
 
-The improvement in German proficiency is a side effect of engaging conversations.
+Improvement in German proficiency should become a natural result of having useful, engaging, and increasingly challenging conversations.
 
 ---
 
 # Core Principles
 
-## 1. Offline First
+## Offline First
 
-DeutschCraft is designed as an **offline-first application**.
+DeutschCraft is designed as an offline-first application.
 
 The local device is the primary source of truth.
 
 ```text
 Room Database
       ↓
+Conversations
 Messages
-Progress
+Besser Corrections
 Assessments
+Progress
+Missions
 Vocabulary
-Mistakes
+Activity Days
 ```
 
-The application should continue functioning even if the device loses network connectivity.
+The application should continue functioning even without internet access.
 
-Users should be able to:
+Supported offline functionality:
 
 - View conversations
-- View progress
-- View statistics
 - View assessments
-- View weaknesses
+- View progress
 - View vocabulary history
-
-while offline.
+- View mission progress
+- View archived threads
+- Restore previous sessions
 
 ---
 
-## 2. Conversation First
+## Room as Source of Truth
+
+```text
+AI Response
+     ↓
+Repository
+     ↓
+Room
+     ↓
+Flow
+     ↓
+Compose UI
+```
+
+Room owns all persistent learner data.
+
+Examples:
+
+- Conversations
+- Messages
+- Corrections
+- Assessments
+- Missions
+- Mission Objectives
+- Progress Records
+
+---
+
+## Conversation First
 
 DeutschCraft should feel closer to:
 
@@ -82,247 +112,268 @@ Messenger
 than:
 
 ```text
-Duolingo
-Language Classroom
-Tutorial Platform
+Language Course
+Classroom App
+Exercise Platform
 ```
-
-No lesson selection.
-
-No mandatory exercises.
-
-No disruptive quizzes.
 
 Conversation remains the primary experience.
 
 ---
 
-## 3. Human-Like Interaction
+## Human-Like Companion
 
-The AI should feel like a real German conversation partner.
+DeutschCraft uses a consistent German conversation companion named **Emil**.
 
-Examples:
+Example profile:
 
 ```text
-German Friend
-German Coworker
-German Study Partner
-German Travel Guide
+Name:
+Emil
+
+Lives:
+Leipzig
+
+Works:
+Independent bookstore
+
+Interests:
+Books
+Travel
+Football
+Cooking
+German culture
 ```
 
-The user should feel like they are chatting with someone rather than interacting with a chatbot.
+Emil adapts conversation naturally while staying within the learner's CEFR level.
 
 ---
 
-## 4. Gradual Progression
+## CEFR Progression
 
-Users remain inside their current CEFR level until they are ready to advance.
+Supported levels:
+
+```text
+A1
+A2
+B1
+B2
+C1
+C2
+```
+
+DeutschCraft gathers evidence from conversation rather than exams.
+
+Tracked skills:
+
+- Grammar
+- Vocabulary
+- Accuracy
+- Fluency
+- Complexity
+- Comprehension
+
+Level progression is recommended rather than forced.
+
+---
+
+# Current Features
+
+## Chat Experience
+
+Implemented:
+
+- Telegram-style conversations
+- Multiple conversation threads
+- Automatic thread title generation
+- Archived threads
+- Undo archive
+- Reply suggestions
+- Message actions
+- Auto-scroll
+- Keyboard-aware layout
+- Message arrival animations
+- Message bubble press animations
+- Typing indicator animations
+
+---
+
+## Besser Corrections
+
+Example:
+
+```text
+User:
+Ich go heute zum Markt.
+
+Besser:
+Ich gehe heute zum Markt.
+```
+
+Original messages are preserved.
+
+Corrections are stored separately and displayed as helper content.
+
+---
+
+## Message Actions
+
+Tap any message to:
+
+- Translate
+- Explain
+- Rephrase
+
+These are available through the message action bottom sheet.
+
+---
+
+## Progress Tracking
+
+Implemented:
+
+- CEFR assessment
+- Skill scores
+- Progress percentages
+- Activity tracking
+- Streak tracking
+- Progress dashboard
+
+Tracked dimensions:
+
+```text
+Grammar
+Vocabulary
+Accuracy
+Complexity
+Coherence
+Confidence
+```
+
+---
+
+# Mission System
+
+## Goal
+
+Teach through realistic communication scenarios.
+
+Example:
+
+```text
+🎯 Restaurant Ordering
+```
+
+Objectives:
+
+```text
+✓ Greet the waiter
+✓ Ask for the menu
+□ Order a drink
+□ Order a meal
+□ Ask for the bill
+```
+
+Objectives are completed naturally through conversation.
+
+---
+
+## Mission Flow
+
+```text
+Conversation
+      ↓
+Mission Offered
+      ↓
+Mission Accepted
+      ↓
+Objectives Detected
+      ↓
+Mission Completed
+      ↓
+Performance Review
+```
+
+Mission progress is persisted locally.
+
+---
+
+## Current Mission Infrastructure
+
+Implemented:
+
+- Mission entities
+- Mission DAO
+- Mission repository
+- Mission progress tracking
+- Objective completion tracking
+- Active mission observation
+- Mission top-bar integration
+- Objective completion event architecture
+
+Current focus:
+
+```text
+Restaurant Ordering Mission MVP
+```
+
+---
+
+# Progress Dashboard
+
+Displays:
+
+```text
+Current CEFR Level
+Readiness Percentage
+Grammar Score
+Vocabulary Score
+Conversation Score
+Activity Days
+Streak
+```
 
 Example:
 
 ```text
 Current Level:
-A1
-```
-
-Conversation difficulty remains:
-
-```text
-A1
-```
-
-When enough evidence is gathered:
-
-```text
-🎉 You seem comfortable with A1 German.
-
-Would you like to unlock A2 conversations?
-
-[Not Yet]
-[Start A2]
-```
-
-The user controls progression.
-
----
-
-# Product Features
-
-## AI Conversations
-
-### User sends message
-
-```text
-User:
-Heute war ich arbeiten.
-```
-
-### AI responds
-
-```text
-AI:
-Oh schön! Was machst du beruflich?
-```
-
-### Suggestions appear
-
-```text
-[Ich arbeite als Entwickler]
-[Ich studiere derzeit]
-[Ich suche Arbeit]
-```
-
-Suggestions continuously change depending on context.
-
----
-
-## Invisible Assessment Engine
-
-Every conversation generates assessment data.
-
-The user does not need to explicitly start an assessment.
-
-Tracked metrics include:
-
-```text
-Grammar
-Vocabulary
-Comprehension
-Fluency
-Sentence Complexity
-Confidence
-```
-
-Assessment runs automatically.
-
----
-
-## Weakness Tracking
-
-DeutschCraft records recurring struggles.
-
-Examples:
-
-```text
-Articles
-Word Order
-Cases
-Verb Conjugation
-Prepositions
-```
-
-Over time:
-
-```text
-Strong Areas
-✓ Greetings
-✓ Travel
-✓ Daily Conversation
-
-Weak Areas
-✗ Dative Case
-✗ Article Usage
-✗ Word Order
-```
-
-Conversations adapt to encourage practice in weaker areas.
-
----
-
-## Progress Dashboard
-
-Accessible through a dedicated progress screen.
-
-Example:
-
-```text
-Current Level
-
 A2
 
-78% Ready For B1
-```
-
-Displays:
-
-```text
-Grammar Score
-Vocabulary Score
-Conversation Score
-Learning Streak
-Known Weaknesses
-Strong Areas
-Progress History
+Readiness For B1:
+78%
 ```
 
 ---
 
-# Subscription Strategy
+# AI Architecture
 
-## Free Users
-
-Everything works locally.
-
-Features:
+Current AI provider:
 
 ```text
-AI Chat
-Assessment
-Progress Tracking
-Conversation History
-Vocabulary Tracking
-Mistake Tracking
+Qwen
 ```
 
-Data stays on-device.
-
----
-
-## Premium Users
-
-Adds cloud features.
-
-Features:
+Response Flow:
 
 ```text
-Cloud Backup
-Cloud Restore
-Cross-Device Sync
-Conversation Recovery
-History Synchronization
+Android
+    ↓
+AI Gateway
+    ↓
+Qwen
 ```
 
-Premium storage is powered by PostgreSQL.
-
----
-
-# Authentication Strategy
-
-Authentication is intentionally postponed.
-
-## Reason
-
-Authentication solves:
+Future Production Flow:
 
 ```text
-Who are you?
+Android
+    ↓
+Spring Boot
+    ↓
+Qwen
 ```
 
-Current development focuses on:
-
-```text
-Does the product work?
-```
-
-Authentication becomes necessary only when:
-
-```text
-Cloud Sync
-Cloud Backup
-Multi-Device Access
-```
-
-are implemented.
+API keys are never stored in the Android application.
 
 ---
 
@@ -334,21 +385,21 @@ are implemented.
 Kotlin
 Jetpack Compose
 Material 3
+Room
+Hilt
 ViewModel
 StateFlow
 Coroutines
 Navigation Compose
-Room
+WorkManager
 DataStore
-Hilt
 ```
 
-## Backend
+## Backend (Planned)
 
 ```text
 Spring Boot
 Spring Security
-Spring Data JPA
 PostgreSQL
 Docker
 ```
@@ -359,342 +410,189 @@ Docker
 Qwen
 ```
 
-Accessed through:
-
-```text
-Android
-    ↓
-Spring Boot
-    ↓
-Qwen
-```
-
-AI API keys are never stored in the Android application.
-
 ---
 
-# High-Level Architecture
-
-## Current Direction
-
-```text
-Android
-│
-├── Room
-├── DataStore
-├── Assessments
-├── Progress
-└── Conversations
-      │
-      │ Sync
-      ▼
-Spring Boot
-      │
-      ▼
-PostgreSQL
-```
-
-## AI Flow
-
-```text
-Android
-    ↓
-Spring Boot
-    ↓
-Qwen
-```
-
-Android never communicates directly with the AI provider.
-
----
-
-# Data Ownership Strategy
-
-## Local Source of Truth
-
-```text
-Room Database
-```
-
-Always.
-
-Not PostgreSQL.
-
-Not Spring Boot.
-
-The phone owns the data.
-
-## PostgreSQL Purpose
-
-PostgreSQL exists only for:
-
-```text
-Cloud Backup
-Synchronization
-History Recovery
-Multi-Device Support
-Premium Features
-```
-
-Not for day-to-day functionality.
-
----
-
-# Android Architecture
-
-```text
-Compose UI
-    ↓
-ViewModel
-    ↓
-Repository
-    ↓
-Data Source
-```
-
-Data Sources may include:
-
-```text
-Room
-Retrofit
-DataStore
-Qwen Responses
-```
-
----
-
-# Planned Project Structure
+# Project Structure
 
 ```text
 com.julesmeister.deutschcraft
 │
 ├── app
+│   └── navigation
 │
 ├── core
 │   ├── database
 │   ├── datastore
-│   ├── network
-│   ├── model
-│   └── di
+│   ├── di
+│   └── network
 │
 ├── feature
 │   ├── chat
-│   ├── assessment
+│   ├── threads
+│   ├── archivedthreads
 │   ├── progress
-│   ├── settings
-│   └── profile
+│   ├── assessment
+│   ├── mission
+│   ├── engagement
+│   ├── messageactions
+│   └── settings
 │
 └── MainActivity.kt
 ```
 
 ---
 
-# Current Development Roadmap
+# Development Roadmap
 
-## Phase 1 — Foundation ✅
+## Foundation ✅
 
-```text
-Compose
-Material 3
-Project Setup
-Domain Models
-ViewModel Architecture
-Hilt
-```
-
-Completed.
+- Compose
+- Hilt
+- Navigation
+- Room
+- Repositories
+- DataStore
 
 ---
 
-## Phase 2 — Offline-First Core (Current Priority)
+## Offline Learning Engine ✅
 
-### Room
-
-Store:
-
-```text
-Conversations
-Messages
-Vocabulary
-Assessments
-Mistakes
-Progress
-```
-
-### DataStore
-
-Store:
-
-```text
-Current CEFR Level
-Theme
-Settings
-Subscription Status
-Last Sync Date
-```
-
-Goal:
-
-```text
-Airplane Mode = usable app
-```
+- CEFR Assessment
+- Progress Tracking
+- Activity Tracking
+- Streak Tracking
+- Persistent Conversations
 
 ---
 
-## Phase 3 — Chat Experience
+## Conversation Experience 🚧
 
-### Telegram-Like Features
+Implemented:
+
+- Threads
+- Archive
+- Reply Suggestions
+- Message Actions
+- Typing Indicator
+- Animations
+
+Remaining:
+
+- Polish
+- UX refinements
+
+---
+
+## Restaurant Ordering Mission MVP 🚧
+
+Current Priority
 
 ```text
-Message Bubbles
-Typing Indicator
-Reply Suggestions
-Auto Scroll
-Animations
-Message Effects
-```
+✅ Mission entities
+✅ Mission repositories
+✅ Active mission tracking
+✅ Mission events
 
-### AI Features
-
-```text
-AI Responses
-German Conversations
-Conversation Continuity
-Reply Suggestions
+⬜ Mission offer card
+⬜ Objective evaluation
+⬜ Objective completion animation
+⬜ Mission review screen
+⬜ Mission completion rewards
 ```
 
 ---
 
-## Phase 4 — Assessment Engine
+## Future
 
-Track:
+### Vocabulary System
 
 ```text
-Grammar
-Vocabulary
-Sentence Construction
-Conversation Ability
-Confidence
+Saved Vocabulary
+Challenge Words
+Dictionary
+Mastery Tracking
 ```
 
-Learned weaknesses become:
+### Adaptive Reinforcement
 
 ```text
-Personalized Practice Opportunities
+Reuse difficult words
+Track confidence
+Detect mastery
+```
+
+### Cloud Sync
+
+```text
+Backup
+Restore
+Device Sync
+```
+
+### Authentication
+
+```text
+Google Sign-In
+Email Login
+Subscriptions
 ```
 
 ---
 
-## Phase 5 — Progress Dashboard
+# Animation Roadmap
 
-Display:
+Implemented:
 
 ```text
-Current Level
-Level Readiness
-Grammar Score
-Vocabulary Score
-Conversation Score
-Streaks
-Weaknesses
-Strengths
+✅ Message Arrival Animation
+✅ Message Bubble Press Animation
+✅ Improved Typing Indicator
+✅ Navigation Animations
+✅ Top Bar Transitions
+✅ Progress Animations
+```
+
+Planned:
+
+```text
+⬜ Vocabulary Saved Animation
+⬜ Streak Celebration
+⬜ Thread Archive Animation
 ```
 
 ---
 
-## Phase 6 — Sync System
-
-Only after everything works locally.
-
-### Syncable Objects
-
-```text
-Conversation
-Message
-Assessment
-Vocabulary
-Mistakes
-Progress
-```
-
-Sync Flow:
-
-```text
-Room
-   ↓
-Spring Boot
-   ↓
-PostgreSQL
-```
+# Data Ownership Strategy
 
 Room remains the source of truth.
 
----
+```text
+Phone Owns Data
+```
 
-## Phase 7 — Subscription
-
-Premium unlocks:
+PostgreSQL exists only for:
 
 ```text
+Cloud Backup
 Sync
-Backup
 Restore
-Cross-Device Access
+Premium Features
 ```
 
----
-
-## Phase 8 — Authentication
-
-Final major feature.
-
-Possible providers:
-
-```text
-Google Login
-Email Login
-```
-
-Introduced only after cloud functionality exists.
-
----
-
-# Entity Strategy
-
-Every important entity receives a locally generated ID.
-
-Example:
-
-```kotlin
-val id: String = UUID.randomUUID().toString()
-```
-
-Applied to:
-
-```text
-Conversation
-Message
-Assessment
-Vocabulary
-Mistake
-Progress Record
-```
-
-This simplifies future synchronization.
+Never for day-to-day application functionality.
 
 ---
 
 # Security Requirements
 
-```text
-Never store AI keys in Android
-Never commit secrets
-Use HTTPS
-Validate server requests
-Encrypt sensitive data
-Support account deletion
-Support conversation deletion
-```
+- Never store AI keys in Android
+- Never commit secrets
+- Use HTTPS
+- Validate AI responses
+- Validate API requests
+- Support data deletion
+- Support account deletion
+- Encrypt sensitive information
 
 ---
 
@@ -705,23 +603,27 @@ DeutschCraft succeeds when:
 1. Users enjoy chatting.
 2. Learning feels natural.
 3. Progress is visible.
-4. The app works offline.
-5. Cloud services are optional rather than required.
-6. German proficiency improves through conversation.
+4. Missions feel helpful rather than instructional.
+5. The app works offline.
+6. Cloud services remain optional.
+7. German proficiency improves through conversation.
 
 ---
 
 # Immediate Next Milestone
 
+## Restaurant Ordering Mission MVP
+
 ```text
-✅ Hilt
-⬜ Room Database
-⬜ Conversation Entity
-⬜ Message Entity
-⬜ DAO Layer
-⬜ Local Repository
-⬜ Chat UI
-⬜ AI Integration
+✅ Mission persistence
+✅ Active mission observation
+✅ Mission top-bar system
+
+⬜ Restaurant mission template
+⬜ Objective evaluator
+⬜ Offer card
+⬜ Mission completion review
+⬜ Objective completion animation
 ```
 
-**Next task: implement Room and establish local persistence before continuing UI development.**
+> The current focus is completing the first end-to-end mission experience while preserving the conversation-first philosophy.

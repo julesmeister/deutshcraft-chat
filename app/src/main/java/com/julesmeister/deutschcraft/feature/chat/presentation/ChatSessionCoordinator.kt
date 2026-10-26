@@ -4,8 +4,6 @@ import android.util.Log
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.InitializeChatUseCase
-import com.julesmeister.deutschcraft.feature.chat.domain.usecase.ObserveChatMessagesUseCase
-import com.julesmeister.deutschcraft.feature.chat.domain.usecase.ObserveCurrentStreakUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.SendChatMessageUseCase
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -20,20 +18,17 @@ import kotlinx.coroutines.launch
 class ChatSessionCoordinator @Inject constructor(
     private val initializeChat:
     InitializeChatUseCase,
-    private val observeChatMessages:
-    ObserveChatMessagesUseCase,
     private val sendChatMessage:
     SendChatMessageUseCase,
-    private val observeCurrentStreak:
-    ObserveCurrentStreakUseCase
+    private val sessionObservers:
+    ChatSessionObservers
 ) {
 
     private val _uiState =
         MutableStateFlow(
             ChatUiState()
         )
-    private var streakObservationJob: Job? =
-        null
+
     val uiState: StateFlow<ChatUiState> =
         _uiState.asStateFlow()
 
@@ -41,9 +36,6 @@ class ChatSessionCoordinator @Inject constructor(
         null
 
     private var initializationJob: Job? =
-        null
-
-    private var observationJob: Job? =
         null
 
     private var sendingJob: Job? =
@@ -59,6 +51,11 @@ class ChatSessionCoordinator @Inject constructor(
         ) {
             return
         }
+
+        sessionObservers.observeStreak(
+            scope = scope,
+            onStreakChanged = ::applyStreakUpdate
+        )
 
         initializationJob =
             scope.launch {
@@ -95,6 +92,12 @@ class ChatSessionCoordinator @Inject constructor(
                 )
             }
 
+            is ChatUiAction.ObjectiveCompletionShown -> {
+                consumeObjectiveCompletion(
+                    eventId = action.eventId
+                )
+            }
+
             ChatUiAction.ErrorDismissed -> {
                 dismissError()
             }
@@ -103,12 +106,13 @@ class ChatSessionCoordinator @Inject constructor(
 
     fun stop() {
         initializationJob?.cancel()
-        observationJob?.cancel()
         sendingJob?.cancel()
 
         initializationJob = null
-        observationJob = null
         sendingJob = null
+        activeConversationId = null
+
+        sessionObservers.stop()
     }
 
     private suspend fun initialize(
@@ -125,11 +129,21 @@ class ChatSessionCoordinator @Inject constructor(
             activeConversationId =
                 conversation.id
 
-            observeMessages(
+            sessionObservers.observeConversation(
                 conversationId =
                     conversation.id,
                 scope =
-                    scope
+                    scope,
+                onMessagesChanged =
+                    ::applyMessageUpdate,
+                onMissionChanged =
+                    ::applyMissionUpdate,
+                onMessageObservationFailed = {
+                    showError(
+                        message =
+                            MESSAGE_LOAD_ERROR
+                    )
+                }
             )
 
             _uiState.update { state ->
@@ -157,51 +171,39 @@ class ChatSessionCoordinator @Inject constructor(
         }
     }
 
-    private fun observeMessages(
-        conversationId: String,
-        scope: CoroutineScope
+    private fun applyMessageUpdate(
+        update: ChatMessagesUpdate
     ) {
-        observationJob?.cancel()
+        _uiState.update { state ->
+            state.withMessages(
+                messages =
+                    update.messages
+            )
+        }
+    }
 
-        observationJob =
-            scope.launch {
-                try {
-                    observeChatMessages(
-                        conversationId =
-                            conversationId
-                    ).collect { messages ->
-                        /*
-                         * Messages and their persisted
-                         * corrections now come directly
-                         * from Room.
-                         *
-                         * Do not modify the composer or
-                         * temporary suggestions here.
-                         */
-                        _uiState.update { state ->
-                            state.withMessages(
-                                messages = messages
-                            )
-                        }
-                    }
-                } catch (
-                    cancellationException:
-                    CancellationException
-                ) {
-                    throw cancellationException
-                } catch (throwable: Throwable) {
-                    Log.e(
-                        COORDINATOR_TAG,
-                        "Message observation failed.",
-                        throwable
-                    )
+    private fun applyStreakUpdate(
+        streakDays: Int
+    ) {
+        _uiState.update { state ->
+            state.withCurrentStreak(
+                streakDays =
+                    streakDays
+            )
+        }
+    }
 
-                    showError(
-                        message =
-                            MESSAGE_LOAD_ERROR
-                    )
-                }
-            }
+    private fun applyMissionUpdate(
+        update: ChatMissionUpdate
+    ) {
+        _uiState.update { state ->
+            state.withActiveMission(
+                mission =
+                    update.mission,
+                newlyCompletedObjective =
+                    update.newlyCompletedObjective
+            )
+        }
     }
 
     private fun updateInput(
@@ -211,12 +213,10 @@ class ChatSessionCoordinator @Inject constructor(
             return
         }
 
-        /*
-         * Typing must not remove suggested replies.
-         */
         _uiState.update { state ->
             state.withInput(
-                value = value
+                value =
+                    value
             )
         }
     }
@@ -247,10 +247,6 @@ class ChatSessionCoordinator @Inject constructor(
                 .text
                 .capitalizeFirstCharacter()
 
-        /*
-         * TextRange at the final character position keeps
-         * the cursor at the end of the inserted suggestion.
-         */
         val suggestedInput =
             TextFieldValue(
                 text =
@@ -264,7 +260,8 @@ class ChatSessionCoordinator @Inject constructor(
 
         _uiState.update { state ->
             state.withInput(
-                value = suggestedInput
+                value =
+                    suggestedInput
             )
         }
     }
@@ -301,11 +298,6 @@ class ChatSessionCoordinator @Inject constructor(
             return
         }
 
-        /*
-         * Suggestions answer the previous assistant
-         * message, so clear them only when the learner
-         * sends the next message.
-         */
         _uiState.update { state ->
             state.sendingStarted()
         }
@@ -339,13 +331,6 @@ class ChatSessionCoordinator @Inject constructor(
                     .assistantReply
                     .suggestions
 
-            /*
-             * The Besser correction is not handled here.
-             *
-             * SendChatMessageUseCase persists it directly
-             * into the original user-message row. Room then
-             * emits that updated ChatMessage automatically.
-             */
             _uiState.update { state ->
                 state.sendingSucceeded(
                     suggestions =
@@ -378,6 +363,17 @@ class ChatSessionCoordinator @Inject constructor(
                         SEND_ERROR
                 )
             }
+        }
+    }
+
+    private fun consumeObjectiveCompletion(
+        eventId: String
+    ) {
+        _uiState.update { state ->
+            state.objectiveCompletionShown(
+                eventId =
+                    eventId
+            )
         }
     }
 
@@ -417,31 +413,4 @@ class ChatSessionCoordinator @Inject constructor(
             "The assistant could not respond. " +
                     "Your message was saved locally."
     }
-}
-
-private fun String.capitalizeFirstCharacter():
-        String {
-    val firstVisibleCharacterIndex =
-        indexOfFirst { character ->
-            !character.isWhitespace()
-        }
-
-    if (firstVisibleCharacterIndex == -1) {
-        return this
-    }
-
-    val firstCharacter =
-        this[firstVisibleCharacterIndex]
-
-    if (firstCharacter.isUpperCase()) {
-        return this
-    }
-
-    return replaceRange(
-        range =
-            firstVisibleCharacterIndex..
-                    firstVisibleCharacterIndex,
-        replacement =
-            firstCharacter.uppercase()
-    )
 }

@@ -19,4 +19,9 @@ internal sealed interface ChatTopBarStatus {
     data class MissionObjective(
         val objective: String
     ) : ChatTopBarStatus
+
+    data class ObjectiveCompleted(
+        val eventId: String,
+        val objectiveTitle: String
+    ) : ChatTopBarStatus
 }
