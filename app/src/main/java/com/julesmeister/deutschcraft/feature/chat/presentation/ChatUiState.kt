@@ -43,6 +43,7 @@ data class ChatUiState(
      * Short objective title.
      *
      * Example:
+     *
      * "Ask about working hours"
      */
     val currentMissionObjective: String? =
@@ -52,10 +53,6 @@ data class ChatUiState(
      * Learner-facing explanation of what to do next.
      *
      * This comes from MissionObjective.description.
-     *
-     * Example:
-     * "Politely ask the interviewer about the normal
-     * working schedule."
      */
     val currentMissionGuidance: String? =
         null,
@@ -63,8 +60,27 @@ data class ChatUiState(
     val missionProgressPercentage: Int =
         0,
 
+    /*
+     * One-time mission-objective completion feedback.
+     */
     val objectiveCompletionEvent:
     MissionObjectiveCompletionEvent? =
+        null,
+
+    /*
+     * One-time adaptive-learning feedback.
+     *
+     * Examples:
+     *
+     * "Watch the dative article."
+     * "Giving reasons is improving."
+     * "Present tense mastered."
+     *
+     * Mission-objective completion has higher display
+     * priority than this event.
+     */
+    val adaptiveLearningFeedbackEvent:
+    AdaptiveLearningFeedbackEvent? =
         null,
 
     val isInitializing: Boolean =

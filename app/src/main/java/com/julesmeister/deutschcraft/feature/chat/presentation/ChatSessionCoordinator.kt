@@ -151,6 +151,15 @@ class ChatSessionCoordinator @Inject constructor(
                     )
             }
 
+            is ChatUiAction
+            .AdaptiveLearningFeedbackShown -> {
+
+                consumeAdaptiveLearningFeedback(
+                    eventId =
+                        action.eventId
+                )
+            }
+
             ChatUiAction.ErrorDismissed -> {
                 dismissError()
             }
@@ -211,8 +220,7 @@ class ChatSessionCoordinator @Inject constructor(
              */
             observeConversation(
                 conversationId =
-                    initializationResult
-                        .conversationId,
+                    initializationResult.conversationId,
                 scope =
                     scope
             )
@@ -322,6 +330,36 @@ class ChatSessionCoordinator @Inject constructor(
             uiState =
                 _uiState
         )
+    }
+
+    /*
+     * Removes adaptive-learning feedback only when the event
+     * ID reported by the top bar matches the event currently
+     * stored in state.
+     *
+     * This prevents an older delayed callback from clearing a
+     * newer event that arrived while the previous event was
+     * still being displayed.
+     */
+    private fun consumeAdaptiveLearningFeedback(
+        eventId: String
+    ) {
+        _uiState.update { state ->
+            val currentEvent =
+                state.adaptiveLearningFeedbackEvent
+
+            if (
+                currentEvent?.eventId !=
+                eventId
+            ) {
+                state
+            } else {
+                state.copy(
+                    adaptiveLearningFeedbackEvent =
+                        null
+                )
+            }
+        }
     }
 
     private fun dismissError() {

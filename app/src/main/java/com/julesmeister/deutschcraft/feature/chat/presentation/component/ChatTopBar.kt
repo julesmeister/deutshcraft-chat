@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.chat.presentation.AdaptiveLearningFeedbackEvent
 import com.julesmeister.deutschcraft.feature.chat.presentation.MissionObjectiveCompletionEvent
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,14 +38,26 @@ fun ChatTopBar(
     isAssessing: Boolean,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
-    activeMissionTitle: String? = null,
-    currentMissionObjective: String? = null,
-    currentMissionGuidance: String? = null,
-    missionProgressPercentage: Int = 0,
+    activeMissionTitle: String? =
+        null,
+    currentMissionObjective: String? =
+        null,
+    currentMissionGuidance: String? =
+        null,
+    missionProgressPercentage: Int =
+        0,
     objectiveCompletionEvent:
-    MissionObjectiveCompletionEvent? = null,
+    MissionObjectiveCompletionEvent? =
+        null,
+    adaptiveLearningFeedbackEvent:
+    AdaptiveLearningFeedbackEvent? =
+        null,
     onObjectiveCompletionShown:
-        (String) -> Unit = {}
+        (String) -> Unit =
+        {},
+    onAdaptiveLearningFeedbackShown:
+        (String) -> Unit =
+        {}
 ) {
     TopAppBar(
         modifier =
@@ -96,8 +109,10 @@ fun ChatTopBar(
              * - Assistant typing status
              * - Assessment status
              * - Active mission progress
-             * - Current objective and learner guidance
+             * - Current mission objective
+             * - Mission guidance
              * - Objective-completion feedback
+             * - Adaptive-learning feedback
              */
             AnimatedChatTopBarTitle(
                 isAssistantTyping =
@@ -114,8 +129,12 @@ fun ChatTopBar(
                     missionProgressPercentage,
                 objectiveCompletionEvent =
                     objectiveCompletionEvent,
+                adaptiveLearningFeedbackEvent =
+                    adaptiveLearningFeedbackEvent,
                 onObjectiveCompletionShown =
                     onObjectiveCompletionShown,
+                onAdaptiveLearningFeedbackShown =
+                    onAdaptiveLearningFeedbackShown,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(
@@ -129,10 +148,11 @@ fun ChatTopBar(
         actions = {
             /*
              * Global progress, streak, settings, and thread
-             * actions now belong to the thread-list top bar.
+             * actions belong to the thread-list top bar.
              *
              * The chat top bar remains focused on the active
-             * conversation and mission.
+             * conversation, mission, and adaptive-learning
+             * feedback.
              */
         }
     )
@@ -146,7 +166,9 @@ private fun AnimatedChatTopBarIconButton(
 ) {
     var isPressed by
     remember {
-        mutableStateOf(false)
+        mutableStateOf(
+            false
+        )
     }
 
     val animatedScale by
@@ -232,11 +254,15 @@ private val TOP_BAR_ICON_BUTTON_SIZE =
 private val TOP_BAR_EDGE_PADDING =
     8.dp
 
+/*
+ * Provides visual separation between the circular back
+ * button and the changing title content.
+ */
 private val TITLE_START_PADDING =
     8.dp
 
 /*
- * The chat top bar has no right-side actions anymore, so the
+ * The chat top bar no longer has right-side actions, so the
  * animated title can use most of the remaining width.
  */
 private val TITLE_END_PADDING =

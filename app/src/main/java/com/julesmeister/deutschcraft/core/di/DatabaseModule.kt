@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import com.julesmeister.deutschcraft.core.database.DeutschCraftDatabase
 import com.julesmeister.deutschcraft.core.database.dao.ActivityDayDao
+import com.julesmeister.deutschcraft.core.database.dao.AdaptiveLearningDao
+import com.julesmeister.deutschcraft.core.database.dao.AdaptiveLearningMistakeDao
 import com.julesmeister.deutschcraft.core.database.dao.AssessmentDao
 import com.julesmeister.deutschcraft.core.database.dao.ConversationDao
 import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
@@ -18,7 +20,9 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @Module
-@InstallIn(SingletonComponent::class)
+@InstallIn(
+    SingletonComponent::class
+)
 object DatabaseModule {
 
     @Provides
@@ -34,7 +38,8 @@ object DatabaseModule {
         )
             .addMigrations(
                 DatabaseMigrations.MIGRATION_5_6,
-                DatabaseMigrations.MIGRATION_6_7
+                DatabaseMigrations.MIGRATION_6_7,
+                DatabaseMigrations.MIGRATION_7_8
             )
             .build()
     }
@@ -79,6 +84,20 @@ object DatabaseModule {
         database: DeutschCraftDatabase
     ): MissionDao {
         return database.missionDao()
+    }
+
+    @Provides
+    fun provideAdaptiveLearningDao(
+        database: DeutschCraftDatabase
+    ): AdaptiveLearningDao {
+        return database.adaptiveLearningDao()
+    }
+
+    @Provides
+    fun provideAdaptiveLearningMistakeDao(
+        database: DeutschCraftDatabase
+    ): AdaptiveLearningMistakeDao {
+        return database.adaptiveLearningMistakeDao()
     }
 
     private const val DATABASE_NAME =

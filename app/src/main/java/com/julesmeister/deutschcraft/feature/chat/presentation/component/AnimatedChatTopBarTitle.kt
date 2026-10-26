@@ -31,10 +31,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.AdaptiveLearningFeedbackType
+import com.julesmeister.deutschcraft.feature.chat.presentation.AdaptiveLearningFeedbackEvent
 import com.julesmeister.deutschcraft.feature.chat.presentation.MissionObjectiveCompletionEvent
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import kotlinx.coroutines.delay
@@ -49,7 +52,11 @@ internal fun AnimatedChatTopBarTitle(
     missionProgressPercentage: Int,
     objectiveCompletionEvent:
     MissionObjectiveCompletionEvent?,
+    adaptiveLearningFeedbackEvent:
+    AdaptiveLearningFeedbackEvent?,
     onObjectiveCompletionShown:
+        (String) -> Unit,
+    onAdaptiveLearningFeedbackShown:
         (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -75,8 +82,8 @@ internal fun AnimatedChatTopBarTitle(
             )
 
     /*
-     * Objective-completion feedback remains visible briefly
-     * before it is consumed from ChatUiState.
+     * Mission-objective completion remains visible briefly
+     * before being consumed.
      */
     LaunchedEffect(
         objectiveCompletionEvent?.eventId
@@ -94,6 +101,51 @@ internal fun AnimatedChatTopBarTitle(
         )
     }
 
+    /*
+     * Adaptive feedback remains visible slightly longer than
+     * mission completion because the learner may need time to
+     * read its guidance.
+     *
+     * The effect can run while a mission event is visible.
+     * Therefore, adaptive feedback uses a longer duration so
+     * it does not normally expire before the higher-priority
+     * mission event disappears.
+     */
+    LaunchedEffect(
+        adaptiveLearningFeedbackEvent?.eventId,
+        objectiveCompletionEvent?.eventId
+    ) {
+        val event =
+            adaptiveLearningFeedbackEvent
+                ?: return@LaunchedEffect
+
+        /*
+         * Do not start the adaptive-feedback display timer
+         * while a higher-priority objective-completion event
+         * still owns the top bar.
+         */
+        if (objectiveCompletionEvent != null) {
+            return@LaunchedEffect
+        }
+
+        delay(
+            ADAPTIVE_FEEDBACK_DISPLAY_MILLIS
+        )
+
+        onAdaptiveLearningFeedbackShown(
+            event.eventId
+        )
+    }
+
+    /*
+     * Temporary-state priority:
+     *
+     * 1. Mission objective completion
+     * 2. Adaptive-learning feedback
+     * 3. Assistant typing
+     * 4. Assessment
+     * 5. Mission pager or normal status
+     */
     val temporaryStatus =
         when {
             objectiveCompletionEvent != null -> {
@@ -104,6 +156,20 @@ internal fun AnimatedChatTopBarTitle(
                         objectiveTitle =
                             objectiveCompletionEvent
                                 .objectiveTitle
+                    )
+            }
+
+            adaptiveLearningFeedbackEvent != null -> {
+                ChatTopBarTemporaryStatus
+                    .AdaptiveLearningFeedback(
+                        eventId =
+                            adaptiveLearningFeedbackEvent.eventId,
+                        type =
+                            adaptiveLearningFeedbackEvent.type,
+                        message =
+                            adaptiveLearningFeedbackEvent.message,
+                        focusTitle =
+                            adaptiveLearningFeedbackEvent.focusTitle
                     )
             }
 
@@ -122,13 +188,6 @@ internal fun AnimatedChatTopBarTitle(
             }
         }
 
-    /*
-     * Normal and mission content stay structurally stable.
-     *
-     * Temporary states such as typing, assessment, and
-     * completion temporarily replace that content, then the
-     * learner returns to the swipeable mission pager.
-     */
     AnimatedContent(
         targetState =
             temporaryStatus,
@@ -262,6 +321,217 @@ internal fun AnimatedChatTopBarTitle(
                         displayedStatus.objectiveTitle
                 )
             }
+
+            is ChatTopBarTemporaryStatus
+            .AdaptiveLearningFeedback -> {
+
+                AdaptiveLearningStatus(
+                    type =
+                        displayedStatus.type,
+                    message =
+                        displayedStatus.message,
+                    focusTitle =
+                        displayedStatus.focusTitle
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdaptiveLearningStatus(
+    type: AdaptiveLearningFeedbackType,
+    message: String,
+    focusTitle: String?
+) {
+    val presentation =
+        adaptiveFeedbackPresentation(
+            type =
+                type
+        )
+
+    Row(
+        modifier =
+            Modifier.fillMaxWidth(),
+        verticalAlignment =
+            Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(
+                    STATUS_ICON_SIZE
+                )
+                .clip(
+                    RoundedCornerShape(
+                        STATUS_ICON_CORNER_RADIUS
+                    )
+                )
+                .background(
+                    color =
+                        presentation
+                            .accentColor
+                            .copy(
+                                alpha =
+                                    ADAPTIVE_ICON_BACKGROUND_ALPHA
+                            )
+                ),
+            contentAlignment =
+                Alignment.Center
+        ) {
+            Text(
+                text =
+                    presentation.icon,
+                textAlign =
+                    TextAlign.Center
+            )
+        }
+
+        Spacer(
+            modifier =
+                Modifier.width(
+                    STATUS_CONTENT_SPACING
+                )
+        )
+
+        Column(
+            modifier =
+                Modifier.weight(1f),
+            horizontalAlignment =
+                Alignment.Start
+        ) {
+            Text(
+                text =
+                    focusTitle
+                        ?.takeIf(
+                            String::isNotBlank
+                        )
+                        ?: presentation.title,
+                modifier =
+                    Modifier.fillMaxWidth(),
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleSmall,
+                fontWeight =
+                    FontWeight.SemiBold,
+                color =
+                    presentation.accentColor,
+                textAlign =
+                    TextAlign.Start,
+                maxLines =
+                    1,
+                overflow =
+                    TextOverflow.Ellipsis
+            )
+
+            Text(
+                text =
+                    message,
+                modifier =
+                    Modifier.fillMaxWidth(),
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelSmall,
+                color =
+                    MaterialTheme
+                        .colorScheme
+                        .onSurfaceVariant,
+                textAlign =
+                    TextAlign.Start,
+                maxLines =
+                    2,
+                overflow =
+                    TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun adaptiveFeedbackPresentation(
+    type: AdaptiveLearningFeedbackType
+): AdaptiveFeedbackPresentation {
+    return when (type) {
+        AdaptiveLearningFeedbackType.GENTLE_REMINDER -> {
+            AdaptiveFeedbackPresentation(
+                icon =
+                    "💡",
+                title =
+                    "Learning focus",
+                accentColor =
+                    DeutschLime
+            )
+        }
+
+        AdaptiveLearningFeedbackType.REPEATED_MISTAKE -> {
+            AdaptiveFeedbackPresentation(
+                icon =
+                    "↻",
+                title =
+                    "Still practicing",
+                accentColor =
+                    MaterialTheme
+                        .colorScheme
+                        .tertiary
+            )
+        }
+
+        AdaptiveLearningFeedbackType.PARTIAL_SUCCESS -> {
+            AdaptiveFeedbackPresentation(
+                icon =
+                    "◐",
+                title =
+                    "Almost there",
+                accentColor =
+                    DeutschLime
+            )
+        }
+
+        AdaptiveLearningFeedbackType.SUCCESS -> {
+            AdaptiveFeedbackPresentation(
+                icon =
+                    "✓",
+                title =
+                    "Nice use",
+                accentColor =
+                    DeutschLime
+            )
+        }
+
+        AdaptiveLearningFeedbackType.IMPROVING -> {
+            AdaptiveFeedbackPresentation(
+                icon =
+                    "✨",
+                title =
+                    "Improving",
+                accentColor =
+                    DeutschLime
+            )
+        }
+
+        AdaptiveLearningFeedbackType.MASTERED -> {
+            AdaptiveFeedbackPresentation(
+                icon =
+                    "🏆",
+                title =
+                    "Skill mastered",
+                accentColor =
+                    DeutschLime
+            )
+        }
+
+        AdaptiveLearningFeedbackType.NEEDS_REVIEW -> {
+            AdaptiveFeedbackPresentation(
+                icon =
+                    "↺",
+                title =
+                    "Quick review",
+                accentColor =
+                    MaterialTheme
+                        .colorScheme
+                        .tertiary
+            )
         }
     }
 }
@@ -440,6 +710,12 @@ private fun SimpleStatus(
     }
 }
 
+private data class AdaptiveFeedbackPresentation(
+    val icon: String,
+    val title: String,
+    val accentColor: Color
+)
+
 private sealed interface ChatTopBarTemporaryStatus {
 
     data object AssistantTyping :
@@ -452,10 +728,20 @@ private sealed interface ChatTopBarTemporaryStatus {
         val eventId: String,
         val objectiveTitle: String
     ) : ChatTopBarTemporaryStatus
+
+    data class AdaptiveLearningFeedback(
+        val eventId: String,
+        val type: AdaptiveLearningFeedbackType,
+        val message: String,
+        val focusTitle: String?
+    ) : ChatTopBarTemporaryStatus
 }
 
 private const val OBJECTIVE_COMPLETION_DISPLAY_MILLIS =
     1_650L
+
+private const val ADAPTIVE_FEEDBACK_DISPLAY_MILLIS =
+    3_000L
 
 private val TOP_BAR_CONTENT_MINIMUM_HEIGHT =
     42.dp
@@ -477,6 +763,9 @@ private val STATUS_ICON_CORNER_RADIUS =
 
 private val STATUS_CONTENT_SPACING =
     8.dp
+
+private const val ADAPTIVE_ICON_BACKGROUND_ALPHA =
+    0.15f
 
 private const val STATUS_SIZE_ANIMATION_MILLIS =
     380

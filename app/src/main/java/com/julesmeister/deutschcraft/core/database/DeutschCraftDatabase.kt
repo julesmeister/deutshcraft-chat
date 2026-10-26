@@ -4,6 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.julesmeister.deutschcraft.core.database.dao.ActivityDayDao
 import com.julesmeister.deutschcraft.core.database.dao.AdaptiveLearningDao
+import com.julesmeister.deutschcraft.core.database.dao.AdaptiveLearningMistakeDao
 import com.julesmeister.deutschcraft.core.database.dao.AssessmentDao
 import com.julesmeister.deutschcraft.core.database.dao.ConversationDao
 import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
@@ -26,8 +27,15 @@ import com.julesmeister.deutschcraft.core.database.entity.mission.MissionTemplat
 
 @Database(
     entities = [
+        /*
+         * Conversation and chat entities.
+         */
         ConversationEntity::class,
         MessageEntity::class,
+
+        /*
+         * Learner assessment and progress entities.
+         */
         LearnerProfileEntity::class,
         SkillScoreEntity::class,
         AssessmentEvidenceEntity::class,
@@ -36,7 +44,7 @@ import com.julesmeister.deutschcraft.core.database.entity.mission.MissionTemplat
         ActivityDayEntity::class,
 
         /*
-         * Mission system entities.
+         * Mission-system entities.
          */
         MissionTemplateEntity::class,
         MissionObjectiveEntity::class,
@@ -75,6 +83,21 @@ abstract class DeutschCraftDatabase :
     abstract fun missionDao():
             MissionDao
 
+    /*
+     * Reads and writes persistent adaptive-learning focuses
+     * and their message-level evidence records.
+     */
     abstract fun adaptiveLearningDao():
             AdaptiveLearningDao
+
+    /*
+     * Reads DetectedMistakeEntity records already persisted
+     * by the assessment system.
+     *
+     * This DAO does not add another table. It only reads the
+     * existing detected_mistakes and assessment_evidence
+     * tables.
+     */
+    abstract fun adaptiveLearningMistakeDao():
+            AdaptiveLearningMistakeDao
 }

@@ -22,14 +22,20 @@ sealed interface ChatUiAction {
         ChatUiAction
 
     /*
-     * Removes the current mission offer and prevents the
-     * same generated mission title from being offered again
-     * in this conversation during the current process.
+     * Removes the current mission offer.
      */
     data object DismissMissionOffer :
         ChatUiAction
 
     data class ObjectiveCompletionShown(
+        val eventId: String
+    ) : ChatUiAction
+
+    /*
+     * Consumes an adaptive-learning feedback event after
+     * the top bar has displayed it.
+     */
+    data class AdaptiveLearningFeedbackShown(
         val eventId: String
     ) : ChatUiAction
 

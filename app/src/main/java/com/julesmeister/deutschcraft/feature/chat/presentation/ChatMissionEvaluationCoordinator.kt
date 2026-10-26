@@ -8,7 +8,8 @@ import com.julesmeister.deutschcraft.feature.mission.domain.usecase.EvaluateMiss
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 
-class ChatMissionEvaluationCoordinator @Inject constructor(
+class ChatMissionEvaluationCoordinator
+@Inject constructor(
     private val evaluateMissionMessage:
     EvaluateMissionMessageUseCase
 ) {

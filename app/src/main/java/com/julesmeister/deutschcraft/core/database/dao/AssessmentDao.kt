@@ -542,4 +542,6 @@ abstract class AssessmentDao {
     abstract suspend fun deleteProfileEvidence(
         profileId: String
     ): Int
+
+
 }
