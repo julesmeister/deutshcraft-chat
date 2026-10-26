@@ -17,6 +17,10 @@ interface MissionRepository {
         conversationId: String
     ): Flow<List<ConversationMission>>
 
+    fun observeCompletedMissions():
+            Flow<List<ConversationMission>>
+
+
     suspend fun getMissionTemplate(
         missionTemplateId: String
     ): MissionTemplate?

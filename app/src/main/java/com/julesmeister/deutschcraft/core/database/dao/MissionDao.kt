@@ -218,4 +218,16 @@ interface MissionDao {
     suspend fun deleteConversationMissions(
         conversationId: String
     )
+
+    @Transaction
+    @Query(
+        """
+    SELECT *
+    FROM conversation_missions
+    WHERE status = 'COMPLETED'
+    ORDER BY completedAt DESC, updatedAt DESC
+    """
+    )
+    fun observeCompletedMissions():
+            Flow<List<ConversationMissionWithDetails>>
 }

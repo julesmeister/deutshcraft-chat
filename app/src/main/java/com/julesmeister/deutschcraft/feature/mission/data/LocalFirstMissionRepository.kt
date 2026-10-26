@@ -377,4 +377,15 @@ class LocalFirstMissionRepository @Inject constructor(
                 conversationId
         )
     }
+
+    override fun observeCompletedMissions():
+            Flow<List<ConversationMission>> {
+        return missionDao
+            .observeCompletedMissions()
+            .map { missions ->
+                missions.map { mission ->
+                    mission.toDomain()
+                }
+            }
+    }
 }
