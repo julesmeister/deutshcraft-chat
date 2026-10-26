@@ -93,3 +93,12 @@ internal fun ChatUiState.errorDismissed():
         errorMessage = null
     )
 }
+
+internal fun ChatUiState.withCurrentStreak(
+    streakDays: Int
+): ChatUiState {
+    return copy(
+        currentStreak =
+            streakDays.coerceAtLeast(0)
+    )
+}

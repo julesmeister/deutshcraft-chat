@@ -31,5 +31,7 @@ data class ChatUiState(
         false,
 
     val errorMessage: String? =
-        null
+        null,
+
+    val currentStreak: Int = 0,
 )

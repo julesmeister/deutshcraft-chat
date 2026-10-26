@@ -6,6 +6,7 @@ import com.julesmeister.deutschcraft.core.cefr.model.DefaultLearnerProfile
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatRepository
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
+import com.julesmeister.deutschcraft.feature.engagement.domain.ScheduleIdlePromptUseCase
 import java.time.Clock
 import java.util.UUID
 import javax.inject.Inject
@@ -22,6 +23,8 @@ class SendChatMessageUseCase @Inject constructor(
     AssessChatMessageUseCase,
     private val correctLearnerMessage:
     CorrectLearnerMessageUseCase,
+    private val scheduleIdlePrompt:
+    ScheduleIdlePromptUseCase,
     private val clock:
     Clock
 ) {
@@ -34,7 +37,9 @@ class SendChatMessageUseCase @Inject constructor(
             val cleanMessage =
                 messageText.trim()
 
-            require(cleanMessage.isNotBlank()) {
+            require(
+                cleanMessage.isNotBlank()
+            ) {
                 "The message must not be blank."
             }
 
@@ -49,17 +54,30 @@ class SendChatMessageUseCase @Inject constructor(
             /*
              * Save the original learner message first.
              *
-             * It immediately becomes visible because Room
-             * is the message source of truth.
+             * Room remains the source of truth, so the
+             * message becomes visible immediately.
              */
             chatRepository.saveMessage(
-                message = userMessage
+                message =
+                    userMessage
             )
 
             /*
-             * Correction and assistant generation can run
-             * concurrently because they are independent
-             * Qwen requests.
+             * Record the latest learner activity and
+             * replace the existing idle reminder.
+             *
+             * If reminders are enabled, a new reminder is
+             * scheduled for approximately three hours after
+             * this message.
+             *
+             * If reminders are disabled, any existing idle
+             * reminder is cancelled.
+             */
+            scheduleIdlePrompt()
+
+            /*
+             * Correction and assistant generation are
+             * independent requests and can run concurrently.
              */
             val correctionDeferred =
                 async {
@@ -80,6 +98,10 @@ class SendChatMessageUseCase @Inject constructor(
                         )
                 }
 
+            /*
+             * Record learner activity for progress and
+             * streak tracking.
+             */
             val activeDayCount =
                 activityTracker
                     .recordMessageActivity(
@@ -88,6 +110,12 @@ class SendChatMessageUseCase @Inject constructor(
                                 .LOCAL_PROFILE_ID
                     )
 
+            /*
+             * Assessment is supplementary.
+             *
+             * A failed assessment produces a warning but
+             * does not prevent the assistant from replying.
+             */
             val assessmentWarning =
                 assessWithoutBreakingChat(
                     userMessage =
@@ -97,17 +125,23 @@ class SendChatMessageUseCase @Inject constructor(
                 )
 
             /*
-             * Await correction independently.
+             * Await the correction independently.
              *
-             * updateMessageCorrection() changes the Room
-             * row, causing the existing message flow to
-             * emit the expanded Besser bubble.
+             * When a correction exists,
+             * updateMessageCorrection() updates the original
+             * user-message row in Room. The active Room flow
+             * then emits the updated message and the bubble
+             * displays its persisted Besser section.
              */
             correctionDeferred.await()
 
             val assistantReply =
                 assistantReplyDeferred.await()
 
+            /*
+             * Save the assistant message after Qwen
+             * successfully generates it.
+             */
             chatRepository.saveMessage(
                 message =
                     assistantReply.message
@@ -158,7 +192,8 @@ class SendChatMessageUseCase @Inject constructor(
                 correctLearnerMessage(
                     message =
                         userMessage
-                ) ?: return
+                )
+                    ?: return
 
             chatRepository
                 .updateMessageCorrection(
@@ -176,8 +211,8 @@ class SendChatMessageUseCase @Inject constructor(
             /*
              * Correction is supplementary.
              *
-             * A failed correction must not prevent the
-             * assistant from responding.
+             * A failed correction or Room update must not
+             * prevent the assistant from responding.
              */
             Log.e(
                 SEND_MESSAGE_TAG,

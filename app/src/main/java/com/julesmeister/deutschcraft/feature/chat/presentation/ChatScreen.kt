@@ -121,6 +121,8 @@ fun ChatScreen(
                     uiState.isAssistantTyping,
                 isAssessing =
                     uiState.isAssessing,
+                streakDays =
+                    uiState.currentStreak,
                 onBackClick =
                     onBackClick,
                 onProgressClick =

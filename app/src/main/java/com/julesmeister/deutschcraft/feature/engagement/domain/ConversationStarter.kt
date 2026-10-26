@@ -1,4 +1,7 @@
 package com.julesmeister.deutschcraft.feature.engagement.domain
 
-class ConversationStarter {
-}
+data class ConversationStarter(
+    val id: String,
+    val title: String,
+    val message: String
+)

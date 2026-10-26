@@ -5,6 +5,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.InitializeChatUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.ObserveChatMessagesUseCase
+import com.julesmeister.deutschcraft.feature.chat.domain.usecase.ObserveCurrentStreakUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.SendChatMessageUseCase
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -22,14 +23,17 @@ class ChatSessionCoordinator @Inject constructor(
     private val observeChatMessages:
     ObserveChatMessagesUseCase,
     private val sendChatMessage:
-    SendChatMessageUseCase
+    SendChatMessageUseCase,
+    private val observeCurrentStreak:
+    ObserveCurrentStreakUseCase
 ) {
 
     private val _uiState =
         MutableStateFlow(
             ChatUiState()
         )
-
+    private var streakObservationJob: Job? =
+        null
     val uiState: StateFlow<ChatUiState> =
         _uiState.asStateFlow()
 

@@ -32,7 +32,7 @@ object DatabaseModule {
             DATABASE_NAME
         )
             .addMigrations(
-                DatabaseMigrations.MIGRATION_5_6
+                DatabaseMigrations.MIGRATION_6_7
             )
             .build()
     }

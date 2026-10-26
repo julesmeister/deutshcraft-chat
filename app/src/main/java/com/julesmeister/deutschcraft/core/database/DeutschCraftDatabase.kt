@@ -7,6 +7,7 @@ import com.julesmeister.deutschcraft.core.database.dao.AssessmentDao
 import com.julesmeister.deutschcraft.core.database.dao.ConversationDao
 import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
 import com.julesmeister.deutschcraft.core.database.dao.MessageDao
+import com.julesmeister.deutschcraft.core.database.dao.MissionDao
 import com.julesmeister.deutschcraft.core.database.entity.ActivityDayEntity
 import com.julesmeister.deutschcraft.core.database.entity.AssessmentEvidenceEntity
 import com.julesmeister.deutschcraft.core.database.entity.ConversationEntity
@@ -15,6 +16,10 @@ import com.julesmeister.deutschcraft.core.database.entity.EvidenceGrammarFeature
 import com.julesmeister.deutschcraft.core.database.entity.LearnerProfileEntity
 import com.julesmeister.deutschcraft.core.database.entity.MessageEntity
 import com.julesmeister.deutschcraft.core.database.entity.SkillScoreEntity
+import com.julesmeister.deutschcraft.core.database.entity.mission.ConversationMissionEntity
+import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveEntity
+import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveProgressEntity
+import com.julesmeister.deutschcraft.core.database.entity.mission.MissionTemplateEntity
 
 @Database(
     entities = [
@@ -25,9 +30,17 @@ import com.julesmeister.deutschcraft.core.database.entity.SkillScoreEntity
         AssessmentEvidenceEntity::class,
         EvidenceGrammarFeatureEntity::class,
         DetectedMistakeEntity::class,
-        ActivityDayEntity::class
+        ActivityDayEntity::class,
+
+        /*
+         * Mission system entities.
+         */
+        MissionTemplateEntity::class,
+        MissionObjectiveEntity::class,
+        ConversationMissionEntity::class,
+        MissionObjectiveProgressEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class DeutschCraftDatabase :
@@ -47,4 +60,7 @@ abstract class DeutschCraftDatabase :
 
     abstract fun activityDayDao():
             ActivityDayDao
+
+    abstract fun missionDao():
+            MissionDao
 }

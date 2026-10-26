@@ -1,164 +1,223 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.julesmeister.deutschcraft.ui.theme.DeutschLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschSurfaceHigh
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatTopBar(
     isAssistantTyping: Boolean,
     isAssessing: Boolean,
-    onBackClick: () -> Unit = {},
+    streakDays: Int,
+    onBackClick: () -> Unit,
     onProgressClick: () -> Unit,
     onNewConversationClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onClearConversationClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    TopAppBar(
-        modifier = modifier,
-        navigationIcon = {
-            CircularBackButton(
-                onClick = onBackClick
-            )
-        },
-        title = {
-            Column(
-                modifier = Modifier.padding(
-                    start = 8.dp
-                ),
-                verticalArrangement =
-                    Arrangement.spacedBy(1.dp)
-            ) {
-                Text(
-                    text = "DeutschCraft",
-                    color = DeutschTextPrimary,
-                    style =
-                        MaterialTheme.typography
-                            .titleMedium,
-                    fontWeight =
-                        FontWeight.SemiBold,
-                    maxLines = 1
-                )
+    var isMenuExpanded by remember {
+        mutableStateOf(false)
+    }
 
-                AssistantStatus(
-                    isAssistantTyping =
-                        isAssistantTyping,
-                    isAssessing =
-                        isAssessing
-                )
-            }
-        },
-        actions = {
+    CenterAlignedTopAppBar(
+        modifier =
+            modifier.fillMaxWidth(),
+        colors =
+            TopAppBarDefaults
+                .centerAlignedTopAppBarColors(
+                    containerColor =
+                        MaterialTheme
+                            .colorScheme
+                            .background,
+                    titleContentColor =
+                        MaterialTheme
+                            .colorScheme
+                            .onBackground,
+                    navigationIconContentColor =
+                        MaterialTheme
+                            .colorScheme
+                            .onBackground,
+                    actionIconContentColor =
+                        MaterialTheme
+                            .colorScheme
+                            .onBackground
+                ),
+        navigationIcon = {
             IconButton(
-                modifier = Modifier
-                    .padding(end = 6.dp)
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(
-                        DeutschSurfaceHigh
-                    ),
-                onClick = onProgressClick
+                onClick =
+                    onBackClick
             ) {
                 Icon(
                     imageVector =
-                        Icons.Outlined.Insights,
+                        Icons.AutoMirrored
+                            .Outlined
+                            .ArrowBack,
                     contentDescription =
-                        "View German progress",
-                    tint = DeutschLime
+                        "Back"
                 )
             }
-
-            ChatOverflowMenu(
-                onNewConversationClick =
-                    onNewConversationClick,
-                onSettingsClick =
-                    onSettingsClick,
-                onClearConversationClick =
-                    onClearConversationClick
+        },
+        title = {
+            ChatTopBarTitle(
+                isAssistantTyping =
+                    isAssistantTyping,
+                isAssessing =
+                    isAssessing
             )
         },
-        colors =
-            TopAppBarDefaults.topAppBarColors(
-                containerColor =
-                    MaterialTheme.colorScheme
-                        .background,
-                titleContentColor =
-                    DeutschTextPrimary,
-                navigationIconContentColor =
-                    DeutschTextPrimary,
-                actionIconContentColor =
-                    DeutschTextPrimary
+        actions = {
+            ProgressStreakButton(
+                streakDays =
+                    streakDays,
+                onClick =
+                    onProgressClick,
+                modifier =
+                    Modifier.padding(
+                        end = 4.dp
+                    )
             )
+
+            Box {
+                IconButton(
+                    onClick = {
+                        isMenuExpanded = true
+                    }
+                ) {
+                    Icon(
+                        imageVector =
+                            Icons.Outlined.MoreVert,
+                        contentDescription =
+                            "More options"
+                    )
+                }
+
+                DropdownMenu(
+                    expanded =
+                        isMenuExpanded,
+                    onDismissRequest = {
+                        isMenuExpanded = false
+                    }
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text =
+                                    "New conversation"
+                            )
+                        },
+                        onClick = {
+                            isMenuExpanded = false
+
+                            onNewConversationClick()
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text =
+                                    "Clear conversation"
+                            )
+                        },
+                        onClick = {
+                            isMenuExpanded = false
+
+                            onClearConversationClick()
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text =
+                                    "Settings"
+                            )
+                        },
+                        onClick = {
+                            isMenuExpanded = false
+
+                            onSettingsClick()
+                        }
+                    )
+                }
+            }
+        }
     )
 }
 
 @Composable
-private fun DeutschCraftAvatar() {
-    Box(
-        modifier = Modifier
-            .padding(start = 12.dp)
-            .size(44.dp)
-            .clip(CircleShape)
-            .background(DeutschLime),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "D",
-            color = DeutschTextOnLime,
-            style =
-                MaterialTheme.typography
-                    .titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
-private fun CircularBackButton(
-    onClick: () -> Unit
+private fun ChatTopBarTitle(
+    isAssistantTyping: Boolean,
+    isAssessing: Boolean
 ) {
-    IconButton(
-        modifier = Modifier
-            .padding(start = 12.dp)
-            .size(42.dp)
-            .clip(CircleShape)
-            .background(
-                color = DeutschSurfaceHigh
-            ),
-        onClick = onClick
+    val subtitle =
+        when {
+            isAssistantTyping -> {
+                "Emil schreibt..."
+            }
+
+            isAssessing -> {
+                "Fortschritt wird aktualisiert..."
+            }
+
+            else -> {
+                "Dein Gesprächspartner"
+            }
+        }
+
+    Row(
+        verticalAlignment =
+            Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector =
-                Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription =
-                "Back to conversations",
-            tint = DeutschTextPrimary
-        )
+        androidx.compose.foundation.layout.Column(
+            horizontalAlignment =
+                Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Emil",
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
+                fontWeight =
+                    FontWeight.SemiBold
+            )
+
+            Text(
+                text = subtitle,
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelSmall,
+                color =
+                    MaterialTheme
+                        .colorScheme
+                        .onSurfaceVariant
+            )
+        }
     }
 }
