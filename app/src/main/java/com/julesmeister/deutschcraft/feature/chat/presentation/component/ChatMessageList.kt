@@ -1,5 +1,8 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -23,6 +26,7 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiState
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -110,7 +114,16 @@ fun ChatMessageList(
         awaitLayoutFrames()
 
         listState.animateScrollToItem(
-            index = bottomAnchorIndex
+            index = bottomAnchorIndex,
+            scrollOffset = 0
+        )
+
+        listState.animateScrollBy(
+            value = 300f,
+            animationSpec = tween(
+                durationMillis = 450,
+                easing = FastOutSlowInEasing
+            )
         )
     }
 
@@ -127,7 +140,7 @@ fun ChatMessageList(
         }
 
         delay(
-            KEYBOARD_SCROLL_DELAY_MILLIS
+            KEYBOARD_SCROLL_DELAY_MILLIS.milliseconds
         )
 
         listState.animateScrollToItem(
@@ -155,7 +168,7 @@ fun ChatMessageList(
         }
 
         delay(
-            CONTENT_SCROLL_DELAY_MILLIS
+            CONTENT_SCROLL_DELAY_MILLIS.milliseconds
         )
 
         listState.animateScrollToItem(
@@ -281,7 +294,7 @@ private val BOTTOM_ANCHOR_HEIGHT =
     8.dp
 
 private const val KEYBOARD_SCROLL_DELAY_MILLIS =
-    140L
+    240L
 
 private const val CONTENT_SCROLL_DELAY_MILLIS =
     140L

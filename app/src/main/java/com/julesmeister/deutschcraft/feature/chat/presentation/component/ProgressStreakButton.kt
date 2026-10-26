@@ -4,9 +4,12 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,7 +19,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Insights
@@ -37,6 +39,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import java.util.Locale
 
 @Composable
 fun ProgressStreakButton(
@@ -50,60 +53,64 @@ fun ProgressStreakButton(
         )
     }
 
-    /*
-     * Alternate between the existing progress icon and
-     * the learner's current streak.
-     *
-     * For a zero streak, keep the progress icon visible
-     * instead of displaying "🔥 0".
-     */
-    LaunchedEffect(streakDays) {
-        if (streakDays <= 0) {
-            displayMode =
-                ProgressButtonDisplay.PROGRESS
+    val safeStreak =
+        streakDays.coerceAtLeast(0)
 
+    LaunchedEffect(safeStreak) {
+        displayMode =
+            ProgressButtonDisplay.PROGRESS
+
+        if (safeStreak <= 0) {
             return@LaunchedEffect
         }
 
         while (true) {
-            delay(PROGRESS_DISPLAY_DURATION_MILLIS)
+            delay(
+                PROGRESS_DISPLAY_DURATION_MILLIS
+            )
 
             displayMode =
                 ProgressButtonDisplay.STREAK
 
-            delay(STREAK_DISPLAY_DURATION_MILLIS)
+            delay(
+                STREAK_DISPLAY_DURATION_MILLIS
+            )
 
             displayMode =
                 ProgressButtonDisplay.PROGRESS
         }
     }
 
-    val interactionSource =
-        remember {
-            MutableInteractionSource()
-        }
-
     val containerShape =
         RoundedCornerShape(
             percent = 50
         )
 
+    val interactionSource =
+        remember {
+            MutableInteractionSource()
+        }
+
     Box(
         modifier = modifier
             .defaultMinSize(
-                minWidth = MINIMUM_BUTTON_SIZE,
-                minHeight = MINIMUM_BUTTON_SIZE
+                minWidth =
+                    MINIMUM_BUTTON_SIZE,
+                minHeight =
+                    MINIMUM_BUTTON_SIZE
             )
             .animateContentSize(
                 animationSpec =
                     tween(
                         durationMillis =
-                            SIZE_ANIMATION_DURATION_MILLIS,
+                            CONTAINER_ANIMATION_DURATION_MILLIS,
                         easing =
                             FastOutSlowInEasing
                     )
             )
-            .clip(containerShape)
+            .clip(
+                containerShape
+            )
             .background(
                 color =
                     MaterialTheme
@@ -113,15 +120,18 @@ fun ProgressStreakButton(
             .clickable(
                 interactionSource =
                     interactionSource,
-                indication = null,
-                role = Role.Button,
-                onClick = onClick
+                indication =
+                    null,
+                role =
+                    Role.Button,
+                onClick =
+                    onClick
             )
             .padding(
                 horizontal =
-                    HORIZONTAL_CONTENT_PADDING,
+                    HORIZONTAL_PADDING,
                 vertical =
-                    VERTICAL_CONTENT_PADDING
+                    VERTICAL_PADDING
             ),
         contentAlignment =
             Alignment.Center
@@ -130,26 +140,51 @@ fun ProgressStreakButton(
             targetState =
                 displayMode,
             transitionSpec = {
-                fadeIn(
-                    animationSpec =
-                        tween(
-                            durationMillis =
-                                CONTENT_FADE_DURATION_MILLIS
-                        )
-                ) togetherWith
-                        fadeOut(
+                (
+                        fadeIn(
                             animationSpec =
                                 tween(
                                     durationMillis =
-                                        CONTENT_FADE_DURATION_MILLIS
+                                        CONTENT_ENTER_DURATION_MILLIS,
+                                    easing =
+                                        LinearOutSlowInEasing
                                 )
-                        ) using
-                        SizeTransform(
-                            clip = false
-                        )
+                        ) +
+                                scaleIn(
+                                    initialScale =
+                                        CONTENT_ENTER_SCALE,
+                                    animationSpec =
+                                        tween(
+                                            durationMillis =
+                                                CONTENT_ENTER_DURATION_MILLIS,
+                                            easing =
+                                                FastOutSlowInEasing
+                                        )
+                                )
+                        ) togetherWith
+                        (
+                                fadeOut(
+                                    animationSpec =
+                                        tween(
+                                            durationMillis =
+                                                CONTENT_EXIT_DURATION_MILLIS
+                                        )
+                                ) +
+                                        scaleOut(
+                                            targetScale =
+                                                CONTENT_EXIT_SCALE,
+                                            animationSpec =
+                                                tween(
+                                                    durationMillis =
+                                                        CONTENT_EXIT_DURATION_MILLIS
+                                                )
+                                        )
+                                )
             },
+            contentAlignment =
+                Alignment.Center,
             label =
-                "ProgressStreakContent"
+                "ProgressStreakTransition"
         ) { mode ->
             when (mode) {
                 ProgressButtonDisplay.PROGRESS -> {
@@ -159,7 +194,7 @@ fun ProgressStreakButton(
                 ProgressButtonDisplay.STREAK -> {
                     StreakContent(
                         streakDays =
-                            streakDays
+                            safeStreak
                     )
                 }
             }
@@ -175,7 +210,9 @@ private fun ProgressIconContent() {
         contentDescription =
             "Open progress",
         modifier =
-            Modifier.size(22.dp),
+            Modifier.size(
+                PROGRESS_ICON_SIZE
+            ),
         tint =
             MaterialTheme
                 .colorScheme
@@ -188,13 +225,19 @@ private fun StreakContent(
     streakDays: Int
 ) {
     Row(
+        modifier =
+            Modifier.padding(
+                horizontal = 1.dp
+            ),
         verticalAlignment =
             Alignment.CenterVertically
     ) {
         Text(
-            text = streakEmoji(
-                streakDays = streakDays
-            ),
+            text =
+                streakEmoji(
+                    streakDays =
+                        streakDays
+                ),
             style =
                 MaterialTheme
                     .typography
@@ -218,7 +261,7 @@ private fun StreakContent(
             fontWeight =
                 FontWeight.Bold,
             color =
-                streakTextColor(
+                streakColor(
                     streakDays =
                         streakDays
                 )
@@ -227,16 +270,16 @@ private fun StreakContent(
 }
 
 @Composable
-private fun streakTextColor(
+private fun streakColor(
     streakDays: Int
 ): Color {
     return when {
         streakDays >= 365 -> {
-            Color(0xFF8B5CF6)
+            Color(0xFF7C3AED)
         }
 
         streakDays >= 100 -> {
-            Color(0xFFD69E00)
+            Color(0xFFC58A00)
         }
 
         streakDays >= 30 -> {
@@ -258,14 +301,10 @@ private fun streakTextColor(
 private fun streakEmoji(
     streakDays: Int
 ): String {
-    return when {
-        streakDays >= 365 -> {
-            "💎🔥"
-        }
-
-        else -> {
-            "🔥"
-        }
+    return if (streakDays >= 365) {
+        "💎🔥"
+    } else {
+        "🔥"
     }
 }
 
@@ -274,22 +313,20 @@ private fun formatStreak(
 ): String {
     return when {
         streakDays >= 1_000_000 -> {
-            val millions =
-                streakDays / 1_000_000f
-
             String.format(
+                Locale.getDefault(),
                 "%.1fM",
-                millions
+                streakDays /
+                        1_000_000f
             )
         }
 
         streakDays >= 10_000 -> {
-            val thousands =
-                streakDays / 1_000f
-
             String.format(
+                Locale.getDefault(),
                 "%.1fK",
-                thousands
+                streakDays /
+                        1_000f
             )
         }
 
@@ -307,10 +344,13 @@ private enum class ProgressButtonDisplay {
 private val MINIMUM_BUTTON_SIZE =
     40.dp
 
-private val HORIZONTAL_CONTENT_PADDING =
+private val PROGRESS_ICON_SIZE =
+    22.dp
+
+private val HORIZONTAL_PADDING =
     10.dp
 
-private val VERTICAL_CONTENT_PADDING =
+private val VERTICAL_PADDING =
     8.dp
 
 private const val PROGRESS_DISPLAY_DURATION_MILLIS =
@@ -319,8 +359,17 @@ private const val PROGRESS_DISPLAY_DURATION_MILLIS =
 private const val STREAK_DISPLAY_DURATION_MILLIS =
     3_000L
 
-private const val SIZE_ANIMATION_DURATION_MILLIS =
-    350
+private const val CONTAINER_ANIMATION_DURATION_MILLIS =
+    380
 
-private const val CONTENT_FADE_DURATION_MILLIS =
-    280
+private const val CONTENT_ENTER_DURATION_MILLIS =
+    320
+
+private const val CONTENT_EXIT_DURATION_MILLIS =
+    220
+
+private const val CONTENT_ENTER_SCALE =
+    0.88f
+
+private const val CONTENT_EXIT_SCALE =
+    0.92f

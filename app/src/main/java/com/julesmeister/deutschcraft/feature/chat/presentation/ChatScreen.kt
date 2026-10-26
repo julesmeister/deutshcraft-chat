@@ -35,6 +35,9 @@ fun ChatScreen(
     onSettingsClick: () -> Unit = {},
     onClearConversationClick: () -> Unit = {},
     onAddClick: () -> Unit = {},
+    activeMissionTitle: String? = null,
+    currentMissionObjective: String? = null,
+    missionProgressPercentage: Int = 0,
     messageActionViewModel:
     MessageActionViewModel = hiltViewModel()
 ) {
@@ -52,12 +55,6 @@ fun ChatScreen(
         mutableStateOf<ChatMessage?>(null)
     }
 
-    /*
-     * ChatMessageList observes this key.
-     *
-     * Increasing it produces a new scroll request even
-     * when the message count has not changed yet.
-     */
     var scrollRequestKey by remember {
         mutableIntStateOf(0)
     }
@@ -70,7 +67,8 @@ fun ChatScreen(
                 ?: return@LaunchedEffect
 
         snackbarHostState.showSnackbar(
-            message = errorMessage
+            message =
+                errorMessage
         )
 
         onAction(
@@ -78,10 +76,6 @@ fun ChatScreen(
         )
     }
 
-    /*
-     * The normal message-action sheet remains independent
-     * from composer scrolling.
-     */
     selectedMessage?.let { message ->
         MessageActionBottomSheet(
             sentence =
@@ -114,7 +108,9 @@ fun ChatScreen(
         modifier =
             modifier.fillMaxSize(),
         containerColor =
-            MaterialTheme.colorScheme.background,
+            MaterialTheme
+                .colorScheme
+                .background,
         topBar = {
             ChatTopBar(
                 isAssistantTyping =
@@ -123,6 +119,12 @@ fun ChatScreen(
                     uiState.isAssessing,
                 streakDays =
                     uiState.currentStreak,
+                activeMissionTitle =
+                    activeMissionTitle,
+                currentMissionObjective =
+                    currentMissionObjective,
+                missionProgressPercentage =
+                    missionProgressPercentage,
                 onBackClick =
                     onBackClick,
                 onProgressClick =
@@ -163,7 +165,9 @@ fun ChatScreen(
                         .colorScheme
                         .background
                 )
-                .padding(innerPadding),
+                .padding(
+                    innerPadding
+                ),
             uiState =
                 uiState,
             scrollRequestKey =
