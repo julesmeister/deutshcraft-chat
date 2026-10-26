@@ -2,13 +2,11 @@ package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -16,10 +14,11 @@ import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiAction
 import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiState
 
 /*
- * onAddClick remains temporarily for compatibility with
- * the existing ChatScreen call.
+ * onAddClick is intentionally retained.
  *
- * The composer no longer displays an attachment button.
+ * The current Telegram-style composer does not display an
+ * add button, but this callback remains available for a
+ * future attachment or learning-tools action.
  */
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -30,19 +29,29 @@ fun ChatBottomBar(
     onInputFocused: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    /*
+     * There is deliberately no background on this Column.
+     *
+     * The conversation remains visible through the spaces:
+     *
+     * - Around the suggestion pills
+     * - Between suggestions and composer
+     * - To the left and right of the composer
+     */
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .windowInsetsPadding(
-                WindowInsets.navigationBars
-            )
-            .windowInsetsPadding(
-                WindowInsets.ime
-            )
+            .navigationBarsPadding()
+            .imePadding()
             .padding(
-                start = 12.dp,
-                end = 12.dp,
-                bottom = 10.dp
+                start =
+                    BOTTOM_BAR_HORIZONTAL_PADDING,
+                end =
+                    BOTTOM_BAR_HORIZONTAL_PADDING,
+                top =
+                    BOTTOM_BAR_TOP_PADDING,
+                bottom =
+                    BOTTOM_BAR_BOTTOM_PADDING
             )
     ) {
         FloatingReplySuggestions(
@@ -51,12 +60,15 @@ fun ChatBottomBar(
             enabled =
                 !uiState.isInitializing &&
                         !uiState.isSending,
-            onSuggestionClick = { suggestionId ->
+            onSuggestionClick = {
+                    suggestionId ->
+
                 onAction(
-                    ChatUiAction.SuggestionSelected(
-                        suggestionId =
-                            suggestionId
-                    )
+                    ChatUiAction
+                        .SuggestionSelected(
+                            suggestionId =
+                                suggestionId
+                        )
                 )
 
                 onInputFocused()
@@ -66,7 +78,9 @@ fun ChatBottomBar(
         if (uiState.suggestions.isNotEmpty()) {
             Spacer(
                 modifier =
-                    Modifier.height(8.dp)
+                    Modifier.height(
+                        SUGGESTION_COMPOSER_SPACING
+                    )
             )
         }
 
@@ -79,10 +93,11 @@ fun ChatBottomBar(
                 uiState.isSending,
             onValueChange = { value ->
                 onAction(
-                    ChatUiAction.MessageInputChanged(
-                        value =
-                            value
-                    )
+                    ChatUiAction
+                        .MessageInputChanged(
+                            value =
+                                value
+                        )
                 )
             },
             onSendClick = {
@@ -97,3 +112,15 @@ fun ChatBottomBar(
         )
     }
 }
+
+private val BOTTOM_BAR_HORIZONTAL_PADDING =
+    12.dp
+
+private val BOTTOM_BAR_TOP_PADDING =
+    4.dp
+
+private val BOTTOM_BAR_BOTTOM_PADDING =
+    10.dp
+
+private val SUGGESTION_COMPOSER_SPACING =
+    8.dp

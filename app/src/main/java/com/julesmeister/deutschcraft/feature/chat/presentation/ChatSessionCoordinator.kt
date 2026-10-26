@@ -3,6 +3,7 @@ package com.julesmeister.deutschcraft.feature.chat.presentation
 import android.util.Log
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import com.julesmeister.deutschcraft.feature.chat.data.cache.ReplySuggestionCache
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.InitializeChatUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.SendChatMessageUseCase
 import javax.inject.Inject
@@ -21,7 +22,9 @@ class ChatSessionCoordinator @Inject constructor(
     private val sendChatMessage:
     SendChatMessageUseCase,
     private val sessionObservers:
-    ChatSessionObservers
+    ChatSessionObservers,
+    private val replySuggestionCache:
+    ReplySuggestionCache
 ) {
 
     private val _uiState =
@@ -53,8 +56,10 @@ class ChatSessionCoordinator @Inject constructor(
         }
 
         sessionObservers.observeStreak(
-            scope = scope,
-            onStreakChanged = ::applyStreakUpdate
+            scope =
+                scope,
+            onStreakChanged =
+                ::applyStreakUpdate
         )
 
         initializationJob =
@@ -75,7 +80,8 @@ class ChatSessionCoordinator @Inject constructor(
         when (action) {
             is ChatUiAction.MessageInputChanged -> {
                 updateInput(
-                    value = action.value
+                    value =
+                        action.value
                 )
             }
 
@@ -88,13 +94,15 @@ class ChatSessionCoordinator @Inject constructor(
 
             ChatUiAction.SendMessage -> {
                 send(
-                    scope = scope
+                    scope =
+                        scope
                 )
             }
 
             is ChatUiAction.ObjectiveCompletionShown -> {
                 consumeObjectiveCompletion(
-                    eventId = action.eventId
+                    eventId =
+                        action.eventId
                 )
             }
 
@@ -112,6 +120,12 @@ class ChatSessionCoordinator @Inject constructor(
         sendingJob = null
         activeConversationId = null
 
+        /*
+         * Do not clear ReplySuggestionCache here.
+         *
+         * stop() is called when leaving the chat. Clearing
+         * the cache would recreate the original problem.
+         */
         sessionObservers.stop()
     }
 
@@ -129,16 +143,28 @@ class ChatSessionCoordinator @Inject constructor(
             activeConversationId =
                 conversation.id
 
-            sessionObservers.observeConversation(
+            /*
+             * Restore the temporary suggestions previously
+             * generated for this conversation.
+             *
+             * The cache is a Hilt singleton, so it survives
+             * navigation while the process remains alive.
+             */
+            restoreCachedSuggestions(
                 conversationId =
-                    conversation.id,
-                scope =
-                    scope,
+                        conversation.id
+            )
+
+            sessionObservers.observeConversation(
+                  conversationId =
+                      conversation.id,
+                            scope =
+                            scope,
                 onMessagesChanged =
-                    ::applyMessageUpdate,
-                onMissionChanged =
-                    ::applyMissionUpdate,
-                onMessageObservationFailed = {
+                     ::applyMessageUpdate,
+                  onMissionChanged =
+                      ::applyMissionUpdate,
+                   onMessageObservationFailed = {
                     showError(
                         message =
                             MESSAGE_LOAD_ERROR
@@ -168,6 +194,24 @@ class ChatSessionCoordinator @Inject constructor(
                             ?: LOAD_ERROR
                 )
             }
+        }
+    }
+
+    private fun restoreCachedSuggestions(
+        conversationId: String
+    ) {
+        val cachedSuggestions =
+            replySuggestionCache
+                .getSuggestions(
+                    conversationId =
+                        conversationId
+                )
+
+        _uiState.update { state ->
+            state.copy(
+                suggestions =
+                    cachedSuggestions
+            )
         }
     }
 
@@ -258,6 +302,13 @@ class ChatSessionCoordinator @Inject constructor(
                     )
             )
 
+        /*
+         * Selecting a suggestion fills the composer but
+         * does not consume the suggestions yet.
+         *
+         * They are consumed when the learner actually sends
+         * the next message.
+         */
         _uiState.update { state ->
             state.withInput(
                 value =
@@ -298,6 +349,18 @@ class ChatSessionCoordinator @Inject constructor(
             return
         }
 
+        /*
+         * The existing suggestions belong to the previous
+         * assistant response.
+         *
+         * Once a new learner message is sent, those
+         * suggestions are no longer actionable.
+         */
+        replySuggestionCache.clearSuggestions(
+            conversationId =
+                conversationId
+        )
+
         _uiState.update { state ->
             state.sendingStarted()
         }
@@ -331,6 +394,20 @@ class ChatSessionCoordinator @Inject constructor(
                     .assistantReply
                     .suggestions
 
+            /*
+             * Store the latest generated suggestions in the
+             * in-memory conversation cache.
+             *
+             * Returning to this chat during the same app
+             * process will restore these suggestions.
+             */
+            replySuggestionCache.replaceSuggestions(
+                conversationId =
+                    conversationId,
+                suggestions =
+                    suggestions
+            )
+
             _uiState.update { state ->
                 state.sendingSucceeded(
                     suggestions =
@@ -355,6 +432,19 @@ class ChatSessionCoordinator @Inject constructor(
                 COORDINATOR_TAG,
                 "Message sending failed.",
                 throwable
+            )
+
+            /*
+             * Do not restore the old suggestions after a
+             * failed send.
+             *
+             * The learner already attempted to answer the
+             * previous assistant response, and their
+             * message may have been saved locally.
+             */
+            replySuggestionCache.clearSuggestions(
+                conversationId =
+                    conversationId
             )
 
             _uiState.update { state ->

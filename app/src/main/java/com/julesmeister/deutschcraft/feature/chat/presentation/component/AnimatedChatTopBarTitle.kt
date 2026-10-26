@@ -44,7 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.presentation.MissionObjectiveCompletionEvent
 import kotlinx.coroutines.delay
-
+import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 @Composable
 internal fun AnimatedChatTopBarTitle(
     isAssistantTyping: Boolean,
@@ -227,7 +227,7 @@ internal fun AnimatedChatTopBarTitle(
                             )
         },
         contentAlignment =
-            Alignment.Center,
+            Alignment.CenterStart,
         label =
             "ChatTopBarStatus"
     ) { displayedStatus ->
@@ -288,29 +288,71 @@ internal fun AnimatedChatTopBarTitle(
 private fun NormalStatus() {
     Column(
         horizontalAlignment =
-            Alignment.CenterHorizontally
+            Alignment.Start
     ) {
         Text(
-            text = "DeutschCraft",
+            text =
+                "DeutschCraft",
             style =
                 MaterialTheme
                     .typography
                     .titleMedium,
             fontWeight =
-                FontWeight.SemiBold
-        )
-
-        Text(
-            text = "Emil ist online",
-            style =
-                MaterialTheme
-                    .typography
-                    .labelSmall,
+                FontWeight.SemiBold,
             color =
                 MaterialTheme
                     .colorScheme
-                    .onSurfaceVariant
+                    .onBackground,
+            maxLines =
+                1,
+            overflow =
+                TextOverflow.Ellipsis
         )
+
+        Row(
+            modifier =
+                Modifier.padding(
+                    top = 1.dp
+                ),
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(
+                        ONLINE_DOT_SIZE
+                    )
+                    .clip(
+                        CircleShape
+                    )
+                    .background(
+                        color =
+                            DeutschLime
+                    )
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.width(
+                        ONLINE_DOT_SPACING
+                    )
+            )
+
+            Text(
+                text =
+                    "Emil ist online",
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelSmall,
+                color =
+                    MaterialTheme
+                        .colorScheme
+                        .onSurfaceVariant,
+                maxLines =
+                    1
+            )
+        }
     }
 }
 
@@ -445,3 +487,9 @@ private fun MissionProgressStatus(
 
 private const val OBJECTIVE_COMPLETION_DISPLAY_MILLIS =
     1_650L
+
+private val ONLINE_DOT_SIZE =
+    7.dp
+
+private val ONLINE_DOT_SPACING =
+    5.dp

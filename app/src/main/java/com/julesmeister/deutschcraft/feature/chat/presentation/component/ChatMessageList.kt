@@ -3,6 +3,7 @@ package com.julesmeister.deutschcraft.feature.chat.presentation.component
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
@@ -29,7 +31,8 @@ fun ChatMessageList(
     uiState: ChatUiState,
     onMessageClick: (ChatMessage) -> Unit,
     modifier: Modifier = Modifier,
-    scrollRequestKey: Int = 0
+    scrollRequestKey: Int = 0,
+    bottomOverlayHeight: Dp = 0.dp
 ) {
     val listState =
         rememberLazyListState()
@@ -53,7 +56,8 @@ fun ChatMessageList(
 
     val bottomAnchorIndex =
         calculateBottomAnchorIndex(
-            messageCount = messageCount,
+            messageCount =
+                messageCount,
             hasTypingIndicator =
                 hasTypingIndicator
         )
@@ -61,17 +65,19 @@ fun ChatMessageList(
     val latestUserMessageId =
         uiState.messages
             .latestMessageId(
-                sender = MessageSender.USER
+                sender =
+                    MessageSender.USER
             )
 
     val latestAssistantMessageId =
         uiState.messages
             .latestMessageId(
-                sender = MessageSender.ASSISTANT
+                sender =
+                    MessageSender.ASSISTANT
             )
 
     /*
-     * Messages that already exist when this screen opens
+     * Messages already present when this list first opens
      * should not replay their entrance animations.
      */
     val seenMessageIds =
@@ -88,13 +94,18 @@ fun ChatMessageList(
         }
 
     ChatMessageListScrollEffects(
-        listState = listState,
-        messageCount = messageCount,
-        suggestionCount = suggestionCount,
-        isSending = uiState.isSending,
+        listState =
+            listState,
+        messageCount =
+            messageCount,
+        suggestionCount =
+            suggestionCount,
+        isSending =
+            uiState.isSending,
         hasTypingIndicator =
             hasTypingIndicator,
-        keyboardBottom = keyboardBottom,
+        keyboardBottom =
+            keyboardBottom,
         bottomAnchorIndex =
             bottomAnchorIndex,
         scrollRequestKey =
@@ -106,7 +117,8 @@ fun ChatMessageList(
         !hasTypingIndicator
     ) {
         ChatMessageListEmptyState(
-            modifier = modifier
+            modifier =
+                modifier
         )
 
         return
@@ -119,8 +131,27 @@ fun ChatMessageList(
             listState,
         reverseLayout =
             false,
+
+        /*
+         * The list receives exactly the measured floating
+         * bottom-bar height.
+         *
+         * This does not paint a black panel. It only gives
+         * the final message enough scroll range to move
+         * above the floating composer and suggestions.
+         */
+        contentPadding =
+            PaddingValues(
+                top =
+                    MESSAGE_LIST_TOP_PADDING,
+                bottom =
+                    bottomOverlayHeight +
+                            MESSAGE_LIST_BOTTOM_BREATHING_ROOM
+            ),
         verticalArrangement =
-            Arrangement.spacedBy(6.dp)
+            Arrangement.spacedBy(
+                MESSAGE_SPACING
+            )
     ) {
         items(
             items =
@@ -150,12 +181,16 @@ fun ChatMessageList(
                     ] = true
                 },
                 onClick = {
-                    onMessageClick(message)
+                    onMessageClick(
+                        message
+                    )
                 },
                 modifier =
                     Modifier.padding(
-                        horizontal = 12.dp,
-                        vertical = 2.dp
+                        horizontal =
+                            MESSAGE_HORIZONTAL_PADDING,
+                        vertical =
+                            MESSAGE_VERTICAL_PADDING
                     )
             )
         }
@@ -168,13 +203,22 @@ fun ChatMessageList(
                 TypingIndicator(
                     modifier =
                         Modifier.padding(
-                            horizontal = 12.dp,
-                            vertical = 4.dp
+                            horizontal =
+                                MESSAGE_HORIZONTAL_PADDING,
+                            vertical =
+                                TYPING_INDICATOR_VERTICAL_PADDING
                         )
                 )
             }
         }
 
+        /*
+         * Retained as a tiny stable scrolling target.
+         *
+         * The measured content padding handles composer
+         * clearance. This anchor remains only for existing
+         * scroll calculations.
+         */
         item(
             key =
                 BOTTOM_ANCHOR_KEY
@@ -219,6 +263,25 @@ private fun List<ChatMessage>.latestMessageId(
     sender: MessageSender
 ): String? {
     return lastOrNull { message ->
-        message.sender == sender
+        message.sender ==
+                sender
     }?.id
 }
+
+private val MESSAGE_LIST_TOP_PADDING =
+    8.dp
+
+private val MESSAGE_LIST_BOTTOM_BREATHING_ROOM =
+    6.dp
+
+private val MESSAGE_SPACING =
+    6.dp
+
+private val MESSAGE_HORIZONTAL_PADDING =
+    12.dp
+
+private val MESSAGE_VERTICAL_PADDING =
+    2.dp
+
+private val TYPING_INDICATOR_VERTICAL_PADDING =
+    4.dp

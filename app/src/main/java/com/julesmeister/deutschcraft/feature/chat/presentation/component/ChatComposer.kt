@@ -53,8 +53,7 @@ fun ChatComposer(
         }
 
     val isFocused by
-    interactionSource
-        .collectIsFocusedAsState()
+    interactionSource.collectIsFocusedAsState()
 
     val canSend =
         value.text.isNotBlank() &&
@@ -143,7 +142,8 @@ fun ChatComposer(
                     vertical = 8.dp
                 ),
             enabled =
-                enabled && !isSending,
+                enabled &&
+                        !isSending,
             textStyle =
                 MaterialTheme
                     .typography
@@ -182,11 +182,9 @@ fun ChatComposer(
             minLines =
                 1,
             maxLines =
-                5,
+                MAXIMUM_INPUT_LINES,
             decorationBox = { innerTextField ->
                 Box(
-                    modifier =
-                        Modifier,
                     contentAlignment =
                         Alignment.CenterStart
                 ) {
@@ -213,8 +211,11 @@ fun ChatComposer(
                 canSend,
             isSending =
                 isSending,
-            onClick =
-                onSendClick
+            onClick = {
+                if (canSend) {
+                    onSendClick()
+                }
+            }
         )
     }
 }
@@ -236,6 +237,9 @@ private val TEXT_FIELD_MINIMUM_HEIGHT =
 
 private val TEXT_FIELD_MAXIMUM_HEIGHT =
     128.dp
+
+private const val MAXIMUM_INPUT_LINES =
+    5
 
 private const val FOCUSED_BORDER_ALPHA =
     0.46f

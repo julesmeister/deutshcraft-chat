@@ -8,6 +8,7 @@ import com.julesmeister.deutschcraft.core.database.dao.AssessmentDao
 import com.julesmeister.deutschcraft.core.database.dao.ConversationDao
 import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
 import com.julesmeister.deutschcraft.core.database.dao.MessageDao
+import com.julesmeister.deutschcraft.core.database.dao.MissionDao
 import com.julesmeister.deutschcraft.core.database.migration.DatabaseMigrations
 import dagger.Module
 import dagger.Provides
@@ -32,6 +33,7 @@ object DatabaseModule {
             DATABASE_NAME
         )
             .addMigrations(
+                DatabaseMigrations.MIGRATION_5_6,
                 DatabaseMigrations.MIGRATION_6_7
             )
             .build()
@@ -70,6 +72,13 @@ object DatabaseModule {
         database: DeutschCraftDatabase
     ): ActivityDayDao {
         return database.activityDayDao()
+    }
+
+    @Provides
+    fun provideMissionDao(
+        database: DeutschCraftDatabase
+    ): MissionDao {
+        return database.missionDao()
     }
 
     private const val DATABASE_NAME =

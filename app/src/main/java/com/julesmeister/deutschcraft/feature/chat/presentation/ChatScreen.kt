@@ -1,6 +1,8 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -14,7 +16,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
@@ -43,6 +50,9 @@ fun ChatScreen(
             SnackbarHostState()
         }
 
+    val density =
+        LocalDensity.current
+
     val messageActionState by
     messageActionViewModel
         .uiState
@@ -54,6 +64,18 @@ fun ChatScreen(
 
     var scrollRequestKey by remember {
         mutableIntStateOf(0)
+    }
+
+    /*
+     * Actual measured height of the floating composer and
+     * suggestions.
+     *
+     * This allows the message list to reserve exactly the
+     * necessary scrolling space rather than using a guessed
+     * fixed value.
+     */
+    var bottomOverlayHeight by remember {
+        mutableStateOf(0.dp)
     }
 
     LaunchedEffect(
@@ -95,7 +117,9 @@ fun ChatScreen(
                     )
             },
             onDismiss = {
-                selectedMessage = null
+                selectedMessage =
+                    null
+
                 messageActionViewModel.reset()
             }
         )
@@ -108,6 +132,13 @@ fun ChatScreen(
             MaterialTheme
                 .colorScheme
                 .background,
+        contentWindowInsets =
+            WindowInsets(
+                left = 0,
+                top = 0,
+                right = 0,
+                bottom = 0
+            ),
         topBar = {
             ChatTopBar(
                 isAssistantTyping =
@@ -128,7 +159,8 @@ fun ChatScreen(
                     onAction(
                         ChatUiAction
                             .ObjectiveCompletionShown(
-                                eventId = eventId
+                                eventId =
+                                    eventId
                             )
                     )
                 },
@@ -149,8 +181,40 @@ fun ChatScreen(
                 hostState =
                     snackbarHostState
             )
-        },
-        bottomBar = {
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .background
+                )
+                .padding(
+                    top =
+                        innerPadding
+                            .calculateTopPadding()
+                )
+        ) {
+            ChatMessageList(
+                modifier =
+                    Modifier.fillMaxSize(),
+                uiState =
+                    uiState,
+                scrollRequestKey =
+                    scrollRequestKey,
+                bottomOverlayHeight =
+                    bottomOverlayHeight,
+                onMessageClick = { message ->
+                    messageActionViewModel.reset()
+
+                    selectedMessage =
+                        message
+                }
+            )
+
             ChatBottomBar(
                 uiState =
                     uiState,
@@ -160,29 +224,26 @@ fun ChatScreen(
                     onAddClick,
                 onInputFocused = {
                     scrollRequestKey += 1
-                }
+                },
+                modifier = Modifier
+                    .align(
+                        Alignment.BottomCenter
+                    )
+                    .onSizeChanged { size ->
+                        val measuredHeight =
+                            with(density) {
+                                size.height.toDp()
+                            }
+
+                        if (
+                            bottomOverlayHeight !=
+                            measuredHeight
+                        ) {
+                            bottomOverlayHeight =
+                                measuredHeight
+                        }
+                    }
             )
         }
-    ) { innerPadding ->
-        ChatMessageList(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    MaterialTheme
-                        .colorScheme
-                        .background
-                )
-                .padding(
-                    innerPadding
-                ),
-            uiState =
-                uiState,
-            scrollRequestKey =
-                scrollRequestKey,
-            onMessageClick = { message ->
-                messageActionViewModel.reset()
-                selectedMessage = message
-            }
-        )
     }
 }
