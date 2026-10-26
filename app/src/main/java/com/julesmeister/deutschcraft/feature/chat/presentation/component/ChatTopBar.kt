@@ -39,6 +39,7 @@ fun ChatTopBar(
     modifier: Modifier = Modifier,
     activeMissionTitle: String? = null,
     currentMissionObjective: String? = null,
+    currentMissionGuidance: String? = null,
     missionProgressPercentage: Int = 0,
     objectiveCompletionEvent:
     MissionObjectiveCompletionEvent? = null,
@@ -68,7 +69,7 @@ fun ChatTopBar(
                         .onBackground
             ),
         navigationIcon = {
-            AnimatedTopBarIconButton(
+            AnimatedChatTopBarIconButton(
                 onClick =
                     onBackClick,
                 modifier =
@@ -89,15 +90,14 @@ fun ChatTopBar(
         },
         title = {
             /*
-             * The chat top bar is now conversation-focused.
+             * The animated title rotates between:
              *
-             * Progress, settings, conversation creation, and
-             * other global actions belong on the thread
-             * screen.
-             *
-             * This title still displays active mission
-             * progress because that information directly
-             * supports the conversation currently in view.
+             * - Normal Emil status
+             * - Assistant typing status
+             * - Assessment status
+             * - Active mission progress
+             * - Current objective and learner guidance
+             * - Objective-completion feedback
              */
             AnimatedChatTopBarTitle(
                 isAssistantTyping =
@@ -108,6 +108,8 @@ fun ChatTopBar(
                     activeMissionTitle,
                 currentMissionObjective =
                     currentMissionObjective,
+                currentMissionGuidance =
+                    currentMissionGuidance,
                 missionProgressPercentage =
                     missionProgressPercentage,
                 objectiveCompletionEvent =
@@ -126,22 +128,18 @@ fun ChatTopBar(
         },
         actions = {
             /*
-             * Deliberately empty.
+             * Global progress, streak, settings, and thread
+             * actions now belong to the thread-list top bar.
              *
-             * The chat screen no longer displays:
-             *
-             * - Progress/streak button
-             * - New conversation action
-             * - Clear conversation action
-             * - Settings action
-             * - Overflow menu
+             * The chat top bar remains focused on the active
+             * conversation and mission.
              */
         }
     )
 }
 
 @Composable
-private fun AnimatedTopBarIconButton(
+private fun AnimatedChatTopBarIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
@@ -238,8 +236,8 @@ private val TITLE_START_PADDING =
     8.dp
 
 /*
- * There are no longer any actions on the right side of the
- * top bar, so the title can use more horizontal space.
+ * The chat top bar has no right-side actions anymore, so the
+ * animated title can use most of the remaining width.
  */
 private val TITLE_END_PADDING =
     16.dp

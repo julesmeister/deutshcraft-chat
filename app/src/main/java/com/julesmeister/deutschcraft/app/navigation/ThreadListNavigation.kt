@@ -42,13 +42,9 @@ internal fun NavGraphBuilder.threadListDestination(
                 )
             },
             onSettingsClick = {
-                /*
-                 * Settings navigation has not been added to the
-                 * navigation graph yet.
-                 *
-                 * Keep this callback empty until
-                 * SettingsDestination is implemented.
-                 */
+                navController.navigate(
+                    SettingsDestination
+                )
             }
         )
     }

@@ -31,9 +31,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,14 +43,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.presentation.MissionObjectiveCompletionEvent
-import kotlinx.coroutines.delay
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
+import kotlinx.coroutines.delay
+
 @Composable
 internal fun AnimatedChatTopBarTitle(
     isAssistantTyping: Boolean,
     isAssessing: Boolean,
     activeMissionTitle: String?,
     currentMissionObjective: String?,
+    currentMissionGuidance: String?,
     missionProgressPercentage: Int,
     objectiveCompletionEvent:
     MissionObjectiveCompletionEvent?,
@@ -61,29 +63,61 @@ internal fun AnimatedChatTopBarTitle(
     val missionTitle =
         activeMissionTitle
             ?.trim()
-            ?.takeIf(String::isNotBlank)
+            ?.takeIf(
+                String::isNotBlank
+            )
 
     val missionObjective =
         currentMissionObjective
             ?.trim()
-            ?.takeIf(String::isNotBlank)
+            ?.takeIf(
+                String::isNotBlank
+            )
 
-    var missionDisplayIndex by remember(
+    /*
+     * This is learner-facing guidance from the objective's
+     * description.
+     *
+     * The internal completionHint is not displayed.
+     */
+    val missionGuidance =
+        currentMissionGuidance
+            ?.trim()
+            ?.takeIf(
+                String::isNotBlank
+            )
+
+    var missionDisplayIndex by
+    remember(
         missionTitle,
         missionObjective,
-        missionProgressPercentage
+        missionGuidance
     ) {
-        mutableIntStateOf(0)
+        mutableIntStateOf(
+            NORMAL_DISPLAY_INDEX
+        )
     }
 
+    /*
+     * When a mission is active, rotate through:
+     *
+     * 1. Normal Emil status
+     * 2. Mission title and progress
+     * 3. Current objective and learner guidance
+     *
+     * Typing, assessment, and completion feedback interrupt
+     * this rotation because they have higher visual priority.
+     */
     LaunchedEffect(
         missionTitle,
         missionObjective,
+        missionGuidance,
         isAssistantTyping,
         isAssessing,
         objectiveCompletionEvent?.eventId
     ) {
-        missionDisplayIndex = 0
+        missionDisplayIndex =
+            NORMAL_DISPLAY_INDEX
 
         if (
             missionTitle == null ||
@@ -95,20 +129,35 @@ internal fun AnimatedChatTopBarTitle(
         }
 
         while (true) {
-            delay(4_500L)
-            missionDisplayIndex = 1
+            delay(
+                NORMAL_STATUS_DISPLAY_MILLIS
+            )
 
-            delay(4_000L)
+            missionDisplayIndex =
+                MISSION_PROGRESS_DISPLAY_INDEX
+
+            delay(
+                MISSION_PROGRESS_DISPLAY_MILLIS
+            )
 
             if (missionObjective != null) {
-                missionDisplayIndex = 2
-                delay(4_000L)
+                missionDisplayIndex =
+                    MISSION_OBJECTIVE_DISPLAY_INDEX
+
+                delay(
+                    MISSION_OBJECTIVE_DISPLAY_MILLIS
+                )
             }
 
-            missionDisplayIndex = 0
+            missionDisplayIndex =
+                NORMAL_DISPLAY_INDEX
         }
     }
 
+    /*
+     * Objective-completion feedback remains visible for a
+     * short period before being consumed from ChatUiState.
+     */
     LaunchedEffect(
         objectiveCompletionEvent?.eventId
     ) {
@@ -149,21 +198,30 @@ internal fun AnimatedChatTopBarTitle(
                 ChatTopBarStatus.Normal
             }
 
-            missionDisplayIndex == 1 -> {
+            missionDisplayIndex ==
+                    MISSION_PROGRESS_DISPLAY_INDEX -> {
+
                 ChatTopBarStatus.MissionProgress(
                     title =
                         missionTitle,
                     percentage =
                         missionProgressPercentage
-                            .coerceIn(0, 100)
+                            .coerceIn(
+                                minimumValue = 0,
+                                maximumValue = 100
+                            )
                 )
             }
 
-            missionDisplayIndex == 2 &&
+            missionDisplayIndex ==
+                    MISSION_OBJECTIVE_DISPLAY_INDEX &&
                     missionObjective != null -> {
+
                 ChatTopBarStatus.MissionObjective(
                     objective =
-                        missionObjective
+                        missionObjective,
+                    guidance =
+                        missionGuidance
                 )
             }
 
@@ -177,54 +235,72 @@ internal fun AnimatedChatTopBarTitle(
             status,
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 42.dp)
+            .heightIn(
+                min =
+                    TOP_BAR_CONTENT_MINIMUM_HEIGHT
+            )
             .animateContentSize(
                 animationSpec =
                     tween(
-                        durationMillis = 380,
+                        durationMillis =
+                            STATUS_SIZE_ANIMATION_MILLIS,
                         easing =
                             FastOutSlowInEasing
                     )
             ),
         transitionSpec = {
-            (
-                    fadeIn(
+            val enterTransition =
+                fadeIn(
+                    animationSpec =
                         tween(
-                            durationMillis = 360,
+                            durationMillis =
+                                STATUS_ENTER_DURATION_MILLIS,
                             easing =
                                 LinearOutSlowInEasing
                         )
-                    ) +
-                            slideInVertically(
-                                initialOffsetY = {
-                                    it / 5
-                                },
-                                animationSpec =
-                                    tween(
-                                        durationMillis = 360,
-                                        easing =
-                                            FastOutSlowInEasing
-                                    )
-                            ) +
-                            scaleIn(
-                                initialScale = 0.97f
-                            )
-                    ) togetherWith
-                    (
-                            fadeOut(
-                                tween(220)
-                            ) +
-                                    slideOutVertically(
-                                        targetOffsetY = {
-                                            -it / 5
-                                        },
-                                        animationSpec =
-                                            tween(220)
-                                    ) +
-                                    scaleOut(
-                                        targetScale = 0.98f
-                                    )
-                            )
+                ) +
+                        slideInVertically(
+                            initialOffsetY = { height ->
+                                height / 5
+                            },
+                            animationSpec =
+                                tween(
+                                    durationMillis =
+                                        STATUS_ENTER_DURATION_MILLIS,
+                                    easing =
+                                        FastOutSlowInEasing
+                                )
+                        ) +
+                        scaleIn(
+                            initialScale =
+                                STATUS_ENTER_SCALE
+                        )
+
+            val exitTransition =
+                fadeOut(
+                    animationSpec =
+                        tween(
+                            durationMillis =
+                                STATUS_EXIT_DURATION_MILLIS
+                        )
+                ) +
+                        slideOutVertically(
+                            targetOffsetY = { height ->
+                                -height / 5
+                            },
+                            animationSpec =
+                                tween(
+                                    durationMillis =
+                                        STATUS_EXIT_DURATION_MILLIS
+                                )
+                        ) +
+                        scaleOut(
+                            targetScale =
+                                STATUS_EXIT_SCALE
+                        )
+
+            enterTransition togetherWith
+                    exitTransition
         },
         contentAlignment =
             Alignment.CenterStart,
@@ -238,8 +314,10 @@ internal fun AnimatedChatTopBarTitle(
 
             ChatTopBarStatus.AssistantTyping -> {
                 SimpleStatus(
-                    icon = "•••",
-                    title = "Emil schreibt",
+                    icon =
+                        "•••",
+                    title =
+                        "Emil schreibt",
                     subtitle =
                         "Antwort wird vorbereitet"
                 )
@@ -247,8 +325,10 @@ internal fun AnimatedChatTopBarTitle(
 
             ChatTopBarStatus.Assessing -> {
                 SimpleStatus(
-                    icon = "🧠",
-                    title = "Skill Assessment",
+                    icon =
+                        "🧠",
+                    title =
+                        "Skill Assessment",
                     subtitle =
                         "Fortschritt wird aktualisiert"
                 )
@@ -264,11 +344,11 @@ internal fun AnimatedChatTopBarTitle(
             }
 
             is ChatTopBarStatus.MissionObjective -> {
-                SimpleStatus(
-                    icon = "🎯",
-                    title = "Aktuelles Ziel",
-                    subtitle =
-                        displayedStatus.objective
+                MissionGuidanceStatus(
+                    objective =
+                        displayedStatus.objective,
+                    guidance =
+                        displayedStatus.guidance
                 )
             }
 
@@ -287,12 +367,16 @@ internal fun AnimatedChatTopBarTitle(
 @Composable
 private fun NormalStatus() {
     Column(
+        modifier =
+            Modifier.fillMaxWidth(),
         horizontalAlignment =
             Alignment.Start
     ) {
         Text(
             text =
                 "DeutschCraft",
+            modifier =
+                Modifier.fillMaxWidth(),
             style =
                 MaterialTheme
                     .typography
@@ -303,6 +387,8 @@ private fun NormalStatus() {
                 MaterialTheme
                     .colorScheme
                     .onBackground,
+            textAlign =
+                TextAlign.Start,
             maxLines =
                 1,
             overflow =
@@ -312,7 +398,8 @@ private fun NormalStatus() {
         Row(
             modifier =
                 Modifier.padding(
-                    top = 1.dp
+                    top =
+                        NORMAL_SUBTITLE_TOP_PADDING
                 ),
             verticalAlignment =
                 Alignment.CenterVertically
@@ -363,25 +450,33 @@ private fun SimpleStatus(
     subtitle: String
 ) {
     Row(
+        modifier =
+            Modifier.fillMaxWidth(),
         verticalAlignment =
             Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(
+                    STATUS_ICON_SIZE
+                )
                 .clip(
-                    RoundedCornerShape(12.dp)
+                    RoundedCornerShape(
+                        STATUS_ICON_CORNER_RADIUS
+                    )
                 )
                 .background(
-                    MaterialTheme
-                        .colorScheme
-                        .primaryContainer
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .primaryContainer
                 ),
             contentAlignment =
                 Alignment.Center
         ) {
             Text(
-                text = icon,
+                text =
+                    icon,
                 textAlign =
                     TextAlign.Center
             )
@@ -389,23 +484,41 @@ private fun SimpleStatus(
 
         Spacer(
             modifier =
-                Modifier.width(8.dp)
+                Modifier.width(
+                    STATUS_CONTENT_SPACING
+                )
         )
 
-        Column {
+        Column(
+            modifier =
+                Modifier.weight(1f),
+            horizontalAlignment =
+                Alignment.Start
+        ) {
             Text(
-                text = title,
+                text =
+                    title,
+                modifier =
+                    Modifier.fillMaxWidth(),
                 style =
                     MaterialTheme
                         .typography
                         .titleSmall,
                 fontWeight =
                     FontWeight.SemiBold,
-                maxLines = 1
+                textAlign =
+                    TextAlign.Start,
+                maxLines =
+                    1,
+                overflow =
+                    TextOverflow.Ellipsis
             )
 
             Text(
-                text = subtitle,
+                text =
+                    subtitle,
+                modifier =
+                    Modifier.fillMaxWidth(),
                 style =
                     MaterialTheme
                         .typography
@@ -414,7 +527,10 @@ private fun SimpleStatus(
                     MaterialTheme
                         .colorScheme
                         .onSurfaceVariant,
-                maxLines = 1,
+                textAlign =
+                    TextAlign.Start,
+                maxLines =
+                    1,
                 overflow =
                     TextOverflow.Ellipsis
             )
@@ -427,49 +543,78 @@ private fun MissionProgressStatus(
     title: String,
     percentage: Int
 ) {
+    val safePercentage =
+        percentage.coerceIn(
+            minimumValue = 0,
+            maximumValue = 100
+        )
+
     Column(
+        modifier =
+            Modifier.fillMaxWidth(),
         horizontalAlignment =
-            Alignment.CenterHorizontally
+            Alignment.Start
     ) {
         Text(
-            text = "🎯 $title",
+            text =
+                "🎯 $title",
+            modifier =
+                Modifier.fillMaxWidth(),
             style =
                 MaterialTheme
                     .typography
                     .titleSmall,
             fontWeight =
                 FontWeight.SemiBold,
-            maxLines = 1,
+            textAlign =
+                TextAlign.Start,
+            maxLines =
+                1,
             overflow =
                 TextOverflow.Ellipsis
         )
 
         Spacer(
             modifier =
-                Modifier.height(4.dp)
+                Modifier.height(
+                    MISSION_PROGRESS_VERTICAL_SPACING
+                )
         )
 
         Row(
+            modifier =
+                Modifier.fillMaxWidth(),
+            horizontalArrangement =
+                Arrangement.Start,
             verticalAlignment =
                 Alignment.CenterVertically
         ) {
             LinearProgressIndicator(
                 progress = {
-                    percentage / 100f
+                    safePercentage / 100f
                 },
                 modifier = Modifier
-                    .width(76.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
+                    .width(
+                        MISSION_PROGRESS_WIDTH
+                    )
+                    .height(
+                        MISSION_PROGRESS_HEIGHT
+                    )
+                    .clip(
+                        CircleShape
+                    )
             )
 
             Spacer(
                 modifier =
-                    Modifier.width(6.dp)
+                    Modifier.width(
+                        MISSION_PERCENTAGE_SPACING
+                    )
             )
 
             Text(
-                text = "$percentage%",
+                text =
+                    "$safePercentage%",
                 style =
                     MaterialTheme
                         .typography
@@ -479,17 +624,202 @@ private fun MissionProgressStatus(
                 color =
                     MaterialTheme
                         .colorScheme
-                        .primary
+                        .primary,
+                textAlign =
+                    TextAlign.Start
             )
         }
     }
 }
 
+@Composable
+private fun MissionGuidanceStatus(
+    objective: String,
+    guidance: String?
+) {
+    Row(
+        modifier =
+            Modifier.fillMaxWidth(),
+        verticalAlignment =
+            Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(
+                    MISSION_GUIDANCE_ICON_SIZE
+                )
+                .clip(
+                    RoundedCornerShape(
+                        MISSION_GUIDANCE_ICON_RADIUS
+                    )
+                )
+                .background(
+                    color =
+                        DeutschLime.copy(
+                            alpha =
+                                MISSION_GUIDANCE_ICON_ALPHA
+                        )
+                ),
+            contentAlignment =
+                Alignment.Center
+        ) {
+            Text(
+                text =
+                    "💡",
+                textAlign =
+                    TextAlign.Center
+            )
+        }
+
+        Spacer(
+            modifier =
+                Modifier.width(
+                    MISSION_GUIDANCE_SPACING
+                )
+        )
+
+        Column(
+            modifier =
+                Modifier.weight(1f),
+            horizontalAlignment =
+                Alignment.Start
+        ) {
+            Text(
+                text =
+                    objective,
+                modifier =
+                    Modifier.fillMaxWidth(),
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleSmall,
+                fontWeight =
+                    FontWeight.SemiBold,
+                color =
+                    MaterialTheme
+                        .colorScheme
+                        .onBackground,
+                textAlign =
+                    TextAlign.Start,
+                maxLines =
+                    1,
+                overflow =
+                    TextOverflow.Ellipsis
+            )
+
+            Text(
+                text =
+                    guidance
+                        ?: DEFAULT_MISSION_GUIDANCE,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            top =
+                                MISSION_GUIDANCE_TEXT_SPACING
+                        ),
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelSmall,
+                color =
+                    MaterialTheme
+                        .colorScheme
+                        .onSurfaceVariant,
+                textAlign =
+                    TextAlign.Start,
+                maxLines =
+                    1,
+                overflow =
+                    TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+private const val NORMAL_DISPLAY_INDEX =
+    0
+
+private const val MISSION_PROGRESS_DISPLAY_INDEX =
+    1
+
+private const val MISSION_OBJECTIVE_DISPLAY_INDEX =
+    2
+
+private const val NORMAL_STATUS_DISPLAY_MILLIS =
+    4_500L
+
+private const val MISSION_PROGRESS_DISPLAY_MILLIS =
+    4_000L
+
+private const val MISSION_OBJECTIVE_DISPLAY_MILLIS =
+    5_000L
+
 private const val OBJECTIVE_COMPLETION_DISPLAY_MILLIS =
     1_650L
+
+private const val DEFAULT_MISSION_GUIDANCE =
+    "Continue the conversation to complete this objective."
+
+private val TOP_BAR_CONTENT_MINIMUM_HEIGHT =
+    42.dp
 
 private val ONLINE_DOT_SIZE =
     7.dp
 
 private val ONLINE_DOT_SPACING =
     5.dp
+
+private val NORMAL_SUBTITLE_TOP_PADDING =
+    1.dp
+
+private val STATUS_ICON_SIZE =
+    32.dp
+
+private val STATUS_ICON_CORNER_RADIUS =
+    12.dp
+
+private val STATUS_CONTENT_SPACING =
+    8.dp
+
+private val MISSION_PROGRESS_VERTICAL_SPACING =
+    4.dp
+
+private val MISSION_PROGRESS_WIDTH =
+    76.dp
+
+private val MISSION_PROGRESS_HEIGHT =
+    4.dp
+
+private val MISSION_PERCENTAGE_SPACING =
+    6.dp
+
+private val MISSION_GUIDANCE_ICON_SIZE =
+    32.dp
+
+private val MISSION_GUIDANCE_ICON_RADIUS =
+    12.dp
+
+private val MISSION_GUIDANCE_SPACING =
+    8.dp
+
+private val MISSION_GUIDANCE_TEXT_SPACING =
+    1.dp
+
+private const val MISSION_GUIDANCE_ICON_ALPHA =
+    0.15f
+
+private const val STATUS_SIZE_ANIMATION_MILLIS =
+    380
+
+private const val STATUS_ENTER_DURATION_MILLIS =
+    360
+
+private const val STATUS_EXIT_DURATION_MILLIS =
+    220
+
+private const val STATUS_ENTER_SCALE =
+    0.97f
+
+private const val STATUS_EXIT_SCALE =
+    0.98f

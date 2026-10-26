@@ -1,11 +1,9 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import android.util.Log
-import androidx.compose.ui.text.input.TextFieldValue
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,14 +13,12 @@ import kotlinx.coroutines.launch
 class ChatSessionCoordinator @Inject constructor(
     private val sessionInitializer:
     ChatSessionInitializer,
-    private val messageSender:
-    ChatMessageSender,
     private val sessionObservers:
     ChatSessionObservers,
-    private val suggestionHandler:
-    ChatSuggestionHandler,
-    private val missionOfferCoordinator:
-    ChatMissionOfferCoordinator
+    private val messageController:
+    ChatSessionMessageController,
+    private val missionController:
+    ChatSessionMissionController
 ) {
 
     private val _uiState =
@@ -33,28 +29,34 @@ class ChatSessionCoordinator @Inject constructor(
     val uiState: StateFlow<ChatUiState> =
         _uiState.asStateFlow()
 
-    private var activeConversationId: String? =
-        null
+    /*
+     * Runtime state is separate from visible UI state.
+     *
+     * It contains:
+     *
+     * - Active conversation ID
+     * - Complete active mission
+     * - Initialization job
+     * - Message-sending job
+     * - Mission-check job
+     * - Mission-action job
+     */
+    private val runtime =
+        ChatSessionRuntime()
 
-    private var initializationJob: Job? =
-        null
-
-    private var sendingJob: Job? =
-        null
-
-    private var missionCheckJob: Job? =
-        null
-
-    private var missionActionJob: Job? =
-        null
-
+    /*
+     * Starts the chat session once.
+     *
+     * The coordinator first observes the global streak,
+     * then initializes the requested conversation.
+     */
     fun start(
         conversationId: String,
         scope: CoroutineScope
     ) {
         if (
-            initializationJob?.isActive == true ||
-            activeConversationId != null
+            runtime.isInitializing ||
+            runtime.isInitialized
         ) {
             return
         }
@@ -66,7 +68,7 @@ class ChatSessionCoordinator @Inject constructor(
                 ::applyStreakUpdate
         )
 
-        initializationJob =
+        runtime.initializationJob =
             scope.launch {
                 initialize(
                     requestedConversationId =
@@ -77,48 +79,76 @@ class ChatSessionCoordinator @Inject constructor(
             }
     }
 
+    /*
+     * Routes presentation actions to the controller that
+     * owns the corresponding behavior.
+     */
     fun onAction(
         action: ChatUiAction,
         scope: CoroutineScope
     ) {
         when (action) {
             is ChatUiAction.MessageInputChanged -> {
-                updateInput(
+                messageController.updateInput(
                     value =
-                        action.value
+                        action.value,
+                    uiState =
+                        _uiState
                 )
             }
 
             is ChatUiAction.SuggestionSelected -> {
-                selectSuggestion(
+                messageController.selectSuggestion(
                     suggestionId =
-                        action.suggestionId
+                        action.suggestionId,
+                    uiState =
+                        _uiState
                 )
             }
 
             ChatUiAction.SendMessage -> {
-                send(
+                messageController.send(
                     scope =
-                        scope
+                        scope,
+                    runtime =
+                        runtime,
+                    uiState =
+                        _uiState,
+                    onMissionOpportunityCheckRequested =
+                        ::checkForMissionOpportunity,
+                    onError =
+                        ::showError
                 )
             }
 
             ChatUiAction.StartOfferedMission -> {
-                startOfferedMission(
+                missionController.startOfferedMission(
                     scope =
-                        scope
+                        scope,
+                    runtime =
+                        runtime,
+                    uiState =
+                        _uiState
                 )
             }
 
             ChatUiAction.DismissMissionOffer -> {
-                dismissMissionOffer()
+                missionController.dismissOffer(
+                    runtime =
+                        runtime,
+                    uiState =
+                        _uiState
+                )
             }
 
             is ChatUiAction.ObjectiveCompletionShown -> {
-                consumeObjectiveCompletion(
-                    eventId =
-                        action.eventId
-                )
+                missionController
+                    .consumeObjectiveCompletion(
+                        eventId =
+                            action.eventId,
+                        uiState =
+                            _uiState
+                    )
             }
 
             ChatUiAction.ErrorDismissed -> {
@@ -127,26 +157,15 @@ class ChatSessionCoordinator @Inject constructor(
         }
     }
 
+    /*
+     * Stops every job and observer associated with the
+     * currently opened conversation.
+     *
+     * The active mission is also cleared so it cannot leak
+     * into another conversation.
+     */
     fun stop() {
-        initializationJob?.cancel()
-        sendingJob?.cancel()
-        missionCheckJob?.cancel()
-        missionActionJob?.cancel()
-
-        initializationJob =
-            null
-
-        sendingJob =
-            null
-
-        missionCheckJob =
-            null
-
-        missionActionJob =
-            null
-
-        activeConversationId =
-            null
+        runtime.clear()
 
         sessionObservers.stop()
     }
@@ -156,33 +175,44 @@ class ChatSessionCoordinator @Inject constructor(
         scope: CoroutineScope
     ) {
         try {
-            val result =
+            val initializationResult =
                 sessionInitializer.initialize(
                     requestedConversationId =
                         requestedConversationId
                 )
 
-            activeConversationId =
-                result.conversationId
+            runtime.activeConversationId =
+                initializationResult.conversationId
 
             val cachedMissionOffer =
-                missionOfferCoordinator.restoreOffer(
+                missionController.restoreOffer(
                     conversationId =
-                        result.conversationId
+                        initializationResult
+                            .conversationId
                 )
 
             _uiState.update { state ->
                 state.copy(
                     suggestions =
-                        result.cachedSuggestions,
+                        initializationResult
+                            .cachedSuggestions,
                     missionOffer =
                         cachedMissionOffer
                 )
             }
 
+            /*
+             * Start observing messages and the active
+             * Room-backed mission.
+             *
+             * When the mission observer emits, the complete
+             * ConversationMission is placed in runtime so it
+             * can be supplied to ChatMessageSender.
+             */
             observeConversation(
                 conversationId =
-                    result.conversationId,
+                    initializationResult
+                        .conversationId,
                 scope =
                     scope
             )
@@ -209,6 +239,9 @@ class ChatSessionCoordinator @Inject constructor(
                             ?: LOAD_ERROR
                 )
             }
+        } finally {
+            runtime.initializationJob =
+                null
         }
     }
 
@@ -223,8 +256,16 @@ class ChatSessionCoordinator @Inject constructor(
                 scope,
             onMessagesChanged =
                 ::applyMessageUpdate,
-            onMissionChanged =
-                ::applyMissionUpdate,
+            onMissionChanged = { update ->
+                missionController.applyMissionUpdate(
+                    update =
+                        update,
+                    runtime =
+                        runtime,
+                    uiState =
+                        _uiState
+                )
+            },
             onMessageObservationFailed = {
                 showError(
                     message =
@@ -234,6 +275,9 @@ class ChatSessionCoordinator @Inject constructor(
         )
     }
 
+    /*
+     * Applies message-list updates emitted by Room.
+     */
     private fun applyMessageUpdate(
         update: ChatMessagesUpdate
     ) {
@@ -245,6 +289,10 @@ class ChatSessionCoordinator @Inject constructor(
         }
     }
 
+    /*
+     * Applies streak updates from the existing streak
+     * observer.
+     */
     private fun applyStreakUpdate(
         streakDays: Int
     ) {
@@ -256,345 +304,24 @@ class ChatSessionCoordinator @Inject constructor(
         }
     }
 
-    private fun applyMissionUpdate(
-        update: ChatMissionUpdate
-    ) {
-        val mission =
-            update.mission
-
-        if (mission != null) {
-            val conversationId =
-                activeConversationId
-
-            if (conversationId != null) {
-                missionOfferCoordinator.clearOffer(
-                    conversationId =
-                        conversationId
-                )
-            }
-
-            missionCheckJob?.cancel()
-        }
-
-        _uiState.update { state ->
-            state.withActiveMission(
-                mission =
-                    mission,
-                newlyCompletedObjective =
-                    update.newlyCompletedObjective
-            )
-        }
-    }
-
-    private fun updateInput(
-        value: TextFieldValue
-    ) {
-        if (_uiState.value.isInitializing) {
-            return
-        }
-
-        _uiState.update { state ->
-            state.withInput(
-                value =
-                    value
-            )
-        }
-    }
-
-    private fun selectSuggestion(
-        suggestionId: String
-    ) {
-        val currentState =
-            _uiState.value
-
-        val updatedInput =
-            suggestionHandler
-                .createInputFromSuggestion(
-                    suggestions =
-                        currentState.suggestions,
-                    suggestionId =
-                        suggestionId,
-                    isEnabled =
-                        !currentState.isInitializing &&
-                                !currentState.isSending
-                )
-                ?: return
-
-        _uiState.update { state ->
-            state.withInput(
-                value =
-                    updatedInput
-            )
-        }
-    }
-
-    private fun send(
-        scope: CoroutineScope
-    ) {
-        val conversationId =
-            activeConversationId
-                ?: run {
-                    showError(
-                        message =
-                            CONVERSATION_LOADING_ERROR
-                    )
-
-                    return
-                }
-
-        val currentState =
-            _uiState.value
-
-        val messageText =
-            currentState
-                .messageInput
-                .text
-                .trim()
-
-        if (
-            messageText.isBlank() ||
-            currentState.isInitializing ||
-            currentState.isSending ||
-            sendingJob?.isActive == true
-        ) {
-            return
-        }
-
-        messageSender.clearSuggestions(
-            conversationId =
-                conversationId
-        )
-
-        _uiState.update { state ->
-            state.sendingStarted()
-        }
-
-        sendingJob =
-            scope.launch {
-                sendMessage(
-                    conversationId =
-                        conversationId,
-                    messageText =
-                        messageText,
-                    scope =
-                        scope
-                )
-            }
-    }
-
-    private suspend fun sendMessage(
-        conversationId: String,
-        messageText: String,
-        scope: CoroutineScope
-    ) {
-        try {
-            val result =
-                messageSender.send(
-                    conversationId =
-                        conversationId,
-                    messageText =
-                        messageText
-                )
-
-            _uiState.update { state ->
-                state.sendingSucceeded(
-                    suggestions =
-                        result.suggestions,
-                    warning =
-                        result.warning
-                )
-            }
-
-            /*
-             * Mission detection begins only after the normal
-             * assistant response succeeds.
-             *
-             * It runs in a separate coroutine so the chat
-             * response remains the primary experience.
-             */
-            checkForMissionOpportunity(
-                conversationId =
-                    conversationId,
-                scope =
-                    scope
-            )
-        } catch (
-            cancellationException:
-            CancellationException
-        ) {
-            throw cancellationException
-        } catch (throwable: Throwable) {
-            Log.e(
-                COORDINATOR_TAG,
-                "Message sending failed.",
-                throwable
-            )
-
-            messageSender.clearSuggestions(
-                conversationId =
-                    conversationId
-            )
-
-            _uiState.update { state ->
-                state.sendingFailed(
-                    message =
-                        SEND_ERROR
-                )
-            }
-        }
-    }
-
+    /*
+     * Called by ChatSessionMessageController after a normal
+     * message succeeds and no active mission exists.
+     */
     private fun checkForMissionOpportunity(
         conversationId: String,
         scope: CoroutineScope
     ) {
-        val currentState =
-            _uiState.value
-
-        if (
-            currentState.activeMissionId != null ||
-            currentState.missionOffer != null ||
-            currentState.isCheckingMissionOpportunity ||
-            missionCheckJob?.isActive == true
-        ) {
-            return
-        }
-
-        _uiState.update { state ->
-            state.missionCheckStarted()
-        }
-
-        missionCheckJob =
-            scope.launch {
-                try {
-                    val offer =
-                        missionOfferCoordinator
-                            .detectOffer(
-                                conversationId =
-                                    conversationId,
-                                hasActiveMission =
-                                    _uiState.value
-                                        .activeMissionId != null
-                            )
-
-                    _uiState.update { state ->
-                        state.missionCheckFinished(
-                            offer =
-                                offer
-                        )
-                    }
-                } catch (
-                    cancellationException:
-                    CancellationException
-                ) {
-                    throw cancellationException
-                } catch (throwable: Throwable) {
-                    /*
-                     * Mission detection must stay silent.
-                     * Chat has already completed successfully.
-                     */
-                    Log.e(
-                        COORDINATOR_TAG,
-                        "Mission check failed.",
-                        throwable
-                    )
-
-                    _uiState.update { state ->
-                        state.missionCheckFinished(
-                            offer =
-                                null
-                        )
-                    }
-                }
-            }
-    }
-
-    private fun startOfferedMission(
-        scope: CoroutineScope
-    ) {
-        val conversationId =
-            activeConversationId
-                ?: return
-
-        val currentState =
-            _uiState.value
-
-        if (
-            currentState.missionOffer == null ||
-            currentState.isStartingMission ||
-            currentState.activeMissionId != null ||
-            missionActionJob?.isActive == true
-        ) {
-            return
-        }
-
-        _uiState.update { state ->
-            state.missionStartStarted()
-        }
-
-        missionActionJob =
-            scope.launch {
-                try {
-                    missionOfferCoordinator
-                        .acceptOffer(
-                            conversationId =
-                                conversationId
-                        )
-
-                    /*
-                     * Room observation will provide the full
-                     * active mission. The local offer can be
-                     * removed immediately.
-                     */
-                    _uiState.update { state ->
-                        state.missionStartSucceeded()
-                    }
-                } catch (
-                    cancellationException:
-                    CancellationException
-                ) {
-                    throw cancellationException
-                } catch (throwable: Throwable) {
-                    Log.e(
-                        COORDINATOR_TAG,
-                        "Mission could not be started.",
-                        throwable
-                    )
-
-                    _uiState.update { state ->
-                        state.missionStartFailed(
-                            message =
-                                MISSION_START_ERROR
-                        )
-                    }
-                }
-            }
-    }
-
-    private fun dismissMissionOffer() {
-        val conversationId =
-            activeConversationId
-                ?: return
-
-        missionOfferCoordinator.dismissOffer(
+        missionController.checkForMissionOpportunity(
             conversationId =
-                conversationId
+                conversationId,
+            scope =
+                scope,
+            runtime =
+                runtime,
+            uiState =
+                _uiState
         )
-
-        _uiState.update { state ->
-            state.missionOfferDismissed()
-        }
-    }
-
-    private fun consumeObjectiveCompletion(
-        eventId: String
-    ) {
-        _uiState.update { state ->
-            state.objectiveCompletionShown(
-                eventId =
-                    eventId
-            )
-        }
     }
 
     private fun dismissError() {
@@ -625,15 +352,5 @@ class ChatSessionCoordinator @Inject constructor(
         const val MESSAGE_LOAD_ERROR =
             "The saved conversation could not " +
                     "be loaded."
-
-        const val CONVERSATION_LOADING_ERROR =
-            "The conversation is still loading."
-
-        const val SEND_ERROR =
-            "The assistant could not respond. " +
-                    "Your message was saved locally."
-
-        const val MISSION_START_ERROR =
-            "The mission could not be started."
     }
 }

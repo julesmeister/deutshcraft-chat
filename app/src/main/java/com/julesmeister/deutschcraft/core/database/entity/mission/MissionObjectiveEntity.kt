@@ -5,7 +5,8 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 
 @Entity(
-    tableName = "mission_objectives",
+    tableName =
+        "mission_objectives",
     primaryKeys = [
         "id"
     ],
@@ -34,7 +35,8 @@ import androidx.room.Index
                 "missionTemplateId",
                 "sequenceNumber"
             ],
-            unique = true
+            unique =
+                true
         )
     ]
 )
@@ -45,5 +47,29 @@ data class MissionObjectiveEntity(
     val description: String,
     val sequenceNumber: Int,
     val isRequired: Boolean,
-    val completionHint: String
-)
+    val completionHint: String,
+
+    /*
+     * These values are stored as JSON arrays.
+     *
+     * Example:
+     *
+     * [
+     *   "Nenne deinen Namen.",
+     *   "Erwähne deinen Beruf."
+     * ]
+     */
+    val coachingHintsJson: String =
+        EMPTY_JSON_ARRAY,
+
+    val targetVocabularyJson: String =
+        EMPTY_JSON_ARRAY,
+
+    val examplePhrasesJson: String =
+        EMPTY_JSON_ARRAY
+) {
+    private companion object {
+        const val EMPTY_JSON_ARRAY =
+            "[]"
+    }
+}

@@ -211,10 +211,16 @@ internal fun ChatUiState.withActiveMission(
                 null,
             currentMissionObjective =
                 null,
+            currentMissionGuidance =
+                null,
             missionProgressPercentage =
                 0
         )
     }
+
+    val currentObjective =
+        mission.currentObjective
+            ?.objective
 
     val completionEvent =
         newlyCompletedObjective?.let { progress ->
@@ -246,9 +252,15 @@ internal fun ChatUiState.withActiveMission(
         activeMissionTitle =
             mission.template.title,
         currentMissionObjective =
-            mission.currentObjective
-                ?.objective
-                ?.title,
+            currentObjective
+                ?.title
+                ?.trim()
+                ?.takeIf(String::isNotBlank),
+        currentMissionGuidance =
+            currentObjective
+                ?.description
+                ?.trim()
+                ?.takeIf(String::isNotBlank),
         missionProgressPercentage =
             mission
                 .progress

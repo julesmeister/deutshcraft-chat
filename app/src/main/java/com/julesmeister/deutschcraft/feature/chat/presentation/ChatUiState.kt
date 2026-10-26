@@ -12,19 +12,14 @@ data class ChatUiState(
     val messageInput: TextFieldValue =
         TextFieldValue(),
 
-    /*
-     * Suggested responses remain temporary UI state and are
-     * restored from the in-memory conversation cache.
-     */
     val suggestions: List<ReplySuggestion> =
         emptyList(),
 
     /*
-     * Generated mission offers remain temporary until the
-     * learner accepts one.
+     * Temporary generated mission offer.
      *
-     * Accepted missions are persisted through the mission
-     * repository.
+     * The generated mission is persisted only after the
+     * learner accepts it.
      */
     val missionOffer: MissionOpportunity? =
         null,
@@ -36,7 +31,7 @@ data class ChatUiState(
         false,
 
     /*
-     * Active mission information comes from Room.
+     * Active mission information observed from Room.
      */
     val activeMissionId: String? =
         null,
@@ -44,16 +39,30 @@ data class ChatUiState(
     val activeMissionTitle: String? =
         null,
 
+    /*
+     * Short objective title.
+     *
+     * Example:
+     * "Ask about working hours"
+     */
     val currentMissionObjective: String? =
+        null,
+
+    /*
+     * Learner-facing explanation of what to do next.
+     *
+     * This comes from MissionObjective.description.
+     *
+     * Example:
+     * "Politely ask the interviewer about the normal
+     * working schedule."
+     */
+    val currentMissionGuidance: String? =
         null,
 
     val missionProgressPercentage: Int =
         0,
 
-    /*
-     * One-time UI event emitted when an objective changes
-     * from incomplete to complete during this session.
-     */
     val objectiveCompletionEvent:
     MissionObjectiveCompletionEvent? =
         null,

@@ -2,6 +2,7 @@ package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -53,7 +54,8 @@ fun ChatComposer(
         }
 
     val isFocused by
-    interactionSource.collectIsFocusedAsState()
+    interactionSource
+        .collectIsFocusedAsState()
 
     val canSend =
         value.text.isNotBlank() &&
@@ -65,6 +67,45 @@ fun ChatComposer(
             COMPOSER_CORNER_RADIUS
         )
 
+    /*
+     * Increase the border width while the text field has
+     * focus. animateDpAsState makes the width change smooth
+     * instead of abruptly switching between both values.
+     */
+    val animatedBorderWidth by
+    animateDpAsState(
+        targetValue =
+            if (isFocused) {
+                FOCUSED_COMPOSER_BORDER_WIDTH
+            } else {
+                UNFOCUSED_COMPOSER_BORDER_WIDTH
+            },
+        animationSpec =
+            tween(
+                durationMillis =
+                    BORDER_ANIMATION_DURATION_MILLIS,
+                easing =
+                    FastOutSlowInEasing
+            ),
+        label =
+            "ChatComposerBorderWidth"
+    )
+
+    val borderColor =
+        if (isFocused) {
+            DeutschLime.copy(
+                alpha =
+                    FOCUSED_BORDER_ALPHA
+            )
+        } else {
+            DeutschOutline
+        }
+
+    /*
+     * Notify the message list when the text field receives
+     * focus so the newest message can remain above the
+     * keyboard and composer.
+     */
     LaunchedEffect(isFocused) {
         if (isFocused) {
             onInputFocused()
@@ -90,16 +131,9 @@ fun ChatComposer(
             )
             .border(
                 width =
-                    COMPOSER_BORDER_WIDTH,
+                    animatedBorderWidth,
                 color =
-                    if (isFocused) {
-                        DeutschLime.copy(
-                            alpha =
-                                FOCUSED_BORDER_ALPHA
-                        )
-                    } else {
-                        DeutschOutline
-                    },
+                    borderColor,
                 shape =
                     composerShape
             )
@@ -117,10 +151,14 @@ fun ChatComposer(
                     MINIMUM_COMPOSER_HEIGHT
             )
             .padding(
-                start = 18.dp,
-                top = 7.dp,
-                end = 7.dp,
-                bottom = 7.dp
+                start =
+                    COMPOSER_START_PADDING,
+                top =
+                    COMPOSER_VERTICAL_PADDING,
+                end =
+                    COMPOSER_END_PADDING,
+                bottom =
+                    COMPOSER_VERTICAL_PADDING
             ),
         verticalAlignment =
             Alignment.Bottom
@@ -139,7 +177,8 @@ fun ChatComposer(
                         TEXT_FIELD_MAXIMUM_HEIGHT
                 )
                 .padding(
-                    vertical = 8.dp
+                    vertical =
+                        TEXT_FIELD_VERTICAL_PADDING
                 ),
             enabled =
                 enabled &&
@@ -226,8 +265,11 @@ private val COMPOSER_CORNER_RADIUS =
 private val COMPOSER_ELEVATION =
     12.dp
 
-private val COMPOSER_BORDER_WIDTH =
+private val UNFOCUSED_COMPOSER_BORDER_WIDTH =
     1.dp
+
+private val FOCUSED_COMPOSER_BORDER_WIDTH =
+    2.dp
 
 private val MINIMUM_COMPOSER_HEIGHT =
     56.dp
@@ -238,11 +280,30 @@ private val TEXT_FIELD_MINIMUM_HEIGHT =
 private val TEXT_FIELD_MAXIMUM_HEIGHT =
     128.dp
 
+private val COMPOSER_START_PADDING =
+    18.dp
+
+private val COMPOSER_END_PADDING =
+    7.dp
+
+private val COMPOSER_VERTICAL_PADDING =
+    7.dp
+
+private val TEXT_FIELD_VERTICAL_PADDING =
+    8.dp
+
 private const val MAXIMUM_INPUT_LINES =
     5
 
+/*
+ * A stronger focused alpha makes the thicker lime outline
+ * visibly distinct without overpowering the composer.
+ */
 private const val FOCUSED_BORDER_ALPHA =
-    0.46f
+    0.78f
+
+private const val BORDER_ANIMATION_DURATION_MILLIS =
+    160
 
 private const val COMPOSER_SIZE_ANIMATION_MILLIS =
     240

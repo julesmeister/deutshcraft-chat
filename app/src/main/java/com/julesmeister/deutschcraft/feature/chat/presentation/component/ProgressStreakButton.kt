@@ -38,8 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 @Composable
 fun ProgressStreakButton(
@@ -47,24 +47,30 @@ fun ProgressStreakButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var displayMode by remember {
+    val safeStreak =
+        streakDays.coerceAtLeast(0)
+
+    var displayMode by
+    remember {
         mutableStateOf(
             ProgressButtonDisplay.PROGRESS
         )
     }
 
-    val safeStreak =
-        streakDays.coerceAtLeast(0)
-
-    LaunchedEffect(safeStreak) {
-        displayMode =
-            ProgressButtonDisplay.PROGRESS
-
-        if (safeStreak <= 0) {
-            return@LaunchedEffect
-        }
-
+    /*
+     * Always alternate between the progress icon and streak
+     * display.
+     *
+     * Previously, this coroutine stopped when safeStreak
+     * was zero. The thread screen initially supplies zero
+     * while its real streak value is loading, which caused
+     * the animation to disappear permanently.
+     */
+    LaunchedEffect(Unit) {
         while (true) {
+            displayMode =
+                ProgressButtonDisplay.PROGRESS
+
             delay(
                 PROGRESS_DISPLAY_DURATION_MILLIS
             )
@@ -75,15 +81,13 @@ fun ProgressStreakButton(
             delay(
                 STREAK_DISPLAY_DURATION_MILLIS
             )
-
-            displayMode =
-                ProgressButtonDisplay.PROGRESS
         }
     }
 
     val containerShape =
         RoundedCornerShape(
-            percent = 50
+            percent =
+                50
         )
 
     val interactionSource =
@@ -140,46 +144,67 @@ fun ProgressStreakButton(
             targetState =
                 displayMode,
             transitionSpec = {
-                (
-                        fadeIn(
-                            animationSpec =
+                val enterTransition =
+                    fadeIn(
+                        animationSpec =
+                            tween(
+                                durationMillis =
+                                    CONTENT_ENTER_DURATION_MILLIS,
+                                easing =
+                                    LinearOutSlowInEasing
+                            )
+                    ) +
+                            scaleIn(
+                                initialScale =
+                                    CONTENT_ENTER_SCALE,
+                                animationSpec =
+                                    tween(
+                                        durationMillis =
+                                            CONTENT_ENTER_DURATION_MILLIS,
+                                        easing =
+                                            FastOutSlowInEasing
+                                    )
+                            )
+
+                val exitTransition =
+                    fadeOut(
+                        animationSpec =
+                            tween(
+                                durationMillis =
+                                    CONTENT_EXIT_DURATION_MILLIS
+                            )
+                    ) +
+                            scaleOut(
+                                targetScale =
+                                    CONTENT_EXIT_SCALE,
+                                animationSpec =
+                                    tween(
+                                        durationMillis =
+                                            CONTENT_EXIT_DURATION_MILLIS
+                                    )
+                            )
+
+                enterTransition
+                    .togetherWith(
+                        exitTransition
+                    )
+                    .using(
+                        SizeTransform(
+                            clip =
+                                false,
+                            sizeAnimationSpec = {
+                                    _,
+                                    _ ->
+
                                 tween(
                                     durationMillis =
-                                        CONTENT_ENTER_DURATION_MILLIS,
+                                        CONTAINER_ANIMATION_DURATION_MILLIS,
                                     easing =
-                                        LinearOutSlowInEasing
+                                        FastOutSlowInEasing
                                 )
-                        ) +
-                                scaleIn(
-                                    initialScale =
-                                        CONTENT_ENTER_SCALE,
-                                    animationSpec =
-                                        tween(
-                                            durationMillis =
-                                                CONTENT_ENTER_DURATION_MILLIS,
-                                            easing =
-                                                FastOutSlowInEasing
-                                        )
-                                )
-                        ) togetherWith
-                        (
-                                fadeOut(
-                                    animationSpec =
-                                        tween(
-                                            durationMillis =
-                                                CONTENT_EXIT_DURATION_MILLIS
-                                        )
-                                ) +
-                                        scaleOut(
-                                            targetScale =
-                                                CONTENT_EXIT_SCALE,
-                                            animationSpec =
-                                                tween(
-                                                    durationMillis =
-                                                        CONTENT_EXIT_DURATION_MILLIS
-                                                )
-                                        )
-                                )
+                            }
+                        )
+                    )
             },
             contentAlignment =
                 Alignment.Center,
@@ -227,7 +252,8 @@ private fun StreakContent(
     Row(
         modifier =
             Modifier.padding(
-                horizontal = 1.dp
+                horizontal =
+                    STREAK_HORIZONTAL_PADDING
             ),
         verticalAlignment =
             Alignment.CenterVertically
@@ -252,7 +278,8 @@ private fun StreakContent(
                 ),
             modifier =
                 Modifier.padding(
-                    start = 4.dp
+                    start =
+                        STREAK_TEXT_SPACING
                 ),
             style =
                 MaterialTheme
@@ -275,19 +302,31 @@ private fun streakColor(
 ): Color {
     return when {
         streakDays >= 365 -> {
-            Color(0xFF7C3AED)
+            Color(
+                color =
+                    0xFF7C3AED
+            )
         }
 
         streakDays >= 100 -> {
-            Color(0xFFC58A00)
+            Color(
+                color =
+                    0xFFC58A00
+            )
         }
 
         streakDays >= 30 -> {
-            Color(0xFFE85D04)
+            Color(
+                color =
+                    0xFFE85D04
+            )
         }
 
         streakDays >= 7 -> {
-            Color(0xFFF57C00)
+            Color(
+                color =
+                    0xFFF57C00
+            )
         }
 
         else -> {
@@ -301,10 +340,14 @@ private fun streakColor(
 private fun streakEmoji(
     streakDays: Int
 ): String {
-    return if (streakDays >= 365) {
-        "💎🔥"
-    } else {
-        "🔥"
+    return when {
+        streakDays >= 365 -> {
+            "💎🔥"
+        }
+
+        else -> {
+            "🔥"
+        }
     }
 }
 
@@ -352,6 +395,12 @@ private val HORIZONTAL_PADDING =
 
 private val VERTICAL_PADDING =
     8.dp
+
+private val STREAK_HORIZONTAL_PADDING =
+    1.dp
+
+private val STREAK_TEXT_SPACING =
+    4.dp
 
 private const val PROGRESS_DISPLAY_DURATION_MILLIS =
     4_000L

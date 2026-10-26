@@ -29,13 +29,7 @@ internal fun NavGraphBuilder.chatDestination(
                         navController
                 )
             },
-            onProgressClick = {
-                navController.navigate(
-                    ProgressDestination
-                ) {
-                    launchSingleTop = true
-                }
-            }
+
         )
     }
 }

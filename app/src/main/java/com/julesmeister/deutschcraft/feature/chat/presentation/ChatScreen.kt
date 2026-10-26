@@ -20,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,11 +35,7 @@ fun ChatScreen(
     uiState: ChatUiState,
     onAction: (ChatUiAction) -> Unit,
     onBackClick: () -> Unit,
-    onProgressClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onNewConversationClick: () -> Unit = {},
-    onSettingsClick: () -> Unit = {},
-    onClearConversationClick: () -> Unit = {},
     onAddClick: () -> Unit = {},
     messageActionViewModel:
     MessageActionViewModel = hiltViewModel()
@@ -58,26 +53,49 @@ fun ChatScreen(
         .uiState
         .collectAsStateWithLifecycle()
 
-    var selectedMessage by remember {
-        mutableStateOf<ChatMessage?>(null)
+    /*
+     * The message selected for sentence-level learning
+     * actions such as translation, explanation, and
+     * rephrasing.
+     */
+    var selectedMessage by
+    remember {
+        mutableStateOf<ChatMessage?>(
+            null
+        )
     }
 
-    var scrollRequestKey by remember {
+    /*
+     * Incremented when the composer receives focus.
+     *
+     * ChatMessageList uses this key to keep the newest
+     * message visible when the keyboard opens.
+     */
+    var scrollRequestKey by
+    remember {
         mutableIntStateOf(0)
     }
 
     /*
-     * Actual measured height of the floating composer and
-     * suggestions.
+     * Actual measured height of the floating mission offer,
+     * reply suggestions, composer, and navigation-bar
+     * padding.
      *
-     * This allows the message list to reserve exactly the
-     * necessary scrolling space rather than using a guessed
-     * fixed value.
+     * The message list reserves this exact amount of bottom
+     * scrolling space so the newest message remains visible
+     * above the floating controls.
      */
-    var bottomOverlayHeight by remember {
-        mutableStateOf(0.dp)
+    var bottomOverlayHeight by
+    remember {
+        mutableStateOf(
+            0.dp
+        )
     }
 
+    /*
+     * Show chat errors through the screen's Snackbar host,
+     * then consume the error event.
+     */
     LaunchedEffect(
         uiState.errorMessage
     ) {
@@ -95,6 +113,10 @@ fun ChatScreen(
         )
     }
 
+    /*
+     * Display the sentence-action sheet only while a message
+     * is selected.
+     */
     selectedMessage?.let { message ->
         MessageActionBottomSheet(
             sentence =
@@ -151,6 +173,8 @@ fun ChatScreen(
                     uiState.activeMissionTitle,
                 currentMissionObjective =
                     uiState.currentMissionObjective,
+                currentMissionGuidance =
+                    uiState.currentMissionGuidance,
                 missionProgressPercentage =
                     uiState.missionProgressPercentage,
                 objectiveCompletionEvent =
@@ -198,6 +222,11 @@ fun ChatScreen(
                 bottomOverlayHeight =
                     bottomOverlayHeight,
                 onMessageClick = { message ->
+                    /*
+                     * Clear previously generated analysis
+                     * before opening the newly selected
+                     * message.
+                     */
                     messageActionViewModel.reset()
 
                     selectedMessage =
@@ -213,7 +242,13 @@ fun ChatScreen(
                 onAddClick =
                     onAddClick,
                 onInputFocused = {
-                    scrollRequestKey += 1
+                    /*
+                     * Request that the message list keep the
+                     * latest message visible above the opened
+                     * keyboard.
+                     */
+                    scrollRequestKey +=
+                        1
                 },
                 modifier = Modifier
                     .align(

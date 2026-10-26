@@ -31,17 +31,15 @@ import com.julesmeister.deutschcraft.core.database.entity.mission.MissionTemplat
         EvidenceGrammarFeatureEntity::class,
         DetectedMistakeEntity::class,
         ActivityDayEntity::class,
-
-        /*
-         * Mission system entities.
-         */
         MissionTemplateEntity::class,
         MissionObjectiveEntity::class,
         ConversationMissionEntity::class,
         MissionObjectiveProgressEntity::class
     ],
-    version = 6,
-    exportSchema = true
+    version =
+        7,
+    exportSchema =
+        true
 )
 abstract class DeutschCraftDatabase :
     RoomDatabase() {

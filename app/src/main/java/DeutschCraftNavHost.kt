@@ -1,5 +1,13 @@
 package com.julesmeister.deutschcraft.app.navigation
 
+import com.julesmeister.deutschcraft.app.navigation.StartupDestination
+import com.julesmeister.deutschcraft.app.navigation.archivedThreadsDestination
+import com.julesmeister.deutschcraft.app.navigation.chatDestination
+import com.julesmeister.deutschcraft.app.navigation.progressDestination
+import com.julesmeister.deutschcraft.app.navigation.startupDestination
+import com.julesmeister.deutschcraft.app.navigation.threadListDestination
+
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +41,11 @@ fun DeutschCraftNavHost() {
             )
 
             threadListDestination(
+                navController =
+                    navController
+            )
+
+            settingsDestination(
                 navController =
                     navController
             )

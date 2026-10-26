@@ -5,6 +5,7 @@ import com.julesmeister.deutschcraft.core.database.entity.mission.ConversationMi
 import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveProgressEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.MissionTemplateEntity
+import com.julesmeister.deutschcraft.feature.mission.data.local.toMissionObjectiveJson
 import com.julesmeister.deutschcraft.feature.mission.data.mapper.toDomain
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionStatus
@@ -16,11 +17,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.Json
 
 @Singleton
 class LocalFirstMissionRepository @Inject constructor(
     private val missionDao: MissionDao,
-    private val clock: Clock
+    private val clock: Clock,
+    private val json: Json
 ) : MissionRepository {
 
     override fun observeMissionCatalog():
@@ -66,8 +69,8 @@ class LocalFirstMissionRepository @Inject constructor(
                     conversationId
             )
             .map { missions ->
-                missions.map {
-                    it.toDomain()
+                missions.map { mission ->
+                    mission.toDomain()
                 }
             }
     }
@@ -141,9 +144,7 @@ class LocalFirstMissionRepository @Inject constructor(
 
         missionDao.upsertMissionObjectives(
             objectives =
-                template.objectives.map {
-                        objective ->
-
+                template.objectives.map { objective ->
                     MissionObjectiveEntity(
                         id =
                             objective.id,
@@ -158,7 +159,28 @@ class LocalFirstMissionRepository @Inject constructor(
                         isRequired =
                             objective.isRequired,
                         completionHint =
-                            objective.completionHint
+                            objective.completionHint,
+                        coachingHintsJson =
+                            objective
+                                .coachingHints
+                                .toMissionObjectiveJson(
+                                    json =
+                                        json
+                                ),
+                        targetVocabularyJson =
+                            objective
+                                .targetVocabulary
+                                .toMissionObjectiveJson(
+                                    json =
+                                        json
+                                ),
+                        examplePhrasesJson =
+                            objective
+                                .examplePhrases
+                                .toMissionObjectiveJson(
+                                    json =
+                                        json
+                                )
                     )
                 }
         )
@@ -172,10 +194,11 @@ class LocalFirstMissionRepository @Inject constructor(
             getMissionTemplate(
                 missionTemplateId =
                     missionTemplateId
-            ) ?: throw IllegalArgumentException(
-                "Mission template does not exist: " +
-                        missionTemplateId
             )
+                ?: throw IllegalArgumentException(
+                    "Mission template does not exist: " +
+                            missionTemplateId
+                )
 
         val now =
             clock.millis()
@@ -209,9 +232,7 @@ class LocalFirstMissionRepository @Inject constructor(
 
         missionDao.upsertObjectiveProgressList(
             progress =
-                template.objectives.map {
-                        objective ->
-
+                template.objectives.map { objective ->
                     MissionObjectiveProgressEntity(
                         conversationMissionId =
                             conversationMissionId,
@@ -252,7 +273,9 @@ class LocalFirstMissionRepository @Inject constructor(
                     now
             )
 
-        check(changedRows > 0) {
+        check(
+            changedRows > 0
+        ) {
             "Mission could not be started: " +
                     conversationMissionId
         }
@@ -297,14 +320,18 @@ class LocalFirstMissionRepository @Inject constructor(
                     messageId,
                 confidence =
                     confidence.coerceIn(
-                        minimumValue = 0f,
-                        maximumValue = 1f
+                        minimumValue =
+                            0f,
+                        maximumValue =
+                            1f
                     ),
                 updatedAt =
                     now
             )
 
-        check(changedRows > 0) {
+        check(
+            changedRows > 0
+        ) {
             "Mission objective could not be completed: " +
                     objectiveId
         }
@@ -330,17 +357,16 @@ class LocalFirstMissionRepository @Inject constructor(
         val now =
             clock.millis()
 
-        missionDao
-            .updateMissionCompletionState(
-                conversationMissionId =
-                    conversationMissionId,
-                status =
-                    MissionStatus.COMPLETED.name,
-                completedAt =
-                    now,
-                updatedAt =
-                    now
-            )
+        missionDao.updateMissionCompletionState(
+            conversationMissionId =
+                conversationMissionId,
+            status =
+                MissionStatus.COMPLETED.name,
+            completedAt =
+                now,
+            updatedAt =
+                now
+        )
     }
 
     override suspend fun deleteConversationMissions(

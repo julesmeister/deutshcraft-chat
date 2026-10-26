@@ -8,7 +8,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun ChatRoute(
     onBackClick: () -> Unit,
-    onProgressClick: () -> Unit,
     viewModel: ChatViewModel =
         hiltViewModel()
 ) {
@@ -23,8 +22,6 @@ fun ChatRoute(
         onAction =
             viewModel::onAction,
         onBackClick =
-            onBackClick,
-        onProgressClick =
-            onProgressClick
+            onBackClick
     )
 }

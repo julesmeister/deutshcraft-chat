@@ -58,7 +58,10 @@ class QwenMissionThreadRecommendationAiGateway
             CancellationException
         ) {
             throw cancellationException
-        } catch (httpException: HttpException) {
+        } catch (
+            httpException:
+            HttpException
+        ) {
             Log.e(
                 RECOMMENDATION_TAG,
                 "Mission recommendation HTTP request failed.",
@@ -66,7 +69,10 @@ class QwenMissionThreadRecommendationAiGateway
             )
 
             null
-        } catch (ioException: IOException) {
+        } catch (
+            ioException:
+            IOException
+        ) {
             Log.e(
                 RECOMMENDATION_TAG,
                 "Mission recommendation could not reach Qwen.",
@@ -74,12 +80,15 @@ class QwenMissionThreadRecommendationAiGateway
             )
 
             null
-        } catch (throwable: Throwable) {
+        } catch (
+            throwable:
+            Throwable
+        ) {
             /*
              * Recommendation generation is supplementary.
              *
-             * A failure must never prevent the thread list
-             * from loading normally.
+             * An AI, network, or parsing failure must never
+             * prevent the normal thread list from loading.
              */
             Log.e(
                 RECOMMENDATION_TAG,
@@ -213,6 +222,14 @@ class QwenMissionThreadRecommendationAiGateway
                     It should look like a conversation already
                     waiting to be opened in a messaging app.
 
+                    Every objective must include its complete
+                    learner-support content:
+
+                    - Three progressive coaching hints
+                    - Two to four German vocabulary items
+                    - Two German example phrases
+                    - One internal semantic completion rule
+
                     Return JSON only.
                     """.trimIndent()
             )
@@ -235,8 +252,9 @@ class QwenMissionThreadRecommendationAiGateway
             Generate one practical real-world German
             conversation scenario suitable for that level.
 
-            The recommendation will appear in a thread list
-            and must look like an existing conversation.
+            The recommendation appears in a thread list and
+            must look like an existing conversation that the
+            learner can open.
 
             Return exactly one JSON object using this shape:
 
@@ -254,16 +272,30 @@ class QwenMissionThreadRecommendationAiGateway
               "objectives": [
                 {
                   "title": "Observable objective",
-                  "description": "Short description",
-                  "completionHint": "Internal completion rule",
+                  "description": "Short learner-facing description",
+                  "completionHint": "Internal semantic completion rule",
+                  "coachingHints": [
+                    "Gentle learner-facing hint",
+                    "More specific contextual hint",
+                    "Direct final hint"
+                  ],
+                  "targetVocabulary": [
+                    "German target word",
+                    "German target word"
+                  ],
+                  "examplePhrases": [
+                    "CEFR-appropriate German example sentence.",
+                    "Another CEFR-appropriate German example sentence."
+                  ],
                   "required": true
                 }
               ]
             }
 
-            Requirements:
+            General requirements:
 
             - Return JSON only.
+            - Do not wrap the response in Markdown.
             - Generate exactly one scenario.
             - Match CEFR level ${cefrLevel.name}.
             - Confidence must be between 0 and 1.
@@ -275,22 +307,78 @@ class QwenMissionThreadRecommendationAiGateway
               learner's messages.
             - Every objective must be achievable entirely
               through chat.
+            - Arrange objectives in a natural conversation
+              order.
+            - Objectives should not duplicate one another.
+            - Each objective should represent one meaningful
+              communication action.
             - The openingMessage must be written in German.
             - The openingMessage must immediately begin the
               role-play.
             - The openingMessage must suit CEFR
               ${cefrLevel.name}.
             - The title must be concise.
-            - Do not include words such as mission, challenge,
-              exercise, quiz, or lesson in the title.
+            - Do not include mission, challenge, exercise,
+              quiz, lesson, Aufgabe, Übung, or Lektion in the
+              title.
             - Do not create sensitive, dangerous, emergency,
               medical-crisis, or emotionally distressing
               scenarios.
-            - Do not tell the learner that the conversation
-              was generated by AI.
-            - Do not expose completionHint values in the
-              opening message.
+            - Do not tell the learner the conversation was
+              generated by AI.
+            - Do not expose completionHint in learner-facing
+              content.
             - Use only one emoji for icon.
+
+            Objective requirements:
+
+            - Every objective must contain exactly three
+              coachingHints.
+            - coachingHints are learner-facing.
+            - Write coachingHints in English unless the hint
+              itself demonstrates German wording.
+            - Arrange coachingHints from gentle to
+              increasingly specific.
+            - The first hint should gently describe the next
+              conversational direction.
+            - The second hint should identify the information
+              or communication action still needed.
+            - The third hint may provide a direct German
+              wording suggestion.
+            - Coaching hints must adhere to the exact mission,
+              scenario, and objective.
+            - Do not merely repeat the objective title as a
+              coaching hint.
+            - Do not generate a greeting hint unless greeting
+              is the objective currently being described.
+            - Do not tell the learner to restart the
+              conversation.
+            - Hints must remain useful even after the role-play
+              has already begun.
+            - Each objective must contain 2 to 4
+              targetVocabulary entries.
+            - targetVocabulary entries must be useful German
+              words or short expressions.
+            - targetVocabulary must match CEFR
+              ${cefrLevel.name}.
+            - Every objective must contain exactly two
+              examplePhrases.
+            - examplePhrases must be written in German.
+            - examplePhrases must match CEFR
+              ${cefrLevel.name}.
+            - Example phrases must demonstrate how the learner
+              could satisfy that exact objective.
+            - Example phrases should not contain placeholders
+              such as NAME, COMPANY, or LOCATION.
+            - completionHint is internal.
+            - completionHint must be written as a semantic
+              evaluation rule.
+            - completionHint must clearly explain what the
+              learner must communicate before the objective
+              should be marked complete.
+            - completionHint must not require an exact keyword
+              when a correct paraphrase would communicate the
+              same meaning.
         """.trimIndent()
     }
 
@@ -303,43 +391,10 @@ class QwenMissionThreadRecommendationAiGateway
                 role =
                     SYSTEM_ROLE,
                 content =
-                    """
-                    You repair malformed DeutschCraft mission
-                    recommendation JSON.
-
-                    Return exactly one JSON object.
-
-                    Required fields:
-
-                    {
-                      "confidence": 0.0,
-                      "reason": "Short reason",
-                      "title": "Short title",
-                      "openingMessage": "German role-play opener",
-                      "description": "Short description",
-                      "scenario": "Scenario",
-                      "learnerRole": "Learner role",
-                      "assistantRole": "Emil role",
-                      "difficulty": "${cefrLevel.name}",
-                      "icon": "One emoji",
-                      "objectives": [
-                        {
-                          "title": "Objective",
-                          "description": "Description",
-                          "completionHint": "Internal rule",
-                          "required": true
-                        }
-                      ]
-                    }
-
-                    Requirements:
-
-                    - Match CEFR ${cefrLevel.name}.
-                    - Use 3 to 5 objectives.
-                    - Opening message must be German.
-                    - Return JSON only.
-                    - Do not use Markdown.
-                    """.trimIndent()
+                    createRepairPrompt(
+                        cefrLevel =
+                            cefrLevel
+                    )
             ),
             QwenMessage(
                 role =
@@ -356,6 +411,80 @@ class QwenMissionThreadRecommendationAiGateway
                     """.trimIndent()
             )
         )
+    }
+
+    private fun createRepairPrompt(
+        cefrLevel: CefrLevel
+    ): String {
+        return """
+            You repair malformed DeutschCraft mission
+            recommendation JSON.
+
+            Return exactly one JSON object using this shape:
+
+            {
+              "confidence": 0.0,
+              "reason": "Short reason",
+              "title": "Short title",
+              "openingMessage": "German role-play opener",
+              "description": "Short description",
+              "scenario": "Scenario",
+              "learnerRole": "Learner role",
+              "assistantRole": "Emil role",
+              "difficulty": "${cefrLevel.name}",
+              "icon": "One emoji",
+              "objectives": [
+                {
+                  "title": "Objective",
+                  "description": "Learner-facing description",
+                  "completionHint": "Internal semantic rule",
+                  "coachingHints": [
+                    "Gentle contextual hint",
+                    "More specific contextual hint",
+                    "Direct final hint"
+                  ],
+                  "targetVocabulary": [
+                    "German word",
+                    "German word"
+                  ],
+                  "examplePhrases": [
+                    "German example phrase.",
+                    "Another German example phrase."
+                  ],
+                  "required": true
+                }
+              ]
+            }
+
+            Requirements:
+
+            - Match CEFR ${cefrLevel.name}.
+            - Return JSON only.
+            - Do not use Markdown.
+            - Preserve or create one complete scenario.
+            - Use 3 to 5 objectives.
+            - At least one objective must be required.
+            - Every objective must be achievable through the
+              learner's chat messages.
+            - Every objective must include exactly three
+              non-empty coachingHints.
+            - Arrange coachingHints from gentle to specific.
+            - Coaching hints must be relevant to the exact
+              objective and scenario.
+            - Do not use a greeting hint unless greeting is
+              the objective.
+            - Every objective must include 2 to 4 non-empty
+              German targetVocabulary entries.
+            - Every objective must include exactly two
+              non-empty German examplePhrases.
+            - The example phrases must demonstrate the exact
+              objective.
+            - The opening message must be written in German.
+            - The opening message must begin the role-play.
+            - completionHint is an internal semantic rule.
+            - Do not expose completionHint in coachingHints,
+              examplePhrases, or the opening message.
+        """.trimIndent()
     }
 
     private fun decodeAndValidate(
@@ -375,8 +504,10 @@ class QwenMissionThreadRecommendationAiGateway
                     CONFIDENCE_KEY
             )
                 ?.coerceIn(
-                    minimumValue = 0f,
-                    maximumValue = 1f
+                    minimumValue =
+                        0f,
+                    maximumValue =
+                        1f
                 )
                 ?: return null
 
@@ -557,6 +688,18 @@ class QwenMissionThreadRecommendationAiGateway
             )
 
             null
+        } catch (
+            illegalArgumentException:
+            IllegalArgumentException
+        ) {
+            Log.w(
+                RECOMMENDATION_TAG,
+                "Qwen returned an unsupported mission " +
+                        "recommendation payload.",
+                illegalArgumentException
+            )
+
+            null
         }
     }
 
@@ -569,55 +712,113 @@ class QwenMissionThreadRecommendationAiGateway
 
         return objectiveArray
             .mapNotNull { item ->
-                val objectiveObject =
-                    item as? JsonObject
-                        ?: return@mapNotNull null
-
-                val title =
-                    objectiveObject.stringValue(
-                        key =
-                            TITLE_KEY
-                    )
-                        ?: return@mapNotNull null
-
-                val description =
-                    objectiveObject.stringValue(
-                        key =
-                            DESCRIPTION_KEY
-                    )
-                        ?: return@mapNotNull null
-
-                val completionHint =
-                    objectiveObject.stringValue(
-                        key =
-                            COMPLETION_HINT_KEY
-                    )
-                        ?: return@mapNotNull null
-
-                val isRequired =
-                    objectiveObject.booleanValue(
-                        key =
-                            REQUIRED_KEY
-                    )
-                        ?: true
-
-                GeneratedMissionObjectiveDraft(
-                    title =
-                        title,
-                    description =
-                        description,
-                    completionHint =
-                        completionHint,
-                    isRequired =
-                        isRequired
+                parseObjective(
+                    element =
+                        item
                 )
             }
             .distinctBy { objective ->
-                objective.title.lowercase()
+                objective
+                    .title
+                    .trim()
+                    .lowercase()
             }
             .take(
                 MAXIMUM_OBJECTIVE_COUNT
             )
+    }
+
+    private fun parseObjective(
+        element: JsonElement
+    ): GeneratedMissionObjectiveDraft? {
+        val objectiveObject =
+            element as? JsonObject
+                ?: return null
+
+        val title =
+            objectiveObject.stringValue(
+                key =
+                    TITLE_KEY
+            )
+                ?: return null
+
+        val description =
+            objectiveObject.stringValue(
+                key =
+                    DESCRIPTION_KEY
+            )
+                ?: return null
+
+        val completionHint =
+            objectiveObject.stringValue(
+                key =
+                    COMPLETION_HINT_KEY
+            )
+                ?: return null
+
+        val coachingHints =
+            objectiveObject.stringListValue(
+                key =
+                    COACHING_HINTS_KEY
+            )
+
+        val targetVocabulary =
+            objectiveObject.stringListValue(
+                key =
+                    TARGET_VOCABULARY_KEY
+            )
+
+        val examplePhrases =
+            objectiveObject.stringListValue(
+                key =
+                    EXAMPLE_PHRASES_KEY
+            )
+
+        if (
+            coachingHints.size !=
+            REQUIRED_COACHING_HINT_COUNT
+        ) {
+            return null
+        }
+
+        if (
+            targetVocabulary.size !in
+            MINIMUM_TARGET_VOCABULARY_COUNT..
+            MAXIMUM_TARGET_VOCABULARY_COUNT
+        ) {
+            return null
+        }
+
+        if (
+            examplePhrases.size !=
+            REQUIRED_EXAMPLE_PHRASE_COUNT
+        ) {
+            return null
+        }
+
+        val isRequired =
+            objectiveObject.booleanValue(
+                key =
+                    REQUIRED_KEY
+            )
+                ?: true
+
+        return GeneratedMissionObjectiveDraft(
+            title =
+                title,
+            description =
+                description,
+            completionHint =
+                completionHint,
+            coachingHints =
+                coachingHints,
+            targetVocabulary =
+                targetVocabulary,
+            examplePhrases =
+                examplePhrases,
+            isRequired =
+                isRequired
+        )
     }
 
     private fun parseDifficulty(
@@ -639,14 +840,25 @@ class QwenMissionThreadRecommendationAiGateway
                 this[key] as? JsonPrimitive
                 )
             ?.contentOrNull
-            ?.trim()
-            ?.replace(
-                MULTIPLE_WHITESPACE_REGEX,
-                " "
-            )
-            ?.takeIf { value ->
-                value.isNotBlank()
+            ?.sanitizeGeneratedText()
+    }
+
+    private fun JsonObject.stringListValue(
+        key: String
+    ): List<String> {
+        val array =
+            this[key] as? JsonArray
+                ?: return emptyList()
+
+        return array
+            .mapNotNull { element ->
+                (
+                        element as? JsonPrimitive
+                        )
+                    ?.contentOrNull
+                    ?.sanitizeGeneratedText()
             }
+            .distinct()
     }
 
     private fun JsonObject.floatValue(
@@ -665,15 +877,35 @@ class QwenMissionThreadRecommendationAiGateway
                 )?.booleanOrNull
     }
 
+    private fun String.sanitizeGeneratedText():
+            String? {
+        return trim()
+            .replace(
+                MULTIPLE_WHITESPACE_REGEX,
+                " "
+            )
+            .takeIf { value ->
+                value.isNotBlank()
+            }
+    }
+
     private fun removeMarkdownCodeFence(
         content: String
     ): String {
         return content
             .trim()
-            .removePrefix("```json")
-            .removePrefix("```JSON")
-            .removePrefix("```")
-            .removeSuffix("```")
+            .removePrefix(
+                "```json"
+            )
+            .removePrefix(
+                "```JSON"
+            )
+            .removePrefix(
+                "```"
+            )
+            .removeSuffix(
+                "```"
+            )
             .trim()
     }
 
@@ -736,20 +968,45 @@ class QwenMissionThreadRecommendationAiGateway
         const val COMPLETION_HINT_KEY =
             "completionHint"
 
+        const val COACHING_HINTS_KEY =
+            "coachingHints"
+
+        const val TARGET_VOCABULARY_KEY =
+            "targetVocabulary"
+
+        const val EXAMPLE_PHRASES_KEY =
+            "examplePhrases"
+
         const val REQUIRED_KEY =
             "required"
 
+        /*
+         * The richer objective payload requires more output
+         * tokens than the original objective-only response.
+         */
         const val MAXIMUM_RESPONSE_TOKENS =
-            1_000
+            2_000
 
         const val MAXIMUM_REPAIR_INPUT_LENGTH =
-            6_000
+            10_000
 
         const val MINIMUM_OBJECTIVE_COUNT =
             3
 
         const val MAXIMUM_OBJECTIVE_COUNT =
             5
+
+        const val REQUIRED_COACHING_HINT_COUNT =
+            3
+
+        const val MINIMUM_TARGET_VOCABULARY_COUNT =
+            2
+
+        const val MAXIMUM_TARGET_VOCABULARY_COUNT =
+            4
+
+        const val REQUIRED_EXAMPLE_PHRASE_COUNT =
+            2
 
         const val MINIMUM_RECOMMENDATION_CONFIDENCE =
             0.80f
@@ -764,7 +1021,9 @@ class QwenMissionThreadRecommendationAiGateway
             "🎯"
 
         val MULTIPLE_WHITESPACE_REGEX =
-            Regex("\\s+")
+            Regex(
+                "\\s+"
+            )
 
         val FORBIDDEN_TITLE_WORDS =
             setOf(
