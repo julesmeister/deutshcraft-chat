@@ -7,16 +7,24 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /*
- * Process-local queue for featured mission recommendations.
+ * Process-local queue for thread-list mission
+ * recommendations.
  *
- * The first item is visible in the thread list.
- * The remaining items are prefetched and hidden.
+ * Queue structure:
  *
- * Target state:
+ * Index 0:
+ * Recommendation currently visible in the thread list.
  *
- * 1 visible recommendation
- * 4 hidden recommendations
- * 5 total recommendations
+ * Index 1 to 4:
+ * Hidden prefetched recommendations.
+ *
+ * The cache deliberately separates:
+ *
+ * - Queued scenarios
+ * - Actually shown scenarios
+ *
+ * A hidden prefetched recommendation has not yet been shown
+ * to the learner.
  */
 @Singleton
 class MissionThreadRecommendationCache
@@ -26,29 +34,24 @@ class MissionThreadRecommendationCache
         ArrayDeque<MissionThreadRecommendation>()
 
     /*
-     * Semantic recommendation history remains separate from
-     * the queue.
+     * Contains semantic scenario types that were actually
+     * displayed in the featured mission cell.
      *
-     * Clearing or consuming queue items must not erase this
-     * history, otherwise café and bakery scenarios could
-     * immediately return.
+     * Hidden queue items are not recorded here until they
+     * become visible.
      */
-    private val recentScenarioTypes =
+    private val shownScenarioTypes =
         ArrayDeque<MissionScenarioType>()
 
-    /*
-     * Returns the recommendation currently displayed in the
-     * thread-list mission cell.
-     */
+    private var currentRecommendationMarkedShown =
+        false
+
     @Synchronized
     fun get():
             MissionThreadRecommendation? {
         return recommendationQueue.firstOrNull()
     }
 
-    /*
-     * Returns all queued recommendations in display order.
-     */
     @Synchronized
     fun getAll():
             List<MissionThreadRecommendation> {
@@ -65,12 +68,22 @@ class MissionThreadRecommendationCache
         return recommendationQueue.isEmpty()
     }
 
+    @Synchronized
+    fun hasPrefetchedNext(): Boolean {
+        return recommendationQueue.size >
+                VISIBLE_RECOMMENDATION_COUNT
+    }
+
     /*
-     * Adds a prefetched recommendation to the end of the
+     * Adds one generated recommendation to the end of the
      * queue.
      *
-     * Duplicate IDs, semantic scenario types, and equivalent
-     * recommendation content are rejected.
+     * Rejected when:
+     *
+     * - The queue is already full
+     * - The ID already exists
+     * - The semantic scenario already exists in the queue
+     * - Equivalent title or preview content already exists
      */
     @Synchronized
     fun enqueue(
@@ -119,19 +132,28 @@ class MissionThreadRecommendationCache
             recommendation
         )
 
-        recordScenarioTypeInternal(
-            scenarioType =
-                recommendation.scenarioType
-        )
+        /*
+         * If this is the first item, it becomes visible.
+         *
+         * It is not automatically marked shown here because
+         * the presentation layer may not have displayed it
+         * yet.
+         */
+        if (
+            recommendationQueue.size ==
+            VISIBLE_RECOMMENDATION_COUNT
+        ) {
+            currentRecommendationMarkedShown =
+                false
+        }
 
         return true
     }
 
     /*
-     * Compatibility method for older callers.
+     * Compatibility operation.
      *
-     * Replaces the complete queue with one recommendation.
-     * New code should normally use enqueue().
+     * Prefer enqueue() for normal queue management.
      */
     @Synchronized
     fun replace(
@@ -144,54 +166,104 @@ class MissionThreadRecommendationCache
             recommendation
         )
 
-        recordScenarioTypeInternal(
-            scenarioType =
-                recommendation.scenarioType
-        )
+        currentRecommendationMarkedShown =
+            false
     }
 
     /*
-     * Consumes the currently displayed recommendation.
+     * Records the current recommendation as actually shown.
      *
-     * The next prefetched item immediately becomes visible.
+     * Repeated calls for the same visible recommendation do
+     * not duplicate its history.
+     */
+    @Synchronized
+    fun markCurrentShown() {
+        if (currentRecommendationMarkedShown) {
+            return
+        }
+
+        val currentRecommendation =
+            recommendationQueue.firstOrNull()
+                ?: return
+
+        recordShownScenarioInternal(
+            scenarioType =
+                currentRecommendation.scenarioType
+        )
+
+        currentRecommendationMarkedShown =
+            true
+    }
+
+    /*
+     * Removes the current recommendation.
+     *
+     * The next prefetched recommendation becomes visible
+     * immediately.
      */
     @Synchronized
     fun advance():
             MissionThreadRecommendation? {
         if (recommendationQueue.isNotEmpty()) {
+            /*
+             * Ensure the outgoing recommendation is recorded
+             * even if the UI did not call markCurrentShown().
+             */
+            if (!currentRecommendationMarkedShown) {
+                recommendationQueue
+                    .firstOrNull()
+                    ?.let { current ->
+                        recordShownScenarioInternal(
+                            scenarioType =
+                                current.scenarioType
+                        )
+                    }
+            }
+
             recommendationQueue.removeFirst()
         }
+
+        currentRecommendationMarkedShown =
+            false
 
         return recommendationQueue.firstOrNull()
     }
 
-    /*
-     * Removes a recommendation after it has been started.
-     */
     @Synchronized
     fun remove(
         recommendationId: String
     ) {
+        val removingCurrent =
+            recommendationQueue
+                .firstOrNull()
+                ?.id ==
+                    recommendationId
+
         recommendationQueue.removeAll { recommendation ->
             recommendation.id ==
                     recommendationId
         }
+
+        if (removingCurrent) {
+            currentRecommendationMarkedShown =
+                false
+        }
     }
 
     /*
-     * Returns scenario types that must not be selected while
-     * prefetching.
+     * Returns all scenario types that should be excluded from
+     * new queue generation.
      *
-     * This includes:
+     * Includes:
      *
      * - Recently shown scenarios
-     * - Every scenario already waiting in the queue
+     * - Every scenario already reserved in the queue
      */
     @Synchronized
     fun getExcludedScenarioTypes():
             List<MissionScenarioType> {
         return (
-                recentScenarioTypes.toList() +
+                shownScenarioTypes.toList() +
                         recommendationQueue.map { recommendation ->
                             recommendation.scenarioType
                         }
@@ -200,25 +272,31 @@ class MissionThreadRecommendationCache
     }
 
     @Synchronized
-    fun getRecentScenarioTypes():
+    fun getShownScenarioTypes():
             List<MissionScenarioType> {
-        return recentScenarioTypes.toList()
+        return shownScenarioTypes.toList()
     }
 
     @Synchronized
-    fun recordScenarioType(
+    fun getQueuedScenarioTypes():
+            List<MissionScenarioType> {
+        return recommendationQueue
+            .map { recommendation ->
+                recommendation.scenarioType
+            }
+            .distinct()
+    }
+
+    @Synchronized
+    fun recordShownScenario(
         scenarioType: MissionScenarioType
     ) {
-        recordScenarioTypeInternal(
+        recordShownScenarioInternal(
             scenarioType =
                 scenarioType
         )
     }
 
-    /*
-     * Checks whether the visible recommendation still matches
-     * the requested learner level.
-     */
     @Synchronized
     fun currentMatchesLevel(
         cefrLevel: CefrLevel
@@ -233,13 +311,20 @@ class MissionThreadRecommendationCache
     }
 
     /*
-     * Removes recommendations belonging to another CEFR
+     * Removes queue items belonging to a different learner
      * level.
+     *
+     * Shown history remains intact.
      */
     @Synchronized
     fun retainLevel(
         cefrLevel: CefrLevel
     ) {
+        val previousCurrentId =
+            recommendationQueue
+                .firstOrNull()
+                ?.id
+
         recommendationQueue.removeAll { recommendation ->
             recommendation
                 .opportunity
@@ -248,44 +333,63 @@ class MissionThreadRecommendationCache
                 .name !=
                     cefrLevel.name
         }
+
+        val currentIdAfterFiltering =
+            recommendationQueue
+                .firstOrNull()
+                ?.id
+
+        if (
+            previousCurrentId !=
+            currentIdAfterFiltering
+        ) {
+            currentRecommendationMarkedShown =
+                false
+        }
     }
 
     /*
-     * Clears the visible and prefetched queue.
+     * Clears visible and prefetched recommendations.
      *
-     * Semantic scenario history remains intact.
+     * Shown history remains intact.
      */
     @Synchronized
     fun clear() {
         recommendationQueue.clear()
+
+        currentRecommendationMarkedShown =
+            false
     }
 
     /*
-     * Full reset intended for tests or an explicit history
-     * reset.
+     * Complete reset intended for tests or an explicit user
+     * history reset.
      */
     @Synchronized
     fun clearAll() {
         recommendationQueue.clear()
-        recentScenarioTypes.clear()
+        shownScenarioTypes.clear()
+
+        currentRecommendationMarkedShown =
+            false
     }
 
-    private fun recordScenarioTypeInternal(
+    private fun recordShownScenarioInternal(
         scenarioType: MissionScenarioType
     ) {
-        recentScenarioTypes.remove(
+        shownScenarioTypes.remove(
             scenarioType
         )
 
-        recentScenarioTypes.addLast(
+        shownScenarioTypes.addLast(
             scenarioType
         )
 
         while (
-            recentScenarioTypes.size >
-            MAXIMUM_RECENT_SCENARIO_COUNT
+            shownScenarioTypes.size >
+            MAXIMUM_SHOWN_SCENARIO_COUNT
         ) {
-            recentScenarioTypes.removeFirst()
+            shownScenarioTypes.removeFirst()
         }
     }
 
@@ -293,18 +397,34 @@ class MissionThreadRecommendationCache
         first: MissionThreadRecommendation,
         second: MissionThreadRecommendation
     ): Boolean {
-        return normalize(
-            first.title
-        ) ==
-                normalize(
+        val normalizedFirstTitle =
+            normalize(
+                value =
+                    first.title
+            )
+
+        val normalizedSecondTitle =
+            normalize(
+                value =
                     second.title
-                ) ||
-                normalize(
+            )
+
+        val normalizedFirstPreview =
+            normalize(
+                value =
                     first.previewText
-                ) ==
-                normalize(
+            )
+
+        val normalizedSecondPreview =
+            normalize(
+                value =
                     second.previewText
-                )
+            )
+
+        return normalizedFirstTitle ==
+                normalizedSecondTitle ||
+                normalizedFirstPreview ==
+                normalizedSecondPreview
     }
 
     private fun normalize(
@@ -328,8 +448,11 @@ class MissionThreadRecommendationCache
         const val TARGET_QUEUE_SIZE =
             5
 
-        private const val MAXIMUM_RECENT_SCENARIO_COUNT =
-            10
+        private const val VISIBLE_RECOMMENDATION_COUNT =
+            1
+
+        private const val MAXIMUM_SHOWN_SCENARIO_COUNT =
+            12
 
         private val NON_ALPHANUMERIC_REGEX =
             Regex(

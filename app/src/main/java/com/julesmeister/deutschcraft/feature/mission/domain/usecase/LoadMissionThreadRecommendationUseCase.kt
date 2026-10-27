@@ -3,10 +3,11 @@ package com.julesmeister.deutschcraft.feature.mission.domain.usecase
 import android.util.Log
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.feature.mission.data.ai.MissionThreadRecommendationAiGateway
-import com.julesmeister.deutschcraft.feature.mission.data.cache.MissionThreadRecommendationCache
 import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionRecommendationContext
 import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionScenarioDefinition
+import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionScenarioType
 import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionThreadRecommendation
+import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionThreadRecommendationStore
 import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.SelectMissionScenarioUseCase
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -14,25 +15,31 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /*
- * Manages the mission recommendations displayed in the
- * thread-list featured mission cell.
+ * Loads and maintains the persistent mission recommendation
+ * pool used by the thread-list featured mission cell.
  *
- * Responsibilities:
+ * Room is the source of truth.
  *
- * - Return the first available recommendation immediately
- * - Maintain a five-item recommendation queue
- * - Advance instantly to a prefetched recommendation
- * - Refill the queue in the background
- * - Prevent duplicate semantic scenario types
- * - Ensure Qwen expands a Kotlin-selected scenario instead
- *   of selecting another coffee or bakery variation
+ * Initial loading:
+ *
+ * 1. Return an existing persisted recommendation immediately.
+ * 2. If Room has none, generate and persist one.
+ * 3. The coordinator then fills the pool to five in the
+ *    background.
+ *
+ * Left swipe:
+ *
+ * 1. Mark the current recommendation SKIPPED.
+ * 2. Return the next persisted recommendation immediately.
+ * 3. If no next recommendation exists, generate one fallback.
+ * 4. Refill the pool to five in the background.
  */
 class LoadMissionThreadRecommendationUseCase
 @Inject constructor(
     private val aiGateway:
     MissionThreadRecommendationAiGateway,
-    private val recommendationCache:
-    MissionThreadRecommendationCache,
+    private val recommendationStore:
+    MissionThreadRecommendationStore,
     private val selectMissionScenario:
     SelectMissionScenarioUseCase
 ) {
@@ -40,262 +47,314 @@ class LoadMissionThreadRecommendationUseCase
     /*
      * Protects visible recommendation loading and queue
      * advancement.
+     *
+     * A swipe cannot modify recommendation statuses while an
+     * initial load is performing the same operation.
      */
     private val loadingMutex =
         Mutex()
 
     /*
-     * Prevents multiple queue-fill operations from running
-     * simultaneously.
+     * Prevents multiple simultaneous pool-fill loops.
      */
     private val prefetchMutex =
         Mutex()
 
     /*
-     * Serializes actual recommendation generation.
+     * Serializes scenario selection and AI generation.
      *
-     * Without this lock, the initial loader and the
-     * background prefetcher could select the same scenario
-     * before either one has been added to the queue.
+     * This prevents two callers from selecting the same
+     * scenario before either result is persisted.
      */
     private val generationMutex =
         Mutex()
 
     /*
-     * Returns the currently visible recommendation.
+     * Loads the recommendation that should be displayed.
      *
-     * Initial load:
+     * forceRefresh = false:
      *
-     * - Return a matching cached recommendation immediately.
-     * - Otherwise generate one recommendation.
-     * - Do not wait for all five recommendations.
+     * - Restore a DISPLAYED recommendation when one exists.
+     * - Otherwise display the oldest READY recommendation.
+     * - Generate one if Room is empty.
      *
-     * Forced refresh:
+     * forceRefresh = true:
      *
-     * - Remove the current item.
-     * - Return the next prefetched item immediately.
-     * - If the queue becomes empty, generate one fallback.
+     * - Mark the current recommendation SKIPPED.
+     * - Load the next READY recommendation.
+     * - Generate one only if the persisted pool is exhausted.
      */
     suspend operator fun invoke(
         cefrLevel: CefrLevel,
         forceRefresh: Boolean =
-            false
+            false,
+        externalExcludedScenarioTypes:
+        Set<MissionScenarioType> =
+            emptySet()
     ): MissionThreadRecommendation? {
         return loadingMutex.withLock {
-            recommendationCache.retainLevel(
+            recommendationStore.performMaintenance(
                 cefrLevel =
                     cefrLevel
             )
 
-            if (forceRefresh) {
-                val nextRecommendation =
-                    recommendationCache.advance()
-
-                if (nextRecommendation != null) {
-                    Log.d(
-                        USE_CASE_TAG,
-                        buildString {
-                            append(
-                                "Advanced to prefetched mission. "
-                            )
-                            append("scenario=")
-                            append(
-                                nextRecommendation.scenarioType
-                            )
-                            append(", title=")
-                            append(
-                                nextRecommendation.title
-                            )
-                            append(", remainingQueue=")
-                            append(
-                                recommendationCache.size()
-                            )
-                        }
-                    )
-
-                    return@withLock nextRecommendation
-                }
-
-                /*
-                 * The queue contained only the visible item.
-                 *
-                 * advance() consumed it, so generate one
-                 * fallback recommendation.
-                 */
-                Log.d(
-                    USE_CASE_TAG,
-                    "Mission queue was exhausted during " +
-                            "forced refresh."
+            val currentRecommendation =
+                recommendationStore.getNextEligible(
+                    cefrLevel =
+                        cefrLevel
                 )
-            } else {
-                val cachedRecommendation =
-                    recommendationCache.get()
 
-                if (cachedRecommendation != null) {
-                    return@withLock cachedRecommendation
-                }
-            }
+            if (
+                forceRefresh &&
+                currentRecommendation != null
+            ) {
+                recommendationStore.markSkipped(
+                    recommendationId =
+                        currentRecommendation.id
+                )
 
-            /*
-             * Initial loading or queue-exhaustion fallback.
-             *
-             * Only one recommendation is generated here so
-             * the UI can display it immediately.
-             */
-            generateAndEnqueueOne(
-                cefrLevel =
-                    cefrLevel
-            )
-
-            recommendationCache.get()
-        }
-    }
-
-    /*
-     * Explicit queue-advancement operation.
-     *
-     * The coordinator may call this method directly rather
-     * than using invoke(forceRefresh = true).
-     */
-    suspend fun advance(
-        cefrLevel: CefrLevel
-    ): MissionThreadRecommendation? {
-        return loadingMutex.withLock {
-            recommendationCache.retainLevel(
-                cefrLevel =
-                    cefrLevel
-            )
-
-            val nextRecommendation =
-                recommendationCache.advance()
-
-            if (nextRecommendation != null) {
                 Log.d(
                     USE_CASE_TAG,
                     buildString {
                         append(
-                            "Mission queue advanced instantly. "
+                            "Skipped visible recommendation. "
                         )
-                        append("scenario=")
+                        append("id=")
                         append(
-                            nextRecommendation.scenarioType
+                            currentRecommendation.id
                         )
-                        append(", title=")
+                        append(", scenario=")
                         append(
-                            nextRecommendation.title
+                            currentRecommendation.scenarioType
                         )
-                        append(", queueSize=")
+                    }
+                )
+            }
+
+            /*
+             * After a forced refresh, the skipped row is no
+             * longer eligible, so this query returns the next
+             * persisted recommendation.
+             *
+             * During ordinary loading, it returns the existing
+             * DISPLAYED or oldest READY row.
+             */
+            val persistedRecommendation =
+                recommendationStore.getNextEligible(
+                    cefrLevel =
+                        cefrLevel
+                )
+
+            if (persistedRecommendation != null) {
+                recommendationStore.markDisplayed(
+                    recommendationId =
+                        persistedRecommendation.id
+                )
+
+                Log.d(
+                    USE_CASE_TAG,
+                    buildString {
                         append(
-                            recommendationCache.size()
+                            "Loaded persisted recommendation. "
+                        )
+                        append("id=")
+                        append(
+                            persistedRecommendation.id
+                        )
+                        append(", scenario=")
+                        append(
+                            persistedRecommendation.scenarioType
+                        )
+                        append(", forceRefresh=")
+                        append(
+                            forceRefresh
                         )
                     }
                 )
 
-                return@withLock nextRecommendation
+                return@withLock persistedRecommendation
             }
 
             /*
-             * Queue exhaustion should be rare because the
-             * coordinator continuously prefetches.
+             * No persisted recommendation is available.
              *
-             * Generate one recommendation as a fallback.
+             * Generate only one now so the UI can show its
+             * first recommendation without waiting for the
+             * complete five-item pool.
              */
-            Log.d(
-                USE_CASE_TAG,
-                "Mission queue was empty. Generating one " +
-                        "fallback recommendation."
-            )
-
-            generateAndEnqueueOne(
+            generateAndPersistOne(
                 cefrLevel =
-                    cefrLevel
+                    cefrLevel,
+                externalExcludedScenarioTypes =
+                    externalExcludedScenarioTypes
             )
 
-            recommendationCache.get()
+            val generatedRecommendation =
+                recommendationStore.getNextEligible(
+                    cefrLevel =
+                        cefrLevel
+                )
+
+            if (generatedRecommendation != null) {
+                recommendationStore.markDisplayed(
+                    recommendationId =
+                        generatedRecommendation.id
+                )
+            }
+
+            generatedRecommendation
         }
     }
 
     /*
-     * Fills the queue until it contains five valid,
-     * semantically distinct recommendations.
+     * Explicit operation used by the coordinator when the
+     * learner swipes left.
+     */
+    suspend fun advance(
+        cefrLevel: CefrLevel,
+        externalExcludedScenarioTypes:
+        Set<MissionScenarioType> =
+            emptySet()
+    ): MissionThreadRecommendation? {
+        return invoke(
+            cefrLevel =
+                cefrLevel,
+            forceRefresh =
+                true,
+            externalExcludedScenarioTypes =
+                externalExcludedScenarioTypes
+        )
+    }
+
+    /*
+     * Ensures Room contains five eligible recommendations.
      *
-     * This method should run in a background coroutine after
-     * the first visible recommendation has been delivered.
+     * This runs after the first recommendation becomes
+     * visible.
      *
-     * The callback is invoked after each accepted item.
+     * Every successfully generated recommendation is saved
+     * immediately. Therefore:
      *
-     * If the visible queue was initially empty, the caller
-     * may display recommendationCache.get() as soon as the
-     * first callback occurs.
+     * - The pool survives process death.
+     * - The pool survives app restarts.
+     * - The learner can swipe through already-generated
+     *   recommendations quickly.
      */
     suspend fun prefetchUntilFull(
         cefrLevel: CefrLevel,
+        externalExcludedScenarioTypes:
+        Set<MissionScenarioType> =
+            emptySet(),
         onRecommendationAvailable:
             (
             recommendation:
             MissionThreadRecommendation,
-            queueSize: Int
+            availableCount: Int
         ) -> Unit =
             { _, _ -> }
     ) {
         prefetchMutex.withLock {
-            recommendationCache.retainLevel(
+            recommendationStore.performMaintenance(
                 cefrLevel =
                     cefrLevel
             )
 
-            var generationAttemptCount =
+            var attemptCount =
+                0
+
+            var consecutiveFailureCount =
                 0
 
             while (
-                recommendationCache.size() <
-                MissionThreadRecommendationCache
-                    .TARGET_QUEUE_SIZE &&
-                generationAttemptCount <
-                MAXIMUM_PREFETCH_ATTEMPTS
+                recommendationStore.countEligible(
+                    cefrLevel =
+                        cefrLevel
+                ) <
+                TARGET_RECOMMENDATION_COUNT &&
+                attemptCount <
+                MAXIMUM_GENERATION_ATTEMPTS &&
+                consecutiveFailureCount <
+                MAXIMUM_CONSECUTIVE_FAILURES
             ) {
-                generationAttemptCount +=
+                attemptCount +=
                     1
 
-                val generatedRecommendation =
-                    generateAndEnqueueOne(
+                val recommendation =
+                    generateAndPersistOne(
                         cefrLevel =
-                            cefrLevel
+                            cefrLevel,
+                        externalExcludedScenarioTypes =
+                            externalExcludedScenarioTypes
                     )
 
-                if (generatedRecommendation != null) {
+                if (recommendation == null) {
+                    consecutiveFailureCount +=
+                        1
+                } else {
+                    consecutiveFailureCount =
+                        0
+
+                    val availableCount =
+                        recommendationStore.countEligible(
+                            cefrLevel =
+                                cefrLevel
+                        )
+
                     onRecommendationAvailable(
-                        generatedRecommendation,
-                        recommendationCache.size()
+                        recommendation,
+                        availableCount
+                    )
+
+                    Log.d(
+                        USE_CASE_TAG,
+                        buildString {
+                            append(
+                                "Persisted prefetched recommendation. "
+                            )
+                            append("scenario=")
+                            append(
+                                recommendation.scenarioType
+                            )
+                            append(", available=")
+                            append(
+                                availableCount
+                            )
+                        }
                     )
                 }
             }
+
+            val finalCount =
+                recommendationStore.countEligible(
+                    cefrLevel =
+                        cefrLevel
+                )
 
             Log.d(
                 USE_CASE_TAG,
                 buildString {
                     append(
-                        "Mission recommendation prefetch finished. "
+                        "Recommendation prefetch cycle finished. "
                     )
                     append("level=")
                     append(
                         cefrLevel.name
                     )
-                    append(", queueSize=")
+                    append(", available=")
                     append(
-                        recommendationCache.size()
+                        finalCount
+                    )
+                    append(", target=")
+                    append(
+                        TARGET_RECOMMENDATION_COUNT
                     )
                     append(", attempts=")
                     append(
-                        generationAttemptCount
+                        attemptCount
                     )
-                    append(", scenarios=")
+                    append(", consecutiveFailures=")
                     append(
-                        recommendationCache
-                            .getAll()
-                            .map { recommendation ->
-                                recommendation.scenarioType
-                            }
+                        consecutiveFailureCount
                     )
                 }
             )
@@ -303,67 +362,159 @@ class LoadMissionThreadRecommendationUseCase
     }
 
     /*
-     * Returns the recommendation at the front of the queue.
+     * Marks the persisted recommendation as STARTED after its
+     * real Conversation and ConversationMission have been
+     * created.
      */
-    fun current():
-            MissionThreadRecommendation? {
-        return recommendationCache.get()
+    suspend fun markStarted(
+        recommendationId: String,
+        conversationId: String,
+        conversationMissionId: String
+    ) {
+        recommendationStore.markStarted(
+            recommendationId =
+                recommendationId,
+            conversationId =
+                conversationId,
+            conversationMissionId =
+                conversationMissionId
+        )
     }
 
     /*
-     * Returns the number of currently cached
-     * recommendations.
+     * Marks the recommendation COMPLETED when its linked
+     * ConversationMission finishes.
      */
-    fun queueSize(): Int {
-        return recommendationCache.size()
+    suspend fun markCompleted(
+        conversationMissionId: String
+    ) {
+        recommendationStore.markCompletedByMissionId(
+            conversationMissionId =
+                conversationMissionId
+        )
     }
 
     /*
-     * Selects, generates, validates, and enqueues one mission.
-     *
-     * Actual generation is serialized so two concurrent jobs
-     * cannot select the same scenario from the same cache
-     * state.
+     * Exposed for diagnostics and coordinator decisions.
      */
-    private suspend fun generateAndEnqueueOne(
+    suspend fun availableCount(
         cefrLevel: CefrLevel
+    ): Int {
+        return recommendationStore.countEligible(
+            cefrLevel =
+                cefrLevel
+        )
+    }
+
+    /*
+     * Generates and persists one distinct recommendation.
+     *
+     * Scenario selection and generation are serialized so the
+     * same scenario cannot be selected concurrently.
+     */
+    private suspend fun generateAndPersistOne(
+        cefrLevel: CefrLevel,
+        externalExcludedScenarioTypes:
+        Set<MissionScenarioType>
     ): MissionThreadRecommendation? {
         return generationMutex.withLock {
-            /*
-             * Another coroutine may have filled the queue
-             * while this coroutine waited for the generation
-             * lock.
-             */
+            val availableCount =
+                recommendationStore.countEligible(
+                    cefrLevel =
+                        cefrLevel
+                )
+
             if (
-                recommendationCache.size() >=
-                MissionThreadRecommendationCache
-                    .TARGET_QUEUE_SIZE
+                availableCount >=
+                TARGET_RECOMMENDATION_COUNT
             ) {
                 return@withLock null
             }
 
+            val persistedScenarioTypes =
+                recommendationStore
+                    .getRecentScenarioTypes(
+                        cefrLevel =
+                            cefrLevel
+                    )
+
+            /*
+             * Combine:
+             *
+             * - Persisted recommendation history
+             * - Existing thread scenario types
+             * - Active/completed mission scenario types when
+             *   those are supplied by the coordinator
+             */
+            val completeExclusions =
+                expandScenarioFamilyExclusions(
+                    excludedScenarioTypes =
+                        persistedScenarioTypes +
+                                externalExcludedScenarioTypes
+                )
+
             val selectedScenario =
                 selectScenario(
                     cefrLevel =
-                        cefrLevel
+                        cefrLevel,
+                    excludedScenarioTypes =
+                        completeExclusions
                 )
                     ?: run {
                         Log.w(
                             USE_CASE_TAG,
-                            "No available mission scenario " +
-                                    "could be selected for " +
+                            buildString {
+                                append(
+                                    "No unexcluded scenario was "
+                                )
+                                append(
+                                    "available. level="
+                                )
+                                append(
                                     cefrLevel.name
+                                )
+                                append(", exclusions=")
+                                append(
+                                    completeExclusions
+                                )
+                            }
                         )
 
                         return@withLock null
                     }
+
+            /*
+             * Defensive duplicate check.
+             *
+             * The selector already receives the exclusions,
+             * but the store also protects against a scenario
+             * already persisted as READY, DISPLAYED, or
+             * STARTED.
+             */
+            val scenarioAlreadyActive =
+                recommendationStore.hasActiveScenario(
+                    cefrLevel =
+                        cefrLevel,
+                    scenarioType =
+                        selectedScenario.type
+                )
+
+            if (scenarioAlreadyActive) {
+                Log.d(
+                    USE_CASE_TAG,
+                    "Scenario was already active: " +
+                            selectedScenario.type
+                )
+
+                return@withLock null
+            }
 
             try {
                 Log.d(
                     USE_CASE_TAG,
                     buildString {
                         append(
-                            "Generating locked mission scenario. "
+                            "Generating persisted recommendation. "
                         )
                         append("level=")
                         append(
@@ -373,9 +524,9 @@ class LoadMissionThreadRecommendationUseCase
                         append(
                             selectedScenario.type
                         )
-                        append(", queueSize=")
+                        append(", availableBefore=")
                         append(
-                            recommendationCache.size()
+                            availableCount
                         )
                     }
                 )
@@ -402,52 +553,9 @@ class LoadMissionThreadRecommendationUseCase
                     return@withLock null
                 }
 
-                val wasAdded =
-                    recommendationCache.enqueue(
-                        recommendation =
-                            recommendation
-                    )
-
-                if (!wasAdded) {
-                    Log.d(
-                        USE_CASE_TAG,
-                        buildString {
-                            append(
-                                "Discarded duplicate prefetched "
-                            )
-                            append("mission. scenario=")
-                            append(
-                                recommendation.scenarioType
-                            )
-                            append(", title=")
-                            append(
-                                recommendation.title
-                            )
-                        }
-                    )
-
-                    return@withLock null
-                }
-
-                Log.d(
-                    USE_CASE_TAG,
-                    buildString {
-                        append(
-                            "Prefetched mission recommendation. "
-                        )
-                        append("scenario=")
-                        append(
-                            recommendation.scenarioType
-                        )
-                        append(", title=")
-                        append(
-                            recommendation.title
-                        )
-                        append(", queueSize=")
-                        append(
-                            recommendationCache.size()
-                        )
-                    }
+                recommendationStore.save(
+                    recommendation =
+                        recommendation
                 )
 
                 recommendation
@@ -457,10 +565,15 @@ class LoadMissionThreadRecommendationUseCase
             ) {
                 throw cancellationException
             } catch (throwable: Throwable) {
+                /*
+                 * One failed recommendation must not break the
+                 * thread list or discard already-persisted
+                 * recommendations.
+                 */
                 Log.e(
                     USE_CASE_TAG,
-                    "Could not prefetch a mission-thread " +
-                            "recommendation.",
+                    "Recommendation generation or persistence " +
+                            "failed.",
                     throwable
                 )
 
@@ -470,24 +583,17 @@ class LoadMissionThreadRecommendationUseCase
     }
 
     /*
-     * Selects one curriculum scenario while excluding:
+     * Selects a CEFR curriculum scenario.
      *
-     * - Recently displayed scenarios
-     * - Every scenario currently waiting in the queue
-     *
-     * Recent conversation text is intentionally empty.
-     *
-     * The featured mission cell should follow the CEFR
-     * curriculum rather than repeatedly deriving café and
-     * bakery missions from recent chats.
+     * Recent conversation text is intentionally empty because
+     * the featured recommendation cell should not repeatedly
+     * derive suggestions from coffee-related conversations.
      */
     private fun selectScenario(
-        cefrLevel: CefrLevel
+        cefrLevel: CefrLevel,
+        excludedScenarioTypes:
+        Set<MissionScenarioType>
     ): MissionScenarioDefinition? {
-        val excludedScenarioTypes =
-            recommendationCache
-                .getExcludedScenarioTypes()
-
         val selectedScenario =
             selectMissionScenario(
                 context =
@@ -497,7 +603,7 @@ class LoadMissionThreadRecommendationUseCase
                         recentConversationText =
                             "",
                         recentlyOfferedScenarioTypes =
-                            excludedScenarioTypes,
+                            excludedScenarioTypes.toList(),
                         recentlyCompletedScenarioTypes =
                             emptyList(),
                         adaptiveLearningFocuses =
@@ -507,36 +613,62 @@ class LoadMissionThreadRecommendationUseCase
                     )
             )
 
-        if (selectedScenario != null) {
-            Log.d(
-                USE_CASE_TAG,
-                buildString {
-                    append(
-                        "Selected scenario from CEFR catalog. "
-                    )
-                    append("level=")
-                    append(
-                        cefrLevel.name
-                    )
-                    append(", selected=")
-                    append(
-                        selectedScenario.type
-                    )
-                    append(", excluded=")
-                    append(
-                        excludedScenarioTypes
-                    )
-                }
-            )
-        }
-
+        /*
+         * This final guard prevents a selector fallback from
+         * silently returning an excluded scenario.
+         */
         return selectedScenario
+            ?.takeIf { scenario ->
+                scenario.type !in
+                        excludedScenarioTypes
+            }
     }
 
     /*
-     * Performs defensive validation even though the Qwen
-     * gateway also validates its response.
+     * Temporarily excludes related scenario families.
+     *
+     * This prevents recommendation sequences such as:
+     *
+     * Café ordering
+     * Bakery ordering
+     * Restaurant ordering
+     * Grocery shopping
+     *
+     * even though each item has a different title.
      */
+    private fun expandScenarioFamilyExclusions(
+        excludedScenarioTypes:
+        Set<MissionScenarioType>
+    ): Set<MissionScenarioType> {
+        val expandedExclusions =
+            excludedScenarioTypes
+                .toMutableSet()
+
+        if (
+            excludedScenarioTypes.any { scenarioType ->
+                scenarioType in
+                        FOOD_SERVICE_SCENARIOS
+            }
+        ) {
+            expandedExclusions.addAll(
+                FOOD_SERVICE_SCENARIOS
+            )
+        }
+
+        if (
+            excludedScenarioTypes.any { scenarioType ->
+                scenarioType in
+                        SHOPPING_SCENARIOS
+            }
+        ) {
+            expandedExclusions.addAll(
+                SHOPPING_SCENARIOS
+            )
+        }
+
+        return expandedExclusions
+    }
+
     private fun isValidRecommendation(
         recommendation:
         MissionThreadRecommendation,
@@ -544,10 +676,6 @@ class LoadMissionThreadRecommendationUseCase
         selectedScenario:
         MissionScenarioDefinition
     ): Boolean {
-        /*
-         * The gateway must preserve the Kotlin-selected
-         * semantic scenario.
-         */
         if (
             recommendation.scenarioType !=
             selectedScenario.type
@@ -556,7 +684,7 @@ class LoadMissionThreadRecommendationUseCase
                 USE_CASE_TAG,
                 buildString {
                     append(
-                        "Qwen changed the locked mission scenario. "
+                        "AI changed the locked scenario. "
                     )
                     append("expected=")
                     append(
@@ -572,10 +700,6 @@ class LoadMissionThreadRecommendationUseCase
             return false
         }
 
-        /*
-         * Ensure the generated difficulty exactly matches the
-         * requested CEFR level.
-         */
         if (
             recommendation
                 .opportunity
@@ -586,23 +710,7 @@ class LoadMissionThreadRecommendationUseCase
         ) {
             Log.w(
                 USE_CASE_TAG,
-                buildString {
-                    append(
-                        "Recommendation used the wrong CEFR level. "
-                    )
-                    append("expected=")
-                    append(
-                        cefrLevel.name
-                    )
-                    append(", actual=")
-                    append(
-                        recommendation
-                            .opportunity
-                            .mission
-                            .difficulty
-                            .name
-                    )
-                }
+                "Recommendation used an unexpected CEFR level."
             )
 
             return false
@@ -611,7 +719,11 @@ class LoadMissionThreadRecommendationUseCase
         if (
             recommendation.id.isBlank() ||
             recommendation.title.isBlank() ||
-            recommendation.previewText.isBlank()
+            recommendation.previewText.isBlank() ||
+            recommendation
+                .opportunity
+                .reason
+                .isBlank()
         ) {
             Log.w(
                 USE_CASE_TAG,
@@ -621,40 +733,82 @@ class LoadMissionThreadRecommendationUseCase
             return false
         }
 
-        val objectiveCount =
+        val mission =
             recommendation
                 .opportunity
                 .mission
-                .objectives
-                .size
 
         if (
-            objectiveCount !in
-            MINIMUM_OBJECTIVE_COUNT..
-            MAXIMUM_OBJECTIVE_COUNT
+            mission.description.isBlank() ||
+            mission.scenario.isBlank() ||
+            mission.learnerRole.isBlank() ||
+            mission.assistantRole.isBlank()
         ) {
             Log.w(
                 USE_CASE_TAG,
-                "Recommendation contained $objectiveCount " +
-                        "objectives instead of 8 to 10."
+                "Recommendation contained incomplete mission " +
+                        "data."
             )
 
             return false
         }
 
-        val hasRequiredObjective =
-            recommendation
-                .opportunity
-                .mission
-                .objectives
-                .any { objective ->
-                    objective.isRequired
-                }
+        val objectives =
+            mission.objectives
 
-        if (!hasRequiredObjective) {
+        if (
+            objectives.size !in
+            MINIMUM_OBJECTIVE_COUNT..
+            MAXIMUM_OBJECTIVE_COUNT
+        ) {
             Log.w(
                 USE_CASE_TAG,
-                "Recommendation did not contain a required " +
+                "Recommendation contained " +
+                        "${objectives.size} objectives instead of " +
+                        "$MINIMUM_OBJECTIVE_COUNT to " +
+                        "$MAXIMUM_OBJECTIVE_COUNT."
+            )
+
+            return false
+        }
+
+        if (
+            objectives.none { objective ->
+                objective.isRequired
+            }
+        ) {
+            Log.w(
+                USE_CASE_TAG,
+                "Recommendation had no required objective."
+            )
+
+            return false
+        }
+
+        val everyObjectiveIsComplete =
+            objectives.all { objective ->
+                objective.title.isNotBlank() &&
+                        objective.description.isNotBlank() &&
+                        objective.completionHint.isNotBlank() &&
+                        objective
+                            .sanitizedCoachingHints
+                            .size ==
+                        REQUIRED_COACHING_HINT_COUNT &&
+                        objective
+                            .sanitizedTargetVocabulary
+                            .size in
+                        MINIMUM_TARGET_VOCABULARY_COUNT..
+                        MAXIMUM_TARGET_VOCABULARY_COUNT &&
+                        objective
+                            .sanitizedExamplePhrases
+                            .size ==
+                        REQUIRED_EXAMPLE_PHRASE_COUNT
+            }
+
+        if (!everyObjectiveIsComplete) {
+            Log.w(
+                USE_CASE_TAG,
+                "Recommendation contained an incomplete " +
                         "objective."
             )
 
@@ -668,20 +822,52 @@ class LoadMissionThreadRecommendationUseCase
         const val USE_CASE_TAG =
             "LoadMissionThread"
 
+        const val TARGET_RECOMMENDATION_COUNT =
+            5
+
+        /*
+         * Each generation attempt may fail JSON parsing,
+         * validation, duplicate checks, or networking.
+         */
+        const val MAXIMUM_GENERATION_ATTEMPTS =
+            15
+
+        /*
+         * Stop the cycle when repeated failures indicate an
+         * unavailable service or insufficient scenarios.
+         */
+        const val MAXIMUM_CONSECUTIVE_FAILURES =
+            5
+
         const val MINIMUM_OBJECTIVE_COUNT =
             8
 
         const val MAXIMUM_OBJECTIVE_COUNT =
             10
 
-        /*
-         * Qwen responses can occasionally fail parsing or
-         * validation.
-         *
-         * Fifteen attempts provide room to fill the queue
-         * while preventing an endless retry loop.
-         */
-        const val MAXIMUM_PREFETCH_ATTEMPTS =
-            15
+        const val REQUIRED_COACHING_HINT_COUNT =
+            3
+
+        const val MINIMUM_TARGET_VOCABULARY_COUNT =
+            2
+
+        const val MAXIMUM_TARGET_VOCABULARY_COUNT =
+            4
+
+        const val REQUIRED_EXAMPLE_PHRASE_COUNT =
+            2
+
+        val FOOD_SERVICE_SCENARIOS =
+            setOf(
+                MissionScenarioType.CAFE_ORDERING,
+                MissionScenarioType.RESTAURANT_ORDERING
+            )
+
+        val SHOPPING_SCENARIOS =
+            setOf(
+                MissionScenarioType.GROCERY_SHOPPING,
+                MissionScenarioType.CLOTHING_SHOPPING,
+                MissionScenarioType.RETURNING_A_PRODUCT
+            )
     }
 }

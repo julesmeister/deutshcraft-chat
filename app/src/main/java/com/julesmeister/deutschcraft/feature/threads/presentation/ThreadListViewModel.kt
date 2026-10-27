@@ -35,7 +35,8 @@ class ThreadListViewModel
             ThreadListUiState()
         )
 
-    val uiState: StateFlow<ThreadListUiState> =
+    val uiState:
+            StateFlow<ThreadListUiState> =
         _uiState.asStateFlow()
 
     private val navigationEventChannel =
@@ -59,8 +60,15 @@ class ThreadListViewModel
         _archiveSnackbarEvents
             .asSharedFlow()
 
+    /*
+     * Mission recommendations are no longer synchronously
+     * restored from MissionThreadRecommendationCache.
+     *
+     * The first thread snapshot triggers a Room-backed load.
+     * If a persisted recommendation exists, that load returns
+     * it immediately.
+     */
     init {
-        restoreMissionRecommendation()
         observeThreads()
     }
 
@@ -102,8 +110,10 @@ class ThreadListViewModel
      * Starts the recommendation currently displayed in the
      * top mission cell.
      *
-     * The recommendation is normally started by tapping the
-     * cell. Swiping left only displays another suggestion.
+     * Tapping the recommendation starts it.
+     *
+     * Swiping the recommendation left only displays the next
+     * persisted suggestion.
      */
     fun startRecommendedMission() {
         val currentState =
@@ -155,15 +165,14 @@ class ThreadListViewModel
     }
 
     /*
-     * Advances to the next recommendation in the prefetched
-     * queue.
+     * Marks the currently displayed Room recommendation as
+     * SKIPPED and loads the next eligible recommendation.
      *
-     * When the queue has been filled successfully, this does
-     * not make a Qwen request. It removes the current item and
-     * immediately returns the next cached recommendation.
+     * Normally this is fast because recommendations two
+     * through five are already persisted as READY.
      *
-     * Afterward, background prefetch replenishes the queue to
-     * five items.
+     * After advancing, background prefetch replenishes the
+     * persisted pool to five.
      */
     fun showAnotherMissionRecommendation() {
         val currentState =
@@ -176,6 +185,9 @@ class ThreadListViewModel
         ) {
             return
         }
+
+        val previousRecommendation =
+            currentState.missionRecommendation
 
         val activeThreads =
             activeThreadsFromState(
@@ -194,7 +206,7 @@ class ThreadListViewModel
 
         viewModelScope.launch {
             try {
-                val recommendation =
+                val nextRecommendation =
                     missionRecommendationCoordinator
                         .loadRecommendation(
                             activeThreads =
@@ -203,14 +215,27 @@ class ThreadListViewModel
                                 true
                         )
 
+                /*
+                 * If Room has no next recommendation and
+                 * fallback generation also fails, preserve the
+                 * previous cell rather than making the top of
+                 * the thread list blank.
+                 */
+                val displayedRecommendation =
+                    nextRecommendation
+                        ?: previousRecommendation
+
                 _uiState.update { state ->
                     state.copy(
                         missionRecommendation =
-                            recommendation,
+                            displayedRecommendation,
                         isLoadingMissionRecommendation =
                             false,
                         errorMessage =
-                            if (recommendation == null) {
+                            if (
+                                nextRecommendation ==
+                                null
+                            ) {
                                 DIFFERENT_MISSION_UNAVAILABLE
                             } else {
                                 null
@@ -219,10 +244,9 @@ class ThreadListViewModel
                 }
 
                 /*
-                 * One queue item was consumed.
+                 * One persisted recommendation was consumed.
                  *
-                 * Refill the hidden queue back to five without
-                 * blocking the newly displayed suggestion.
+                 * Replenish the Room pool asynchronously.
                  */
                 prefetchMissionRecommendations(
                     activeThreads =
@@ -235,11 +259,13 @@ class ThreadListViewModel
                 throw cancellationException
             } catch (throwable: Throwable) {
                 /*
-                 * The existing recommendation remains in state
-                 * if queue advancement fails.
+                 * Keep the current recommendation visible when
+                 * Room access, generation, or validation fails.
                  */
                 _uiState.update { state ->
                     state.copy(
+                        missionRecommendation =
+                            previousRecommendation,
                         isLoadingMissionRecommendation =
                             false,
                         errorMessage =
@@ -326,6 +352,15 @@ class ThreadListViewModel
         )
     }
 
+    /*
+     * Handles the latest active and archived thread lists.
+     *
+     * When no recommendation is visible, the ViewModel loads
+     * the first persisted Room recommendation.
+     *
+     * When a recommendation is already visible, it remains in
+     * place and the background pool is replenished.
+     */
     private fun handleThreadSnapshot(
         snapshot: ThreadListsSnapshot
     ) {
@@ -341,17 +376,18 @@ class ThreadListViewModel
             )
         }
 
-        val visibleRecommendation =
-            _uiState
-                .value
-                .missionRecommendation
+        val currentState =
+            _uiState.value
 
-        if (visibleRecommendation != null) {
+        if (
+            currentState.missionRecommendation !=
+            null
+        ) {
             /*
-             * A recommendation was restored from the queue.
+             * Keep the visible recommendation stable during
+             * ordinary thread-list emissions.
              *
-             * Keep it visible and fill any missing hidden queue
-             * items in the background.
+             * Only replenish hidden Room recommendations.
              */
             prefetchMissionRecommendations(
                 activeThreads =
@@ -362,37 +398,33 @@ class ThreadListViewModel
         }
 
         /*
-         * No visible recommendation exists.
-         *
-         * Load only the first recommendation now. The first
-         * valid result is shown immediately. Recommendations
-         * two through five are generated afterward.
+         * Avoid launching duplicate initial recommendation
+         * loads if the thread source emits another snapshot
+         * while Room or Qwen is still loading.
          */
+        if (
+            currentState
+                .isLoadingMissionRecommendation
+        ) {
+            return
+        }
+
         loadFirstMissionRecommendation(
             activeThreads =
                 snapshot.activeThreads
         )
     }
 
-    private fun restoreMissionRecommendation() {
-        val recommendation =
-            missionController
-                .restoreCachedRecommendation()
-
-        _uiState.update { state ->
-            state.recommendationRestored(
-                recommendation =
-                    recommendation
-            )
-        }
-    }
-
     /*
      * Loads the initial visible recommendation.
      *
-     * The learner does not wait for the complete five-item
-     * queue. The first recommendation is displayed as soon as
-     * it is ready.
+     * The Room-backed use case checks in this order:
+     *
+     * 1. Existing DISPLAYED recommendation
+     * 2. Oldest READY recommendation
+     * 3. Generate and persist one recommendation
+     *
+     * The UI does not wait for the complete five-item pool.
      */
     private fun loadFirstMissionRecommendation(
         activeThreads:
@@ -419,10 +451,10 @@ class ThreadListViewModel
                 }
 
                 /*
-                 * Recommendation #1 is now visible.
+                 * Recommendation #1 is visible.
                  *
-                 * Continue generating recommendations #2 to #5
-                 * in the background.
+                 * Generate and persist missing recommendations
+                 * until Room contains five eligible drafts.
                  */
                 prefetchMissionRecommendations(
                     activeThreads =
@@ -435,12 +467,12 @@ class ThreadListViewModel
                 }
 
                 /*
-                 * The existing initial loader may fail because
-                 * of a temporary generation or validation
-                 * issue.
+                 * Initial loading may fail because no persisted
+                 * recommendation existed and the first Qwen
+                 * request failed validation.
                  *
-                 * Let the queue prefetcher continue trying. Its
-                 * first accepted item will be shown immediately.
+                 * The prefetch operation continues trying. Its
+                 * first valid persisted item becomes visible.
                  */
                 prefetchMissionRecommendations(
                     activeThreads =
@@ -451,11 +483,15 @@ class ThreadListViewModel
     }
 
     /*
-     * Fills the recommendation queue to five.
+     * Replenishes the persisted recommendation pool.
      *
-     * If no recommendation is currently displayed, the first
-     * accepted prefetched recommendation is applied to the UI
-     * immediately. Remaining recommendations stay hidden.
+     * The coordinator prevents duplicate prefetch jobs.
+     *
+     * When no recommendation is currently visible, the first
+     * recommendation successfully persisted by the prefetcher
+     * is applied to the UI immediately.
+     *
+     * Recommendations two through five remain hidden in Room.
      */
     private fun prefetchMissionRecommendations(
         activeThreads:
@@ -492,11 +528,11 @@ class ThreadListViewModel
                 },
                 onFailure = {
                     /*
-                     * Prefetch is supplementary.
+                     * Background prefetch failure should not
+                     * interrupt ordinary thread-list usage.
                      *
-                     * If one recommendation is already visible,
-                     * background failure must not show a snackbar
-                     * or remove the visible recommendation.
+                     * When at least one recommendation remains
+                     * visible, keep it unchanged.
                      */
                     if (
                         _uiState
@@ -516,11 +552,14 @@ class ThreadListViewModel
     }
 
     /*
-     * Reconstructs the current active thread list from the
-     * already-built sections.
+     * Reconstructs active threads from the already-built
+     * sections.
      *
-     * This gives recommendation selection the most recently
-     * observed CEFR level when the learner swipes.
+     * The recommendation coordinator uses these threads for:
+     *
+     * - Temporary CEFR-level resolution
+     * - Excluding recognizable scenarios already represented
+     *   by visible threads
      */
     private fun activeThreadsFromState(
         state: ThreadListUiState

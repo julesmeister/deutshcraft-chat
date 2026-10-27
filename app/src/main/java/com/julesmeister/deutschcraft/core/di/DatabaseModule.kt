@@ -10,7 +10,9 @@ import com.julesmeister.deutschcraft.core.database.dao.AssessmentDao
 import com.julesmeister.deutschcraft.core.database.dao.ConversationDao
 import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
 import com.julesmeister.deutschcraft.core.database.dao.MessageDao
+import com.julesmeister.deutschcraft.core.database.dao.MissionAnalyticsDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionDao
+import com.julesmeister.deutschcraft.core.database.dao.MissionThreadRecommendationDao
 import com.julesmeister.deutschcraft.core.database.migration.DatabaseMigrations
 import dagger.Module
 import dagger.Provides
@@ -36,68 +38,120 @@ object DatabaseModule {
             DeutschCraftDatabase::class.java,
             DATABASE_NAME
         )
+            /*
+             * DatabaseMigrations.ALL currently contains:
+             *
+             * 5 -> 6
+             * 6 -> 7
+             * 7 -> 8
+             * 8 -> 9
+             * 9 -> 10
+             *
+             * Future migrations only need to be added to the
+             * ALL array in DatabaseMigrations.
+             */
             .addMigrations(
-                DatabaseMigrations.MIGRATION_5_6,
-                DatabaseMigrations.MIGRATION_6_7,
-                DatabaseMigrations.MIGRATION_7_8
+                *DatabaseMigrations.ALL
             )
             .build()
     }
 
     @Provides
     fun provideConversationDao(
-        database: DeutschCraftDatabase
+        database:
+        DeutschCraftDatabase
     ): ConversationDao {
-        return database.conversationDao()
+        return database
+            .conversationDao()
     }
 
     @Provides
     fun provideMessageDao(
-        database: DeutschCraftDatabase
+        database:
+        DeutschCraftDatabase
     ): MessageDao {
-        return database.messageDao()
+        return database
+            .messageDao()
     }
 
     @Provides
     fun provideLearnerProfileDao(
-        database: DeutschCraftDatabase
+        database:
+        DeutschCraftDatabase
     ): LearnerProfileDao {
-        return database.learnerProfileDao()
+        return database
+            .learnerProfileDao()
     }
 
     @Provides
     fun provideAssessmentDao(
-        database: DeutschCraftDatabase
+        database:
+        DeutschCraftDatabase
     ): AssessmentDao {
-        return database.assessmentDao()
+        return database
+            .assessmentDao()
     }
 
     @Provides
     fun provideActivityDayDao(
-        database: DeutschCraftDatabase
+        database:
+        DeutschCraftDatabase
     ): ActivityDayDao {
-        return database.activityDayDao()
+        return database
+            .activityDayDao()
     }
 
     @Provides
     fun provideMissionDao(
-        database: DeutschCraftDatabase
+        database:
+        DeutschCraftDatabase
     ): MissionDao {
-        return database.missionDao()
+        return database
+            .missionDao()
+    }
+
+    /*
+     * Generated and persisted featured mission
+     * recommendations.
+     */
+    @Provides
+    fun provideMissionThreadRecommendationDao(
+        database:
+        DeutschCraftDatabase
+    ): MissionThreadRecommendationDao {
+        return database
+            .missionThreadRecommendationDao()
+    }
+
+    /*
+     * Mission-performance analytics used by mission results
+     * and future CEFR progress calculations.
+     */
+    @Provides
+    fun provideMissionAnalyticsDao(
+        database:
+        DeutschCraftDatabase
+    ): MissionAnalyticsDao {
+        return database
+            .missionAnalyticsDao()
     }
 
     @Provides
     fun provideAdaptiveLearningDao(
-        database: DeutschCraftDatabase
+        database:
+        DeutschCraftDatabase
     ): AdaptiveLearningDao {
-        return database.adaptiveLearningDao()
+        return database
+            .adaptiveLearningDao()
     }
 
     @Provides
     fun provideAdaptiveLearningMistakeDao(
-        database: DeutschCraftDatabase
+        database:
+        DeutschCraftDatabase
     ): AdaptiveLearningMistakeDao {
-        return database.adaptiveLearningMistakeDao()
+        return database
+            .adaptiveLearningMistakeDao()
     }
 
     private const val DATABASE_NAME =
