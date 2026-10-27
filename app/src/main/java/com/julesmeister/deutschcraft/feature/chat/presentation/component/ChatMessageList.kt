@@ -52,9 +52,21 @@ fun ChatMessageList(
     /*
      * messageId -> phrases the learner marked on that message.
      */
-    markedPhrases: Map<String, List<MarkedPhrase>> = emptyMap(),
+    markedPhrases: Map<String, List<MarkedPhrase>> =
+        emptyMap(),
 
-    onRemoveMarkedPhrase: (String) -> Unit = {}
+    onRemoveMarkedPhrase: (String) -> Unit =
+        {},
+
+    /*
+     * Fired after a message has successfully been copied by a
+     * long press.
+     *
+     * ChatScreen owns the temporary top-bar confirmation
+     * state, so this component only forwards the event.
+     */
+    onMessageCopied: () -> Unit =
+        {}
 ) {
     val messageCount =
         uiState.messages.size
@@ -85,12 +97,16 @@ fun ChatMessageList(
         }
 
     /*
-     * Marked-phrase notes live inside each message item, so
-     * they do not change this count.
+     * Marked-phrase notes live inside their message item,
+     * therefore they do not change the LazyColumn item count.
      */
     val bottomAnchorIndex =
         entries.size +
-                if (hasTypingIndicator) 1 else 0
+                if (hasTypingIndicator) {
+                    1
+                } else {
+                    0
+                }
 
     val listState =
         rememberLazyListState(
@@ -110,7 +126,8 @@ fun ChatMessageList(
         remember(uiState.messages) {
             uiState.messages
                 .lastOrNull { message ->
-                    message.sender == MessageSender.USER
+                    message.sender ==
+                            MessageSender.USER
                 }
                 ?.id
         }
@@ -119,7 +136,8 @@ fun ChatMessageList(
         remember(uiState.messages) {
             uiState.messages
                 .lastOrNull { message ->
-                    message.sender == MessageSender.ASSISTANT
+                    message.sender ==
+                            MessageSender.ASSISTANT
                 }
                 ?.id
         }
@@ -133,7 +151,10 @@ fun ChatMessageList(
             mutableStateMapOf<String, Boolean>()
                 .apply {
                     uiState.messages.forEach { message ->
-                        put(message.id, true)
+                        put(
+                            message.id,
+                            true
+                        )
                     }
                 }
         }
@@ -165,11 +186,16 @@ fun ChatMessageList(
     ) {
         items(
             items = entries,
-            key = { entry -> entry.key },
+            key = { entry ->
+                entry.key
+            },
             contentType = { entry ->
                 when (entry) {
-                    is ChatListEntry.DateSeparator -> "date"
-                    is ChatListEntry.Message -> "message"
+                    is ChatListEntry.DateSeparator ->
+                        "date"
+
+                    is ChatListEntry.Message ->
+                        "message"
                 }
             }
         ) { entry ->
@@ -185,10 +211,13 @@ fun ChatMessageList(
                         entry.message
 
                     val isUserMessage =
-                        message.sender == MessageSender.USER
+                        message.sender ==
+                                MessageSender.USER
 
                     val attachedPhrases =
-                        markedPhrases[message.id].orEmpty()
+                        markedPhrases[
+                            message.id
+                        ].orEmpty()
 
                     Column(
                         modifier =
@@ -199,7 +228,9 @@ fun ChatMessageList(
                                     end =
                                         MESSAGE_HORIZONTAL_PADDING,
                                     top =
-                                        if (entry.isFirstInGroup) {
+                                        if (
+                                            entry.isFirstInGroup
+                                        ) {
                                             GROUP_START_SPACING
                                         } else {
                                             GROUPED_MESSAGE_SPACING
@@ -207,49 +238,94 @@ fun ChatMessageList(
                                 )
                                 .animateContentSize()
                     ) {
-                        /*
-                         * Source bubble keeps its normal rounded
-                         * corners.
-                         */
                         AnimatedMessageItem(
-                            message = message,
-                            correction = message.correction,
+                            message =
+                                message,
+
+                            correction =
+                                message.correction,
+
                             isLatestUserMessage =
-                                message.id == latestUserMessageId,
+                                message.id ==
+                                        latestUserMessageId,
+
                             isLatestAssistantMessage =
-                                message.id == latestAssistantMessageId,
+                                message.id ==
+                                        latestAssistantMessageId,
+
                             hasAlreadyBeenSeen =
-                                seenMessageIds[message.id] == true,
+                                seenMessageIds[
+                                    message.id
+                                ] == true,
 
                             /*
-                             * Tells the source bubble whether a marked-phrase note
-                             * is connected directly underneath it.
+                             * Lets MessageBubble adjust only
+                             * the corner that joins its
+                             * marked-phrase note.
                              */
                             hasAttachedPhrase =
-                                attachedPhrases.isNotEmpty(),
+                                attachedPhrases
+                                    .isNotEmpty(),
 
                             onAnimationStarted = {
-                                seenMessageIds[message.id] = true
+                                seenMessageIds[
+                                    message.id
+                                ] =
+                                    true
                             },
+
+                            /*
+                             * Normal tap:
+                             *
+                             * Open the existing message-action
+                             * learning sheet.
+                             */
                             onClick = {
-                                onMessageClick(message)
+                                onMessageClick(
+                                    message
+                                )
                             },
-                            modifier = Modifier
+
+                            /*
+                             * Long press is handled by
+                             * MessageBubble:
+                             *
+                             * 1. Copy visible primary text.
+                             * 2. Call this callback.
+                             * 3. ChatScreen shows confirmation
+                             *    in the top bar.
+                             */
+                            onMessageCopied =
+                                onMessageCopied,
+
+                            modifier =
+                                Modifier
                         )
 
                         /*
-                         * Notes sit flush under the bubble with no
-                         * gap. Their top edge is flat; only the
-                         * last note rounds its bottom corners.
+                         * Notes sit flush underneath their
+                         * source message.
+                         *
+                         * The marked-phrase note owns its flat
+                         * top edge.
+                         *
+                         * Only the final note gets rounded
+                         * bottom corners when several notes are
+                         * attached to the same message.
                          */
                         attachedPhrases.forEachIndexed { index, phrase ->
                             MarkedPhraseBubble(
-                                phrase = phrase,
-                                isUserMessage = isUserMessage,
+                                phrase =
+                                    phrase,
+                                isUserMessage =
+                                    isUserMessage,
                                 isLast =
-                                    index == attachedPhrases.lastIndex,
+                                    index ==
+                                            attachedPhrases.lastIndex,
                                 onRemove = {
-                                    onRemoveMarkedPhrase(phrase.id)
+                                    onRemoveMarkedPhrase(
+                                        phrase.id
+                                    )
                                 }
                             )
                         }
@@ -259,22 +335,31 @@ fun ChatMessageList(
         }
 
         if (hasTypingIndicator) {
-            item(key = TYPING_INDICATOR_KEY) {
+            item(
+                key = TYPING_INDICATOR_KEY
+            ) {
                 TypingIndicator(
                     modifier =
                         Modifier.padding(
-                            start = MESSAGE_HORIZONTAL_PADDING,
-                            end = MESSAGE_HORIZONTAL_PADDING,
-                            top = GROUP_START_SPACING
+                            start =
+                                MESSAGE_HORIZONTAL_PADDING,
+                            end =
+                                MESSAGE_HORIZONTAL_PADDING,
+                            top =
+                                GROUP_START_SPACING
                         )
                 )
             }
         }
 
-        item(key = BOTTOM_ANCHOR_KEY) {
+        item(
+            key = BOTTOM_ANCHOR_KEY
+        ) {
             Spacer(
                 modifier =
-                    Modifier.height(BOTTOM_ANCHOR_HEIGHT)
+                    Modifier.height(
+                        BOTTOM_ANCHOR_HEIGHT
+                    )
             )
         }
     }
@@ -312,33 +397,48 @@ private fun buildChatListEntries(
         ZoneId.systemDefault()
 
     val today =
-        LocalDate.now(zone)
+        LocalDate.now(
+            zone
+        )
 
     val entries =
         mutableListOf<ChatListEntry>()
 
-    var previousDate: LocalDate? = null
-    var previousMessage: ChatMessage? = null
+    var previousDate:
+            LocalDate? =
+        null
+
+    var previousMessage:
+            ChatMessage? =
+        null
 
     messages.forEach { message ->
         val messageDate =
             Instant
-                .ofEpochMilli(message.timestamp)
-                .atZone(zone)
+                .ofEpochMilli(
+                    message.timestamp
+                )
+                .atZone(
+                    zone
+                )
                 .toLocalDate()
 
         val isNewDay =
-            messageDate != previousDate
+            messageDate !=
+                    previousDate
 
         if (isNewDay) {
             entries.add(
                 ChatListEntry.DateSeparator(
                     label =
                         formatDateSeparator(
-                            date = messageDate,
-                            today = today
+                            date =
+                                messageDate,
+                            today =
+                                today
                         ),
-                    key = "date-$messageDate"
+                    key =
+                        "date-$messageDate"
                 )
             )
         }
@@ -349,19 +449,26 @@ private fun buildChatListEntries(
         val isFirstInGroup =
             isNewDay ||
                     previous == null ||
-                    previous.sender != message.sender ||
-                    message.timestamp - previous.timestamp >
+                    previous.sender !=
+                    message.sender ||
+                    message.timestamp -
+                    previous.timestamp >
                     GROUP_TIME_WINDOW_MILLIS
 
         entries.add(
             ChatListEntry.Message(
-                message = message,
-                isFirstInGroup = isFirstInGroup
+                message =
+                    message,
+                isFirstInGroup =
+                    isFirstInGroup
             )
         )
 
-        previousDate = messageDate
-        previousMessage = message
+        previousDate =
+            messageDate
+
+        previousMessage =
+            message
     }
 
     return entries
@@ -372,9 +479,11 @@ private fun formatDateSeparator(
     today: LocalDate
 ): String {
     return when {
-        date == today -> "Heute"
+        date == today ->
+            "Heute"
 
-        date == today.minusDays(1) -> "Gestern"
+        date == today.minusDays(1) ->
+            "Gestern"
 
         date.year == today.year -> {
             date.format(
@@ -411,33 +520,46 @@ private fun ChatDateSeparator(
             Modifier
                 .fillMaxWidth()
                 .padding(
-                    top = DATE_SEPARATOR_TOP_PADDING,
-                    bottom = DATE_SEPARATOR_BOTTOM_PADDING
+                    top =
+                        DATE_SEPARATOR_TOP_PADDING,
+                    bottom =
+                        DATE_SEPARATOR_BOTTOM_PADDING
                 ),
         contentAlignment =
             Alignment.Center
     ) {
         Text(
-            text = label,
+            text =
+                label,
             modifier =
                 Modifier
-                    .clip(RoundedCornerShape(50))
+                    .clip(
+                        RoundedCornerShape(50)
+                    )
                     .background(
                         MaterialTheme
                             .colorScheme
                             .surfaceContainerHigh
-                            .copy(alpha = 0.85f)
+                            .copy(
+                                alpha = 0.85f
+                            )
                     )
                     .padding(
-                        horizontal = 12.dp,
-                        vertical = 4.dp
+                        horizontal =
+                            12.dp,
+                        vertical =
+                            4.dp
                     ),
             style =
-                MaterialTheme.typography.labelSmall,
+                MaterialTheme
+                    .typography
+                    .labelSmall,
             fontWeight =
                 FontWeight.Medium,
             color =
-                MaterialTheme.colorScheme.onSurfaceVariant
+                MaterialTheme
+                    .colorScheme
+                    .onSurfaceVariant
         )
     }
 }
@@ -447,22 +569,39 @@ private fun ChatMessageListEmptyState(
     modifier: Modifier
 ) {
     Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier.fillMaxSize(),
+        contentAlignment =
+            Alignment.Center
     ) {
         ChatEmptyState()
     }
 }
 
+/*
+ * Messages from the same sender within this window are
+ * visually grouped.
+ */
 private const val GROUP_TIME_WINDOW_MILLIS =
     5 * 60 * 1_000L
 
-private val MESSAGE_LIST_TOP_PADDING = 4.dp
-private val MESSAGE_LIST_BOTTOM_BREATHING_ROOM = 8.dp
-private val MESSAGE_HORIZONTAL_PADDING = 12.dp
+private val MESSAGE_LIST_TOP_PADDING =
+    4.dp
 
-private val GROUP_START_SPACING = 12.dp
-private val GROUPED_MESSAGE_SPACING = 2.dp
+private val MESSAGE_LIST_BOTTOM_BREATHING_ROOM =
+    8.dp
 
-private val DATE_SEPARATOR_TOP_PADDING = 16.dp
-private val DATE_SEPARATOR_BOTTOM_PADDING = 4.dp
+private val MESSAGE_HORIZONTAL_PADDING =
+    12.dp
+
+private val GROUP_START_SPACING =
+    12.dp
+
+private val GROUPED_MESSAGE_SPACING =
+    2.dp
+
+private val DATE_SEPARATOR_TOP_PADDING =
+    16.dp
+
+private val DATE_SEPARATOR_BOTTOM_PADDING =
+    4.dp

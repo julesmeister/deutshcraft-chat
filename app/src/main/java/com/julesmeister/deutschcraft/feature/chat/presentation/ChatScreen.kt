@@ -36,6 +36,7 @@ import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.Missi
 import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceUiState
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhrase
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhraseType
+import kotlinx.coroutines.delay
 
 @Composable
 fun ChatScreen(
@@ -48,9 +49,6 @@ fun ChatScreen(
     missionResultUiState:
     MissionResultUiState,
 
-    /*
-     * messageId -> phrases the learner marked on that message.
-     */
     markedPhrases:
     Map<String, List<MarkedPhrase>>,
 
@@ -60,9 +58,6 @@ fun ChatScreen(
     onBackClick:
         () -> Unit,
 
-    /*
-     * Active mission guidance callbacks.
-     */
     onOpenMissionGuidance:
         () -> Unit,
 
@@ -78,18 +73,12 @@ fun ChatScreen(
     onToggleMissionExamples:
         () -> Unit,
 
-    /*
-     * Completed mission result callbacks.
-     */
     onDismissMissionResult:
         () -> Unit,
 
     onContinueAfterMissionResult:
         () -> Unit,
 
-    /*
-     * Marked phrase callbacks.
-     */
     onMarkPhrase:
         (
         messageId: String,
@@ -135,18 +124,34 @@ fun ChatScreen(
 
     var scrollRequestKey by
     remember {
-        mutableIntStateOf(
-            0
-        )
+        mutableIntStateOf(0)
     }
 
     var bottomOverlayHeight by
     remember {
-        mutableStateOf(
-            0.dp
-        )
+        mutableStateOf(0.dp)
     }
 
+    /*
+     * Every copy increments this key.
+     *
+     * Repeated copies restart the confirmation timer.
+     */
+    var copyConfirmationKey by
+    remember {
+        mutableIntStateOf(0)
+    }
+
+    var showCopiedConfirmation by
+    remember {
+        mutableStateOf(false)
+    }
+
+    /*
+     * Keep Snackbar only for real chat errors.
+     *
+     * Clipboard confirmation never uses this host.
+     */
     LaunchedEffect(
         uiState.errorMessage
     ) {
@@ -165,14 +170,26 @@ fun ChatScreen(
     }
 
     /*
-     * =======================================================
-     * MESSAGE ACTION SHEET
-     * =======================================================
-     *
-     * Learner messages show the Besser version when one
-     * exists. Highlighted phrases are saved against this
-     * message's ID.
+     * Brief top-bar confirmation.
      */
+    LaunchedEffect(
+        copyConfirmationKey
+    ) {
+        if (copyConfirmationKey == 0) {
+            return@LaunchedEffect
+        }
+
+        showCopiedConfirmation =
+            true
+
+        delay(
+            COPY_CONFIRMATION_DURATION_MILLIS
+        )
+
+        showCopiedConfirmation =
+            false
+    }
+
     selectedMessage?.let { message ->
         val sheetSentence =
             message.preferredStudySentence()
@@ -214,7 +231,9 @@ fun ChatScreen(
                 message.isShowingBesserVersion(),
 
             markedPhrases =
-                markedPhrases[message.id].orEmpty(),
+                markedPhrases[
+                    message.id
+                ].orEmpty(),
 
             onMarkPhrase = { phrase, type ->
                 onMarkPhrase(
@@ -227,11 +246,6 @@ fun ChatScreen(
         )
     }
 
-    /*
-     * =======================================================
-     * MISSION GUIDANCE SHEET
-     * =======================================================
-     */
     MissionGuidanceBottomSheet(
         state =
             missionGuidanceUiState,
@@ -249,11 +263,6 @@ fun ChatScreen(
             onToggleMissionExamples
     )
 
-    /*
-     * =======================================================
-     * MISSION RESULT SHEET
-     * =======================================================
-     */
     MissionResultBottomSheet(
         state =
             missionResultUiState,
@@ -276,14 +285,10 @@ fun ChatScreen(
 
         contentWindowInsets =
             WindowInsets(
-                left =
-                    0,
-                top =
-                    0,
-                right =
-                    0,
-                bottom =
-                    0
+                left = 0,
+                top = 0,
+                right = 0,
+                bottom = 0
             ),
 
         topBar = {
@@ -315,6 +320,13 @@ fun ChatScreen(
                 adaptiveLearningFeedbackEvent =
                     uiState
                         .adaptiveLearningFeedbackEvent,
+
+                /*
+                 * This is the actual connection from the
+                 * long-press copy event to the top bar.
+                 */
+                showCopiedConfirmation =
+                    showCopiedConfirmation,
 
                 onObjectiveCompletionShown = { eventId ->
                     onAction(
@@ -353,10 +365,9 @@ fun ChatScreen(
                 Modifier
                     .fillMaxSize()
                     .background(
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .background
+                        MaterialTheme
+                            .colorScheme
+                            .background
                     )
                     .padding(
                         top =
@@ -377,15 +388,25 @@ fun ChatScreen(
                 bottomOverlayHeight =
                     bottomOverlayHeight,
 
-                /*
-                 * Explanation bubbles attached under their
-                 * original messages.
-                 */
                 markedPhrases =
                     markedPhrases,
 
                 onRemoveMarkedPhrase =
                     onRemoveMarkedPhrase,
+
+                /*
+                 * MessageBubble has already:
+                 *
+                 * 1. Copied the visible primary sentence.
+                 * 2. Started the animated circle beside the
+                 *    bubble.
+                 *
+                 * This starts the separate top-bar message.
+                 */
+                onMessageCopied = {
+                    copyConfirmationKey +=
+                        1
+                },
 
                 onMessageClick = { message ->
                     messageActionViewModel.reset()
@@ -417,9 +438,7 @@ fun ChatScreen(
                         )
                         .onSizeChanged { size ->
                             val measuredHeight =
-                                with(
-                                    density
-                                ) {
+                                with(density) {
                                     size.height.toDp()
                                 }
 
@@ -436,10 +455,6 @@ fun ChatScreen(
     }
 }
 
-/*
- * Learner messages use the Besser correction when one exists.
- * Emil's messages are already correct.
- */
 private fun ChatMessage.preferredStudySentence(): String {
     return if (isShowingBesserVersion()) {
         correction.orEmpty()
@@ -448,11 +463,11 @@ private fun ChatMessage.preferredStudySentence(): String {
     }
 }
 
-/*
- * True when this is a learner message with a Besser
- * correction, so the sheet labels it "✦ BESSER-VERSION".
- */
 private fun ChatMessage.isShowingBesserVersion(): Boolean {
-    return sender == MessageSender.USER &&
+    return sender ==
+            MessageSender.USER &&
             !correction.isNullOrBlank()
 }
+
+private const val COPY_CONFIRMATION_DURATION_MILLIS =
+    1_100L

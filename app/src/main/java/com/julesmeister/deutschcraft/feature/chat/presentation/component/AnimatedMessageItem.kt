@@ -31,47 +31,40 @@ internal fun AnimatedMessageItem(
     hasAlreadyBeenSeen: Boolean,
 
     /*
-     * True when this message has at least one marked-phrase
-     * bubble directly underneath it.
-     *
-     * This is forwarded to MessageBubble so only the joining
-     * bottom corner of the source bubble becomes flat.
+     * True when at least one marked-phrase note is attached
+     * directly underneath this message.
      */
     hasAttachedPhrase: Boolean,
 
     onAnimationStarted: () -> Unit,
+
+    /*
+     * Normal tap opens the message-action bottom sheet.
+     */
     onClick: () -> Unit,
+
+    /*
+     * Forwarded after MessageBubble successfully copies its
+     * visible primary sentence.
+     */
+    onMessageCopied: () -> Unit,
+
     modifier: Modifier = Modifier
 ) {
     var isVisible by
-    remember(
-        message.id
-    ) {
-        mutableStateOf(
-            hasAlreadyBeenSeen
-        )
+    remember(message.id) {
+        mutableStateOf(hasAlreadyBeenSeen)
     }
 
     LaunchedEffect(
         message.id,
         hasAlreadyBeenSeen
     ) {
-        /*
-         * Messages restored from Room should appear
-         * immediately instead of replaying their entrance
-         * animation.
-         */
         if (hasAlreadyBeenSeen) {
-            isVisible =
-                true
-
+            isVisible = true
             return@LaunchedEffect
         }
 
-        /*
-         * Small delay allows the previous UI state to settle
-         * before a newly-created message enters.
-         */
         delay(
             MESSAGE_ENTRANCE_START_DELAY_MILLIS
                 .milliseconds
@@ -79,33 +72,23 @@ internal fun AnimatedMessageItem(
 
         onAnimationStarted()
 
-        isVisible =
-            true
+        isVisible = true
     }
 
     AnimatedVisibility(
-        visible =
-            isVisible,
-        modifier =
-            modifier.fillMaxWidth(),
-        enter =
-            messageEnterTransition(),
-        exit =
-            messageExitTransition()
+        visible = isVisible,
+        modifier = modifier.fillMaxWidth(),
+        enter = messageEnterTransition(),
+        exit = messageExitTransition()
     ) {
         MessageBubble(
-            message =
-                message,
-            correction =
-                correction,
-            isLatestUserMessage =
-                isLatestUserMessage,
-            isLatestAssistantMessage =
-                isLatestAssistantMessage,
-            hasAttachedPhrase =
-                hasAttachedPhrase,
-            onClick =
-                onClick
+            message = message,
+            correction = correction,
+            isLatestUserMessage = isLatestUserMessage,
+            isLatestAssistantMessage = isLatestAssistantMessage,
+            hasAttachedPhrase = hasAttachedPhrase,
+            onClick = onClick,
+            onMessageCopied = onMessageCopied
         )
     }
 }

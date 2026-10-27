@@ -3,9 +3,10 @@ package com.julesmeister.deutschcraft.feature.chat.presentation.component
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -24,11 +25,27 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
+/*
+ * Generic chat-message bubble shell.
+ *
+ * Gestures:
+ *
+ * Single tap:
+ *     Opens the existing AI message-action bottom sheet.
+ *
+ * Long press:
+ *     Opens the message context menu.
+ *
+ * The container does not decide what either action does.
+ * Those callbacks are supplied by the presentation layer.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun MessageBubbleContainer(
     shape: Shape,
     backgroundColor: Color,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     borderColor: Color = Color.Transparent,
     maxWidth: Dp = DEFAULT_MAXIMUM_BUBBLE_WIDTH,
@@ -39,19 +56,30 @@ internal fun MessageBubbleContainer(
             MutableInteractionSource()
         }
 
+    /*
+     * combinedClickable still emits press interactions through
+     * this interaction source, so the existing press-scale
+     * animation continues to work for both taps and long
+     * presses.
+     */
     val isPressed by
     interactionSource.collectIsPressedAsState()
 
     val animatedScale by
     animateFloatAsState(
         targetValue =
-            if (isPressed) PRESSED_BUBBLE_SCALE else 1f,
+            if (isPressed) {
+                PRESSED_BUBBLE_SCALE
+            } else {
+                1f
+            },
         animationSpec =
             spring(
                 dampingRatio = 0.72f,
                 stiffness = 650f
             ),
-        label = "MessageBubblePressScale"
+        label =
+            "MessageBubblePressScale"
     )
 
     Box(
@@ -59,12 +87,17 @@ internal fun MessageBubbleContainer(
             modifier
                 .wrapContentWidth()
                 .widthIn(
-                    min = MINIMUM_BUBBLE_WIDTH,
-                    max = maxWidth
+                    min =
+                        MINIMUM_BUBBLE_WIDTH,
+                    max =
+                        maxWidth
                 )
                 .graphicsLayer {
-                    scaleX = animatedScale
-                    scaleY = animatedScale
+                    scaleX =
+                        animatedScale
+
+                    scaleY =
+                        animatedScale
                 }
                 .animateContentSize(
                     animationSpec =
@@ -73,30 +106,53 @@ internal fun MessageBubbleContainer(
                             stiffness = 420f
                         )
                 )
-                .clip(shape)
-                .background(backgroundColor)
-                .border(
-                    width = BORDER_WIDTH,
-                    color = borderColor,
-                    shape = shape
+                .clip(
+                    shape
                 )
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick
+                .background(
+                    backgroundColor
+                )
+                .border(
+                    width =
+                        BORDER_WIDTH,
+                    color =
+                        borderColor,
+                    shape =
+                        shape
+                )
+                .combinedClickable(
+                    interactionSource =
+                        interactionSource,
+                    indication =
+                        null,
+                    onClick =
+                        onClick,
+                    onLongClick =
+                        onLongClick
                 )
                 .padding(
-                    start = 14.dp,
-                    end = 12.dp,
-                    top = 9.dp,
-                    bottom = 8.dp
+                    start =
+                        14.dp,
+                    end =
+                        12.dp,
+                    top =
+                        9.dp,
+                    bottom =
+                        8.dp
                 ),
-        content = content
+        content =
+            content
     )
 }
 
-private val MINIMUM_BUBBLE_WIDTH = 64.dp
-private val DEFAULT_MAXIMUM_BUBBLE_WIDTH = 320.dp
-private val BORDER_WIDTH = 0.75.dp
+private val MINIMUM_BUBBLE_WIDTH =
+    64.dp
 
-private const val PRESSED_BUBBLE_SCALE = 0.965f
+private val DEFAULT_MAXIMUM_BUBBLE_WIDTH =
+    320.dp
+
+private val BORDER_WIDTH =
+    0.75.dp
+
+private const val PRESSED_BUBBLE_SCALE =
+    0.965f
