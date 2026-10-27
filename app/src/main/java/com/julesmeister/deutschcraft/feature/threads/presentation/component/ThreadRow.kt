@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,15 +31,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.threads.domain.ConversationThread
-import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThreadRow(
@@ -62,19 +59,24 @@ fun ThreadRow(
                 }
 
                 /*
-                 * Returning false prevents the row
-                 * from remaining dismissed. The swipe
-                 * only opens the custom action dialog.
+                 * The swipe only opens the action UI.
+                 *
+                 * Returning false prevents the conversation
+                 * row from remaining dismissed.
                  */
                 false
             }
         )
 
     SwipeToDismissBox(
-        modifier = modifier.fillMaxWidth(),
-        state = dismissState,
-        enableDismissFromStartToEnd = false,
-        enableDismissFromEndToStart = true,
+        modifier =
+            modifier.fillMaxWidth(),
+        state =
+            dismissState,
+        enableDismissFromStartToEnd =
+            false,
+        enableDismissFromEndToStart =
+            true,
         backgroundContent = {
             SwipeActionBackground(
                 progress =
@@ -83,8 +85,10 @@ fun ThreadRow(
         }
     ) {
         ThreadRowContent(
-            thread = thread,
-            onClick = onClick
+            thread =
+                thread,
+            onClick =
+                onClick
         )
     }
 }
@@ -93,48 +97,91 @@ fun ThreadRow(
 private fun SwipeActionBackground(
     progress: Float
 ) {
-    val animatedScale by animateFloatAsState(
+    val accentColor =
+        MaterialTheme
+            .colorScheme
+            .primary
+
+    val animatedScale by
+    animateFloatAsState(
         targetValue =
             0.75f +
-                    progress.coerceIn(0f, 1f) *
+                    progress
+                        .coerceIn(
+                            0f,
+                            1f
+                        ) *
                     0.25f,
-        animationSpec = spring(),
-        label = "thread-swipe-icon-scale"
+        animationSpec =
+            spring(),
+        label =
+            "thread-swipe-icon-scale"
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                DeutschLime.copy(
-                    alpha =
-                        0.14f +
-                                progress
-                                    .coerceIn(0f, 1f) *
-                                0.18f
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    accentColor.copy(
+                        alpha =
+                            SWIPE_BACKGROUND_BASE_ALPHA +
+                                    progress
+                                        .coerceIn(
+                                            0f,
+                                            1f
+                                        ) *
+                                    SWIPE_BACKGROUND_PROGRESS_ALPHA
+                    )
                 )
-            )
-            .padding(end = 22.dp),
+                .padding(
+                    end =
+                        SWIPE_ACTION_END_PADDING
+                ),
         contentAlignment =
             Alignment.CenterEnd
     ) {
         Box(
-            modifier = Modifier
-                .size(44.dp)
-                .graphicsLayer {
-                    scaleX = animatedScale
-                    scaleY = animatedScale
-                }
-                .clip(CircleShape)
-                .background(DeutschLime),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .size(
+                        SWIPE_ACTION_SIZE
+                    )
+                    .graphicsLayer {
+                        scaleX =
+                            animatedScale
+
+                        scaleY =
+                            animatedScale
+                    }
+                    .clip(
+                        CircleShape
+                    )
+                    .background(
+                        accentColor
+                    ),
+            contentAlignment =
+                Alignment.Center
         ) {
             Icon(
-                modifier = Modifier.size(22.dp),
+                modifier =
+                    Modifier.size(
+                        SWIPE_ACTION_ICON_SIZE
+                    ),
                 imageVector =
-                    Icons.Outlined.MoreHoriz,
-                contentDescription = null,
-                tint = DeutschTextOnLime
+                    Icons
+                        .Outlined
+                        .MoreHoriz,
+                contentDescription =
+                    null,
+
+                /*
+                 * Keep this fixed because it is content
+                 * intentionally displayed over the lime
+                 * branding surface.
+                 */
+                tint =
+                    DeutschTextOnLime
             )
         }
     }
@@ -146,70 +193,105 @@ private fun ThreadRowContent(
     onClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                MaterialTheme.colorScheme.background
-            )
-            .clickable(onClick = onClick)
-            .padding(
-                start = 16.dp,
-                top = 12.dp,
-                end = 16.dp,
-                bottom = 12.dp
-            ),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(
+                    MaterialTheme
+                        .colorScheme
+                        .background
+                )
+                .clickable(
+                    onClick =
+                        onClick
+                )
+                .padding(
+                    start =
+                        THREAD_ROW_HORIZONTAL_PADDING,
+                    top =
+                        THREAD_ROW_VERTICAL_PADDING,
+                    end =
+                        THREAD_ROW_HORIZONTAL_PADDING,
+                    bottom =
+                        THREAD_ROW_VERTICAL_PADDING
+                ),
         verticalAlignment =
             Alignment.CenterVertically
     ) {
         ThreadLevelAvatar(
-            thread = thread
+            thread =
+                thread
         )
 
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 12.dp)
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(
+                        start =
+                            THREAD_CONTENT_START_PADDING
+                    )
         ) {
             Row(
                 verticalAlignment =
                     Alignment.CenterVertically
             ) {
                 Text(
-                    modifier = Modifier.weight(1f),
-                    text = thread.displayTitle,
-                    color = DeutschTextPrimary,
+                    modifier =
+                        Modifier.weight(1f),
+                    text =
+                        thread.displayTitle,
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .onBackground,
                     style =
-                        MaterialTheme.typography
+                        MaterialTheme
+                            .typography
                             .titleMedium,
                     fontWeight =
                         FontWeight.SemiBold,
-                    maxLines = 1,
+                    maxLines =
+                        1,
                     overflow =
                         TextOverflow.Ellipsis
                 )
 
                 Text(
-                    text = formatThreadTime(
-                        timestamp =
-                            thread.updatedAt
-                    ),
-                    color = DeutschTextSecondary,
+                    text =
+                        formatThreadTime(
+                            timestamp =
+                                thread.updatedAt
+                        ),
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .onSurfaceVariant,
                     style =
-                        MaterialTheme.typography
+                        MaterialTheme
+                            .typography
                             .labelMedium
                 )
             }
 
             Text(
-                modifier = Modifier.padding(
-                    top = 4.dp
-                ),
-                text = thread.displayPreview,
-                color = DeutschTextSecondary,
+                modifier =
+                    Modifier.padding(
+                        top =
+                            THREAD_PREVIEW_TOP_PADDING
+                    ),
+                text =
+                    thread.displayPreview,
+                color =
+                    MaterialTheme
+                        .colorScheme
+                        .onSurfaceVariant,
                 style =
-                    MaterialTheme.typography
+                    MaterialTheme
+                        .typography
                         .bodySmall,
-                maxLines = 1,
+                maxLines =
+                    1,
                 overflow =
                     TextOverflow.Ellipsis
             )
@@ -221,24 +303,40 @@ private fun ThreadRowContent(
 private fun ThreadLevelAvatar(
     thread: ConversationThread
 ) {
+    val accentColor =
+        MaterialTheme
+            .colorScheme
+            .primary
+
     Box(
-        modifier = Modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .background(
-                DeutschLime.copy(
-                    alpha = 0.14f
+        modifier =
+            Modifier
+                .size(
+                    THREAD_AVATAR_SIZE
                 )
-            ),
-        contentAlignment = Alignment.Center
+                .clip(
+                    CircleShape
+                )
+                .background(
+                    accentColor.copy(
+                        alpha =
+                            THREAD_AVATAR_BACKGROUND_ALPHA
+                    )
+                ),
+        contentAlignment =
+            Alignment.Center
     ) {
         Text(
-            text = thread.cefrLevel.name,
-            color = DeutschLime,
+            text =
+                thread.cefrLevel.name,
+            color =
+                accentColor,
             style =
-                MaterialTheme.typography
+                MaterialTheme
+                    .typography
                     .labelLarge,
-            fontWeight = FontWeight.Bold
+            fontWeight =
+                FontWeight.Bold
         )
     }
 }
@@ -256,3 +354,36 @@ private fun formatThreadTime(
 
 private const val SWIPE_THRESHOLD_FRACTION =
     0.35f
+
+private const val SWIPE_BACKGROUND_BASE_ALPHA =
+    0.14f
+
+private const val SWIPE_BACKGROUND_PROGRESS_ALPHA =
+    0.18f
+
+private const val THREAD_AVATAR_BACKGROUND_ALPHA =
+    0.14f
+
+private val SWIPE_ACTION_END_PADDING =
+    22.dp
+
+private val SWIPE_ACTION_SIZE =
+    44.dp
+
+private val SWIPE_ACTION_ICON_SIZE =
+    22.dp
+
+private val THREAD_ROW_HORIZONTAL_PADDING =
+    16.dp
+
+private val THREAD_ROW_VERTICAL_PADDING =
+    12.dp
+
+private val THREAD_CONTENT_START_PADDING =
+    12.dp
+
+private val THREAD_PREVIEW_TOP_PADDING =
+    4.dp
+
+private val THREAD_AVATAR_SIZE =
+    48.dp

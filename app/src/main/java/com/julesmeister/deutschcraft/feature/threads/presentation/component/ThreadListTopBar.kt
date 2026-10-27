@@ -22,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ProgressStreakButton
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,16 +51,22 @@ fun ThreadListTopBar(
                         .colorScheme
                         .background,
                 titleContentColor =
-                    DeutschTextPrimary,
+                    MaterialTheme
+                        .colorScheme
+                        .onBackground,
                 actionIconContentColor =
-                    DeutschTextPrimary
+                    MaterialTheme
+                        .colorScheme
+                        .onBackground
             ),
         title = {
             Text(
                 text =
                     "Unterhaltungen",
                 color =
-                    DeutschTextPrimary,
+                    MaterialTheme
+                        .colorScheme
+                        .onBackground,
                 style =
                     MaterialTheme
                         .typography
@@ -100,9 +105,15 @@ fun ThreadListTopBar(
                 ) {
                     Icon(
                         imageVector =
-                            Icons.Outlined.MoreVert,
+                            Icons
+                                .Outlined
+                                .MoreVert,
                         contentDescription =
-                            "More options"
+                            "More options",
+                        tint =
+                            MaterialTheme
+                                .colorScheme
+                                .onBackground
                     )
                 }
 

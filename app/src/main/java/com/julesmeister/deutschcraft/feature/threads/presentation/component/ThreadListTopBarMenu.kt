@@ -26,9 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.julesmeister.deutschcraft.ui.theme.DeutschLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @Composable
 internal fun ThreadListTopBarMenu(
@@ -38,13 +35,6 @@ internal fun ThreadListTopBarMenu(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    /*
-     * The shape is applied directly to DropdownMenu.
-     *
-     * Applying only clip() to the modifier can leave the
-     * menu's original popup surface visible behind the
-     * clipped content, causing pointed rectangular corners.
-     */
     DropdownMenu(
         expanded =
             expanded,
@@ -80,7 +70,9 @@ internal fun ThreadListTopBarMenu(
                 icon = {
                     Icon(
                         imageVector =
-                            Icons.Outlined.AddComment,
+                            Icons
+                                .Outlined
+                                .AddComment,
                         contentDescription =
                             null
                     )
@@ -104,7 +96,9 @@ internal fun ThreadListTopBarMenu(
                 icon = {
                     Icon(
                         imageVector =
-                            Icons.Outlined.Settings,
+                            Icons
+                                .Outlined
+                                .Settings,
                         contentDescription =
                             null
                     )
@@ -125,21 +119,24 @@ private fun ThreadListTopBarMenuItem(
     modifier: Modifier = Modifier
 ) {
     DropdownMenuItem(
-        modifier = modifier
-            .padding(
-                horizontal =
-                    MENU_ITEM_HORIZONTAL_MARGIN
-            )
-            .clip(
-                MENU_ITEM_SHAPE
-            ),
+        modifier =
+            modifier
+                .padding(
+                    horizontal =
+                        MENU_ITEM_HORIZONTAL_MARGIN
+                )
+                .clip(
+                    MENU_ITEM_SHAPE
+                ),
         text = {
             Column {
                 Text(
                     text =
                         title,
                     color =
-                        DeutschTextPrimary,
+                        MaterialTheme
+                            .colorScheme
+                            .onSurface,
                     style =
                         MaterialTheme
                             .typography
@@ -157,7 +154,9 @@ private fun ThreadListTopBarMenuItem(
                                 MENU_DESCRIPTION_TOP_PADDING
                         ),
                     color =
-                        DeutschTextSecondary,
+                        MaterialTheme
+                            .colorScheme
+                            .onSurfaceVariant,
                     style =
                         MaterialTheme
                             .typography
@@ -184,27 +183,33 @@ private fun ThreadMenuIconContainer(
     content: @Composable () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val accentColor =
+        MaterialTheme
+            .colorScheme
+            .primary
+
     Box(
-        modifier = modifier
-            .size(
-                MENU_ICON_CONTAINER_SIZE
-            )
-            .clip(
-                CircleShape
-            )
-            .background(
-                color =
-                    DeutschLime.copy(
-                        alpha =
-                            MENU_ICON_BACKGROUND_ALPHA
-                    )
-            ),
+        modifier =
+            modifier
+                .size(
+                    MENU_ICON_CONTAINER_SIZE
+                )
+                .clip(
+                    CircleShape
+                )
+                .background(
+                    color =
+                        accentColor.copy(
+                            alpha =
+                                MENU_ICON_BACKGROUND_ALPHA
+                        )
+                ),
         contentAlignment =
             Alignment.Center
     ) {
         CompositionLocalProvider(
             LocalContentColor provides
-                    DeutschLime
+                    accentColor
         ) {
             content()
         }

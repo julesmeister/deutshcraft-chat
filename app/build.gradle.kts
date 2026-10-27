@@ -86,6 +86,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation(libs.androidx.compose.animation.core)
     implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.compose.runtime.saveable)
     implementation(libs.hilt.android)
     implementation(libs.room.ktx)
     ksp(libs.hilt.compiler)

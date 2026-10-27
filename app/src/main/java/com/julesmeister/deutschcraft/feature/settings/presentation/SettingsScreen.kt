@@ -21,20 +21,28 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Animation
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.settings.domain.AppTheme
 import com.julesmeister.deutschcraft.feature.settings.domain.FontScaleOption
 import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
@@ -68,36 +77,52 @@ fun SettingsScreen(
                         containerColor =
                             MaterialTheme
                                 .colorScheme
-                                .background
+                                .background,
+                        scrolledContainerColor =
+                            MaterialTheme
+                                .colorScheme
+                                .background,
+                        titleContentColor =
+                            MaterialTheme
+                                .colorScheme
+                                .onBackground,
+                        navigationIconContentColor =
+                            MaterialTheme
+                                .colorScheme
+                                .onBackground
                     ),
                 navigationIcon = {
                     Box(
-                        modifier = Modifier
-                            .padding(
-                                start =
-                                    TOP_BAR_PADDING
-                            )
-                            .size(
-                                TOP_BAR_BUTTON_SIZE
-                            )
-                            .clip(
-                                CircleShape
-                            )
-                            .background(
-                                MaterialTheme
-                                    .colorScheme
-                                    .surfaceContainer
-                            )
-                            .clickable(
-                                onClick =
-                                    onBackClick
-                            ),
+                        modifier =
+                            Modifier
+                                .padding(
+                                    start =
+                                        TOP_BAR_PADDING
+                                )
+                                .size(
+                                    TOP_BAR_BUTTON_SIZE
+                                )
+                                .clip(
+                                    CircleShape
+                                )
+                                .background(
+                                    MaterialTheme
+                                        .colorScheme
+                                        .surfaceContainer
+                                )
+                                .clickable(
+                                    role =
+                                        Role.Button,
+                                    onClick =
+                                        onBackClick
+                                ),
                         contentAlignment =
                             Alignment.Center
                     ) {
                         Icon(
                             imageVector =
-                                Icons.AutoMirrored
+                                Icons
+                                    .AutoMirrored
                                     .Outlined
                                     .ArrowBack,
                             contentDescription =
@@ -109,7 +134,11 @@ fun SettingsScreen(
                     Text(
                         text =
                             "Settings",
-                        modifier = Modifier.padding(start = 8.dp),
+                        modifier =
+                            Modifier.padding(
+                                start =
+                                    TOP_BAR_TITLE_START_PADDING
+                            ),
                         fontWeight =
                             FontWeight.Bold
                     )
@@ -137,21 +166,38 @@ fun SettingsScreen(
                     SECTION_SPACING
                 )
         ) {
-            item {
+            item(
+                key =
+                    APPEARANCE_SECTION_KEY
+            ) {
                 SettingsSection(
                     title =
                         "Appearance"
                 ) {
+                    ThemeSettings(
+                        selectedTheme =
+                            settings.appTheme,
+                        onThemeSelected = { theme ->
+                            onAction(
+                                SettingsUiAction.ThemeChanged(
+                                    theme =
+                                        theme
+                                )
+                            )
+                        }
+                    )
+
+                    SettingsDivider()
+
                     FontScaleSettings(
                         selectedOption =
                             settings.fontScaleOption,
                         onOptionSelected = { option ->
                             onAction(
-                                SettingsUiAction
-                                    .FontScaleChanged(
-                                        option =
-                                            option
-                                    )
+                                SettingsUiAction.FontScaleChanged(
+                                    option =
+                                        option
+                                )
                             )
                         }
                     )
@@ -162,7 +208,9 @@ fun SettingsScreen(
                         icon = {
                             Icon(
                                 imageVector =
-                                    Icons.Outlined.Animation,
+                                    Icons
+                                        .Outlined
+                                        .Animation,
                                 contentDescription =
                                     null
                             )
@@ -186,7 +234,10 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            item(
+                key =
+                    LEARNING_SUPPORT_SECTION_KEY
+            ) {
                 SettingsSection(
                     title =
                         "Learning support"
@@ -195,7 +246,9 @@ fun SettingsScreen(
                         icon = {
                             Icon(
                                 imageVector =
-                                    Icons.Outlined.Lightbulb,
+                                    Icons
+                                        .Outlined
+                                        .Lightbulb,
                                 contentDescription =
                                     null
                             )
@@ -223,7 +276,8 @@ fun SettingsScreen(
                         icon = {
                             Icon(
                                 imageVector =
-                                    Icons.Outlined
+                                    Icons
+                                        .Outlined
                                         .RecordVoiceOver,
                                 contentDescription =
                                     null
@@ -252,7 +306,9 @@ fun SettingsScreen(
                         icon = {
                             Icon(
                                 imageVector =
-                                    Icons.Outlined.Translate,
+                                    Icons
+                                        .Outlined
+                                        .Translate,
                                 contentDescription =
                                     null
                             )
@@ -276,7 +332,10 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            item(
+                key =
+                    ABOUT_SECTION_KEY
+            ) {
                 SettingsSection(
                     title =
                         "About"
@@ -295,7 +354,11 @@ fun SettingsScreen(
                                     .typography
                                     .titleMedium,
                             fontWeight =
-                                FontWeight.SemiBold
+                                FontWeight.SemiBold,
+                            color =
+                                MaterialTheme
+                                    .colorScheme
+                                    .onSurface
                         )
 
                         Text(
@@ -322,52 +385,142 @@ fun SettingsScreen(
     }
 }
 
+/*
+ * ===========================================================
+ * THEME
+ * ===========================================================
+ */
+
 @Composable
-private fun SettingsSection(
-    title: String,
-    content: @Composable () -> Unit
+private fun ThemeSettings(
+    selectedTheme: AppTheme,
+    onThemeSelected: (AppTheme) -> Unit
 ) {
-    Column {
-        Text(
-            text =
-                title,
+    Column(
+        modifier =
+            Modifier.padding(
+                SETTINGS_ROW_PADDING
+            )
+    ) {
+        Row(
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+            SettingsIconContainer {
+                Icon(
+                    imageVector =
+                        Icons
+                            .Outlined
+                            .Palette,
+                    contentDescription =
+                        null
+                )
+            }
+
+            Spacer(
+                modifier =
+                    Modifier.width(
+                        SETTINGS_ICON_SPACING
+                    )
+            )
+
+            Column(
+                modifier =
+                    Modifier.weight(1f)
+            ) {
+                Text(
+                    text =
+                        "Theme",
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodyLarge,
+                    fontWeight =
+                        FontWeight.SemiBold,
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .onSurface
+                )
+
+                Text(
+                    text =
+                        "Choose DeutschCraft's appearance",
+                    modifier =
+                        Modifier.padding(
+                            top =
+                                DESCRIPTION_TOP_PADDING
+                        ),
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodySmall,
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(
             modifier =
-                Modifier.padding(
-                    start =
-                        SECTION_TITLE_PADDING,
-                    bottom =
-                        SECTION_TITLE_BOTTOM_PADDING
-                ),
-            color =
-                DeutschLime,
-            style =
-                MaterialTheme
-                    .typography
-                    .labelLarge,
-            fontWeight =
-                FontWeight.SemiBold
+                Modifier.height(
+                    OPTION_LIST_TOP_SPACING
+                )
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(
-                    SETTINGS_SECTION_SHAPE
+        AppTheme.entries.forEach { theme ->
+            key(theme) {
+                SettingsRadioOptionRow(
+                    selected =
+                        selectedTheme == theme,
+                    title =
+                        theme.displayName,
+                    icon = {
+                        Icon(
+                            imageVector =
+                                when (theme) {
+                                    AppTheme.DARK ->
+                                        Icons
+                                            .Outlined
+                                            .DarkMode
+
+                                    AppTheme.LIGHT ->
+                                        Icons
+                                            .Outlined
+                                            .LightMode
+                                },
+                            contentDescription =
+                                null,
+                            modifier =
+                                Modifier.size(
+                                    OPTION_ICON_SIZE
+                                ),
+                            tint =
+                                MaterialTheme
+                                    .colorScheme
+                                    .onSurfaceVariant
+                        )
+                    },
+                    onClick = {
+                        if (selectedTheme != theme) {
+                            onThemeSelected(
+                                theme
+                            )
+                        }
+                    }
                 )
-                .background(
-                    MaterialTheme
-                        .colorScheme
-                        .surfaceContainer
-                )
-                .padding(
-                    vertical =
-                        SECTION_VERTICAL_PADDING
-                )
-        ) {
-            content()
+            }
         }
     }
 }
+
+/*
+ * ===========================================================
+ * FONT SCALE
+ * ===========================================================
+ */
 
 @Composable
 private fun FontScaleSettings(
@@ -387,7 +540,9 @@ private fun FontScaleSettings(
             SettingsIconContainer {
                 Icon(
                     imageVector =
-                        Icons.Outlined.TextFields,
+                        Icons
+                            .Outlined
+                            .TextFields,
                     contentDescription =
                         null
                 )
@@ -400,7 +555,10 @@ private fun FontScaleSettings(
                     )
             )
 
-            Column {
+            Column(
+                modifier =
+                    Modifier.weight(1f)
+            ) {
                 Text(
                     text =
                         "Font size",
@@ -409,12 +567,21 @@ private fun FontScaleSettings(
                             .typography
                             .bodyLarge,
                     fontWeight =
-                        FontWeight.SemiBold
+                        FontWeight.SemiBold,
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .onSurface
                 )
 
                 Text(
                     text =
                         "Adjust text throughout the app",
+                    modifier =
+                        Modifier.padding(
+                            top =
+                                DESCRIPTION_TOP_PADDING
+                        ),
                     style =
                         MaterialTheme
                             .typography
@@ -430,90 +597,47 @@ private fun FontScaleSettings(
         Spacer(
             modifier =
                 Modifier.height(
-                    FONT_OPTIONS_TOP_SPACING
+                    OPTION_LIST_TOP_SPACING
                 )
         )
 
         FontScaleOption.entries.forEach { option ->
-            val interactionSource =
-                remember {
-                    MutableInteractionSource()
-                }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(
-                        FONT_OPTION_SHAPE
-                    )
-                    .clickable(
-                        interactionSource =
-                            interactionSource,
-                        indication =
-                            null,
-                        role =
-                            Role.RadioButton,
-                        onClick = {
+            key(option) {
+                SettingsRadioOptionRow(
+                    selected =
+                        selectedOption == option,
+                    title =
+                        option.displayName,
+                    onClick = {
+                        if (selectedOption != option) {
                             onOptionSelected(
                                 option
                             )
                         }
-                    )
-                    .padding(
-                        horizontal =
-                            FONT_OPTION_HORIZONTAL_PADDING,
-                        vertical =
-                            FONT_OPTION_VERTICAL_PADDING
-                    ),
-                verticalAlignment =
-                    Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected =
-                        selectedOption == option,
-                    onClick = {
-                        onOptionSelected(
-                            option
-                        )
                     }
-                )
-
-                Spacer(
-                    modifier =
-                        Modifier.width(
-                            FONT_OPTION_TEXT_SPACING
-                        )
-                )
-
-                Text(
-                    text =
-                        option.displayName,
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodyLarge
                 )
             }
         }
 
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    top =
-                        PREVIEW_TOP_PADDING
-                )
-                .clip(
-                    PREVIEW_SHAPE
-                )
-                .background(
-                    MaterialTheme
-                        .colorScheme
-                        .surfaceContainerHigh
-                )
-                .padding(
-                    PREVIEW_PADDING
-                )
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        top =
+                            PREVIEW_TOP_PADDING
+                    )
+                    .clip(
+                        PREVIEW_SHAPE
+                    )
+                    .background(
+                        MaterialTheme
+                            .colorScheme
+                            .surfaceContainerHigh
+                    )
+                    .padding(
+                        PREVIEW_PADDING
+                    )
         ) {
             Text(
                 text =
@@ -529,11 +653,172 @@ private fun FontScaleSettings(
                                     .bodyLarge
                                     .fontSize *
                                         selectedOption.scale
-                        )
+                        ),
+                color =
+                    MaterialTheme
+                        .colorScheme
+                        .onSurface
             )
         }
     }
 }
+
+/*
+ * ===========================================================
+ * SHARED RADIO OPTION
+ * ===========================================================
+ */
+
+@Composable
+private fun SettingsRadioOptionRow(
+    selected: Boolean,
+    title: String,
+    onClick: () -> Unit,
+    icon: (@Composable () -> Unit)? = null
+) {
+    val interactionSource =
+        remember {
+            MutableInteractionSource()
+        }
+
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(
+                    OPTION_SHAPE
+                )
+                .clickable(
+                    interactionSource =
+                        interactionSource,
+                    indication =
+                        null,
+                    role =
+                        Role.RadioButton,
+                    onClick =
+                        onClick
+                )
+                .padding(
+                    horizontal =
+                        OPTION_HORIZONTAL_PADDING,
+                    vertical =
+                        OPTION_VERTICAL_PADDING
+                ),
+        verticalAlignment =
+            Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected =
+                selected,
+            onClick =
+                null,
+            colors =
+                RadioButtonDefaults.colors(
+                    selectedColor =
+                        MaterialTheme
+                            .colorScheme
+                            .primary,
+                    unselectedColor =
+                        MaterialTheme
+                            .colorScheme
+                            .onSurfaceVariant
+                )
+        )
+
+        Spacer(
+            modifier =
+                Modifier.width(
+                    OPTION_TEXT_SPACING
+                )
+        )
+
+        if (icon != null) {
+            icon()
+
+            Spacer(
+                modifier =
+                    Modifier.width(
+                        OPTION_ICON_TEXT_SPACING
+                    )
+            )
+        }
+
+        Text(
+            text =
+                title,
+            style =
+                MaterialTheme
+                    .typography
+                    .bodyLarge,
+            color =
+                MaterialTheme
+                    .colorScheme
+                    .onSurface
+        )
+    }
+}
+
+/*
+ * ===========================================================
+ * SECTION
+ * ===========================================================
+ */
+
+@Composable
+private fun SettingsSection(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    Column {
+        Text(
+            text =
+                title,
+            modifier =
+                Modifier.padding(
+                    start =
+                        SECTION_TITLE_PADDING,
+                    bottom =
+                        SECTION_TITLE_BOTTOM_PADDING
+                ),
+            color =
+                MaterialTheme
+                    .colorScheme
+                    .primary,
+            style =
+                MaterialTheme
+                    .typography
+                    .labelLarge,
+            fontWeight =
+                FontWeight.SemiBold
+        )
+
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(
+                        SETTINGS_SECTION_SHAPE
+                    )
+                    .background(
+                        MaterialTheme
+                            .colorScheme
+                            .surfaceContainer
+                    )
+                    .padding(
+                        vertical =
+                            SECTION_VERTICAL_PADDING
+                    )
+        ) {
+            content()
+        }
+    }
+}
+
+/*
+ * ===========================================================
+ * SWITCH ROW
+ * ===========================================================
+ */
 
 @Composable
 private fun SettingsSwitchRow(
@@ -544,16 +829,20 @@ private fun SettingsSwitchRow(
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                onCheckedChange(
-                    !checked
-                )
-            }
-            .padding(
-                SETTINGS_ROW_PADDING
-            ),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(
+                    role =
+                        Role.Switch
+                ) {
+                    onCheckedChange(
+                        !checked
+                    )
+                }
+                .padding(
+                    SETTINGS_ROW_PADDING
+                ),
         verticalAlignment =
             Alignment.CenterVertically
     ) {
@@ -581,7 +870,11 @@ private fun SettingsSwitchRow(
                         .typography
                         .bodyLarge,
                 fontWeight =
-                    FontWeight.SemiBold
+                    FontWeight.SemiBold,
+                color =
+                    MaterialTheme
+                        .colorScheme
+                        .onSurface
             )
 
             Text(
@@ -614,76 +907,154 @@ private fun SettingsSwitchRow(
             checked =
                 checked,
             onCheckedChange =
-                onCheckedChange
+                null,
+            colors =
+                SwitchDefaults.colors(
+                    checkedThumbColor =
+                        MaterialTheme
+                            .colorScheme
+                            .onPrimary,
+                    checkedTrackColor =
+                        MaterialTheme
+                            .colorScheme
+                            .primary,
+                    checkedBorderColor =
+                        MaterialTheme
+                            .colorScheme
+                            .primary,
+                    uncheckedThumbColor =
+                        MaterialTheme
+                            .colorScheme
+                            .onSurfaceVariant,
+                    uncheckedTrackColor =
+                        MaterialTheme
+                            .colorScheme
+                            .surfaceContainerHighest,
+                    uncheckedBorderColor =
+                        MaterialTheme
+                            .colorScheme
+                            .outline
+                )
         )
     }
 }
+
+/*
+ * ===========================================================
+ * ICON CONTAINER
+ * ===========================================================
+ */
 
 @Composable
 private fun SettingsIconContainer(
     content: @Composable () -> Unit
 ) {
     Box(
-        modifier = Modifier
-            .size(
-                SETTINGS_ICON_SIZE
-            )
-            .clip(
-                RoundedCornerShape(
-                    SETTINGS_ICON_RADIUS
+        modifier =
+            Modifier
+                .size(
+                    SETTINGS_ICON_SIZE
                 )
-            )
-            .background(
-                DeutschLime.copy(
-                    alpha =
-                        SETTINGS_ICON_BACKGROUND_ALPHA
+                .clip(
+                    RoundedCornerShape(
+                        SETTINGS_ICON_RADIUS
+                    )
                 )
-            ),
+                .background(
+                    MaterialTheme
+                        .colorScheme
+                        .primary
+                        .copy(
+                            alpha =
+                                SETTINGS_ICON_BACKGROUND_ALPHA
+                        )
+                ),
         contentAlignment =
             Alignment.Center
     ) {
-        androidx.compose.runtime.CompositionLocalProvider(
-            androidx.compose.material3
-                .LocalContentColor provides
-                    DeutschLime
+        CompositionLocalProvider(
+            LocalContentColor provides
+                    MaterialTheme
+                        .colorScheme
+                        .primary
         ) {
             content()
         }
     }
 }
 
+/*
+ * ===========================================================
+ * DIVIDER
+ * ===========================================================
+ */
+
 @Composable
 private fun SettingsDivider() {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                horizontal =
-                    DIVIDER_HORIZONTAL_PADDING
-            )
-            .height(
-                DIVIDER_HEIGHT
-            )
-            .background(
-                MaterialTheme
-                    .colorScheme
-                    .outlineVariant
-                    .copy(
-                        alpha =
-                            DIVIDER_ALPHA
-                    )
-            )
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal =
+                        DIVIDER_HORIZONTAL_PADDING
+                )
+                .height(
+                    DIVIDER_HEIGHT
+                )
+                .background(
+                    MaterialTheme
+                        .colorScheme
+                        .outlineVariant
+                        .copy(
+                            alpha =
+                                DIVIDER_ALPHA
+                        )
+                )
     )
 }
 
-private val SETTINGS_SECTION_SHAPE =
-    RoundedCornerShape(26.dp)
+/*
+ * ===========================================================
+ * LAZY COLUMN KEYS
+ * ===========================================================
+ */
 
-private val FONT_OPTION_SHAPE =
-    RoundedCornerShape(16.dp)
+private const val APPEARANCE_SECTION_KEY =
+    "appearance"
+
+private const val LEARNING_SUPPORT_SECTION_KEY =
+    "learning_support"
+
+private const val ABOUT_SECTION_KEY =
+    "about"
+
+/*
+ * ===========================================================
+ * SHAPES
+ * ===========================================================
+ */
+
+private val SETTINGS_SECTION_SHAPE =
+    RoundedCornerShape(
+        26.dp
+    )
+
+private val OPTION_SHAPE =
+    RoundedCornerShape(
+        16.dp
+    )
 
 private val PREVIEW_SHAPE =
-    RoundedCornerShape(18.dp)
+    RoundedCornerShape(
+        18.dp
+    )
+
+/*
+ * ===========================================================
+ * LAYOUT
+ * ===========================================================
+ */
 
 private val SCREEN_HORIZONTAL_PADDING =
     16.dp
@@ -721,17 +1092,23 @@ private val SETTINGS_ICON_SPACING =
 private val DESCRIPTION_TOP_PADDING =
     2.dp
 
-private val FONT_OPTIONS_TOP_SPACING =
+private val OPTION_LIST_TOP_SPACING =
     12.dp
 
-private val FONT_OPTION_HORIZONTAL_PADDING =
+private val OPTION_HORIZONTAL_PADDING =
     4.dp
 
-private val FONT_OPTION_VERTICAL_PADDING =
+private val OPTION_VERTICAL_PADDING =
     2.dp
 
-private val FONT_OPTION_TEXT_SPACING =
+private val OPTION_TEXT_SPACING =
     4.dp
+
+private val OPTION_ICON_SIZE =
+    20.dp
+
+private val OPTION_ICON_TEXT_SPACING =
+    8.dp
 
 private val PREVIEW_TOP_PADDING =
     12.dp
@@ -753,6 +1130,9 @@ private val TOP_BAR_PADDING =
 
 private val TOP_BAR_BUTTON_SIZE =
     40.dp
+
+private val TOP_BAR_TITLE_START_PADDING =
+    8.dp
 
 private const val SETTINGS_ICON_BACKGROUND_ALPHA =
     0.14f

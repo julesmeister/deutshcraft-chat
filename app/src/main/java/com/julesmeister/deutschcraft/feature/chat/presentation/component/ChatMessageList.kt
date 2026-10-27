@@ -29,6 +29,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.besser.presentation.BesserChallengeBubble
+import com.julesmeister.deutschcraft.feature.besser.presentation.BesserChallengeUiModel
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiState
@@ -50,7 +52,12 @@ fun ChatMessageList(
     bottomOverlayHeight: Dp = 0.dp,
 
     /*
-     * messageId -> phrases the learner marked on that message.
+     * =======================================================
+     * MARKED PHRASES
+     * =======================================================
+     *
+     * messageId -> learner-marked phrases attached to the
+     * corresponding conversation message.
      */
     markedPhrases: Map<String, List<MarkedPhrase>> =
         emptyMap(),
@@ -59,11 +66,47 @@ fun ChatMessageList(
         {},
 
     /*
-     * Fired after a message has successfully been copied by a
-     * long press.
+     * =======================================================
+     * BESSER CHALLENGES
+     * =======================================================
      *
-     * ChatScreen owns the temporary top-bar confirmation
-     * state, so this component only forwards the event.
+     * messageId -> contextual growth challenge associated
+     * with that learner message.
+     *
+     * There can currently be at most one active challenge per
+     * message.
+     */
+    besserChallenges: Map<String, BesserChallengeUiModel> =
+        emptyMap(),
+
+    /*
+     * challengeId
+     *
+     * Starts message refinement mode.
+     */
+    onBesserImprove: (String) -> Unit =
+        {},
+
+    /*
+     * challengeId
+     *
+     * Reveals the next available assistance step.
+     */
+    onBesserHint: (String) -> Unit =
+        {},
+
+    /*
+     * challengeId
+     *
+     * Dismisses the challenge without penalizing the learner.
+     */
+    onBesserSkip: (String) -> Unit =
+        {},
+
+    /*
+     * Fired after the visible primary message text has been
+     * successfully copied through MessageBubble's long-press
+     * action.
      */
     onMessageCopied: () -> Unit =
         {}
@@ -75,30 +118,43 @@ fun ChatMessageList(
         uiState.isAssistantTyping
 
     /*
-     * Do not create LazyListState while the conversation is
-     * still empty. Room usually emits an empty list first.
+     * Room commonly emits an empty conversation before the
+     * actual messages arrive.
+     *
+     * Avoid creating a LazyListState for an entirely empty
+     * conversation.
      */
     if (
         messageCount == 0 &&
         !hasTypingIndicator
     ) {
         ChatMessageListEmptyState(
-            modifier = modifier
+            modifier =
+                modifier
         )
 
         return
     }
 
     val entries =
-        remember(uiState.messages) {
+        remember(
+            uiState.messages
+        ) {
             buildChatListEntries(
-                messages = uiState.messages
+                messages =
+                    uiState.messages
             )
         }
 
     /*
-     * Marked-phrase notes live inside their message item,
-     * therefore they do not change the LazyColumn item count.
+     * Attachments live INSIDE their owning message item.
+     *
+     * Therefore:
+     *
+     * - MarkedPhraseBubble
+     * - BesserChallengeBubble
+     *
+     * do not increase the LazyColumn item count.
      */
     val bottomAnchorIndex =
         entries.size +
@@ -118,13 +174,19 @@ fun ChatMessageList(
         LocalDensity.current
 
     val keyboardBottom =
-        WindowInsets.ime.getBottom(
-            density = density
-        )
+        WindowInsets
+            .ime
+            .getBottom(
+                density =
+                    density
+            )
 
     val latestUserMessageId =
-        remember(uiState.messages) {
+        remember(
             uiState.messages
+        ) {
+            uiState
+                .messages
                 .lastOrNull { message ->
                     message.sender ==
                             MessageSender.USER
@@ -133,8 +195,11 @@ fun ChatMessageList(
         }
 
     val latestAssistantMessageId =
-        remember(uiState.messages) {
+        remember(
             uiState.messages
+        ) {
+            uiState
+                .messages
                 .lastOrNull { message ->
                     message.sender ==
                             MessageSender.ASSISTANT
@@ -144,7 +209,7 @@ fun ChatMessageList(
 
     /*
      * Existing messages must not replay their entrance
-     * animation when the conversation opens.
+     * animations whenever the conversation screen opens.
      */
     val seenMessageIds =
         remember {
@@ -160,14 +225,24 @@ fun ChatMessageList(
         }
 
     ChatMessageListScrollEffects(
-        listState = listState,
-        messageCount = messageCount,
-        suggestionCount = uiState.suggestions.size,
-        isSending = uiState.isSending,
-        hasTypingIndicator = hasTypingIndicator,
-        keyboardBottom = keyboardBottom,
-        bottomAnchorIndex = bottomAnchorIndex,
-        scrollRequestKey = scrollRequestKey
+        listState =
+            listState,
+        messageCount =
+            messageCount,
+        suggestionCount =
+            uiState.suggestions.size,
+        isSending =
+            uiState.isSending,
+        hasTypingIndicator =
+            hasTypingIndicator,
+        keyboardBottom =
+            keyboardBottom,
+        bottomOverlayHeight =
+            bottomOverlayHeight,
+        bottomAnchorIndex =
+            bottomAnchorIndex,
+        scrollRequestKey =
+            scrollRequestKey
     )
 
     LazyColumn(
@@ -185,7 +260,8 @@ fun ChatMessageList(
             )
     ) {
         items(
-            items = entries,
+            items =
+                entries,
             key = { entry ->
                 entry.key
             },
@@ -202,7 +278,8 @@ fun ChatMessageList(
             when (entry) {
                 is ChatListEntry.DateSeparator -> {
                     ChatDateSeparator(
-                        label = entry.label
+                        label =
+                            entry.label
                     )
                 }
 
@@ -214,10 +291,57 @@ fun ChatMessageList(
                         message.sender ==
                                 MessageSender.USER
 
+                    /*
+                     * Existing phrase-marking attachments.
+                     */
                     val attachedPhrases =
                         markedPhrases[
                             message.id
                         ].orEmpty()
+
+                    /*
+                     * New contextual Besser Challenge.
+                     *
+                     * The challenge belongs to this exact
+                     * message through message.id.
+                     */
+                    val attachedChallenge =
+                        besserChallenges[
+                            message.id
+                        ]
+
+                    /*
+                     * Besser growth challenges should only be
+                     * displayed underneath learner messages.
+                     *
+                     * Even if malformed state accidentally
+                     * associates one with an assistant message,
+                     * the UI will refuse to render it there.
+                     */
+                    val visibleChallenge =
+                        attachedChallenge
+                            ?.takeIf {
+                                isUserMessage
+                            }
+
+                    /*
+                     * MessageBubble currently receives a
+                     * hasAttachedPhrase flag to flatten the
+                     * attachment-side corner.
+                     *
+                     * A Besser Challenge needs the exact same
+                     * geometric attachment behavior.
+                     *
+                     * We therefore interpret this parameter as
+                     * "has attached content" for now without
+                     * requiring an immediate MessageBubble API
+                     * rename.
+                     */
+                    val hasAttachedContent =
+                        visibleChallenge !=
+                                null ||
+                                attachedPhrases
+                                    .isNotEmpty()
 
                     Column(
                         modifier =
@@ -259,13 +383,19 @@ fun ChatMessageList(
                                 ] == true,
 
                             /*
-                             * Lets MessageBubble adjust only
-                             * the corner that joins its
-                             * marked-phrase note.
+                             * Despite the historical parameter
+                             * name, this now means:
+                             *
+                             * Does this message have something
+                             * visually attached beneath it?
+                             *
+                             * That includes:
+                             *
+                             * - Besser Challenges
+                             * - Marked Phrase notes
                              */
                             hasAttachedPhrase =
-                                attachedPhrases
-                                    .isNotEmpty(),
+                                hasAttachedContent,
 
                             onAnimationStarted = {
                                 seenMessageIds[
@@ -274,27 +404,12 @@ fun ChatMessageList(
                                     true
                             },
 
-                            /*
-                             * Normal tap:
-                             *
-                             * Open the existing message-action
-                             * learning sheet.
-                             */
                             onClick = {
                                 onMessageClick(
                                     message
                                 )
                             },
 
-                            /*
-                             * Long press is handled by
-                             * MessageBubble:
-                             *
-                             * 1. Copy visible primary text.
-                             * 2. Call this callback.
-                             * 3. ChatScreen shows confirmation
-                             *    in the top bar.
-                             */
                             onMessageCopied =
                                 onMessageCopied,
 
@@ -303,15 +418,56 @@ fun ChatMessageList(
                         )
 
                         /*
-                         * Notes sit flush underneath their
-                         * source message.
+                         * ===================================================
+                         * BESSER CHALLENGE
+                         * ===================================================
                          *
-                         * The marked-phrase note owns its flat
-                         * top edge.
+                         * Challenges stay visually closest to the source
+                         * learner message because the challenge asks the
+                         * learner to refine that exact communicative turn.
                          *
-                         * Only the final note gets rounded
-                         * bottom corners when several notes are
-                         * attached to the same message.
+                         * Order:
+                         *
+                         * User message
+                         *     ↓
+                         * Besser Challenge
+                         *     ↓
+                         * Marked Phrase notes
+                         */
+                        if (
+                            visibleChallenge !=
+                            null
+                        ) {
+                            BesserChallengeBubble(
+                                challenge =
+                                    visibleChallenge,
+                                isUserMessage =
+                                    true,
+                                onImprove = {
+                                    onBesserImprove(
+                                        visibleChallenge.id
+                                    )
+                                },
+                                onHint = {
+                                    onBesserHint(
+                                        visibleChallenge.id
+                                    )
+                                },
+                                onSkip = {
+                                    onBesserSkip(
+                                        visibleChallenge.id
+                                    )
+                                }
+                            )
+                        }
+
+                        /*
+                         * ===================================================
+                         * MARKED PHRASES
+                         * ===================================================
+                         *
+                         * Phrase notes remain attached to their original
+                         * message.
                          */
                         attachedPhrases.forEachIndexed { index, phrase ->
                             MarkedPhraseBubble(
@@ -336,7 +492,8 @@ fun ChatMessageList(
 
         if (hasTypingIndicator) {
             item(
-                key = TYPING_INDICATOR_KEY
+                key =
+                    TYPING_INDICATOR_KEY
             ) {
                 TypingIndicator(
                     modifier =
@@ -353,7 +510,8 @@ fun ChatMessageList(
         }
 
         item(
-            key = BOTTOM_ANCHOR_KEY
+            key =
+                BOTTOM_ANCHOR_KEY
         ) {
             Spacer(
                 modifier =
@@ -386,7 +544,8 @@ private sealed interface ChatListEntry {
     ) : ChatListEntry {
 
         override val key: String
-            get() = message.id
+            get() =
+                message.id
     }
 }
 
@@ -474,18 +633,27 @@ private fun buildChatListEntries(
     return entries
 }
 
+/*
+ * ===========================================================
+ * DATE FORMATTING
+ * ===========================================================
+ */
+
 private fun formatDateSeparator(
     date: LocalDate,
     today: LocalDate
 ): String {
     return when {
-        date == today ->
+        date == today -> {
             "Heute"
+        }
 
-        date == today.minusDays(1) ->
+        date == today.minusDays(1) -> {
             "Gestern"
+        }
 
-        date.year == today.year -> {
+        date.year ==
+                today.year -> {
             date.format(
                 DateTimeFormatter.ofPattern(
                     "EEEE, d. MMMM",
@@ -534,21 +702,25 @@ private fun ChatDateSeparator(
             modifier =
                 Modifier
                     .clip(
-                        RoundedCornerShape(50)
+                        RoundedCornerShape(
+                            percent =
+                                FULL_CORNER_PERCENT
+                        )
                     )
                     .background(
                         MaterialTheme
                             .colorScheme
                             .surfaceContainerHigh
                             .copy(
-                                alpha = 0.85f
+                                alpha =
+                                    DATE_SEPARATOR_BACKGROUND_ALPHA
                             )
                     )
                     .padding(
                         horizontal =
-                            12.dp,
+                            DATE_SEPARATOR_HORIZONTAL_PADDING,
                         vertical =
-                            4.dp
+                            DATE_SEPARATOR_VERTICAL_PADDING
                     ),
             style =
                 MaterialTheme
@@ -563,6 +735,12 @@ private fun ChatDateSeparator(
         )
     }
 }
+
+/*
+ * ===========================================================
+ * EMPTY STATE
+ * ===========================================================
+ */
 
 @Composable
 private fun ChatMessageListEmptyState(
@@ -579,11 +757,25 @@ private fun ChatMessageListEmptyState(
 }
 
 /*
- * Messages from the same sender within this window are
- * visually grouped.
+ * ===========================================================
+ * LIST BEHAVIOR
+ * ===========================================================
  */
+
 private const val GROUP_TIME_WINDOW_MILLIS =
     5 * 60 * 1_000L
+
+private const val TYPING_INDICATOR_KEY =
+    "typing-indicator"
+
+private const val BOTTOM_ANCHOR_KEY =
+    "bottom-anchor"
+
+/*
+ * ===========================================================
+ * DIMENSIONS
+ * ===========================================================
+ */
 
 private val MESSAGE_LIST_TOP_PADDING =
     4.dp
@@ -605,3 +797,15 @@ private val DATE_SEPARATOR_TOP_PADDING =
 
 private val DATE_SEPARATOR_BOTTOM_PADDING =
     4.dp
+
+private val DATE_SEPARATOR_HORIZONTAL_PADDING =
+    12.dp
+
+private val DATE_SEPARATOR_VERTICAL_PADDING =
+    4.dp
+
+private const val FULL_CORNER_PERCENT =
+    50
+
+private const val DATE_SEPARATOR_BACKGROUND_ALPHA =
+    0.85f

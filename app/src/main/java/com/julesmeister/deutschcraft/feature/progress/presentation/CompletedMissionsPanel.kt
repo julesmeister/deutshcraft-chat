@@ -56,6 +56,7 @@ import java.util.Locale
 internal fun CompletedMissionsPanel(
     completedMissionCount: Int,
     recentMissions: List<CompletedMissionUiModel>,
+    showEnglish: Boolean,
     modifier: Modifier = Modifier
 ) {
     var contentVisible by
@@ -78,7 +79,7 @@ internal fun CompletedMissionsPanel(
                 animationSpec =
                     tween(
                         durationMillis =
-                            PANEL_ENTER_DURATION_MILLIS,
+                            CompletedMissionsPanelEnterDurationMillis,
                         easing =
                             FastOutSlowInEasing
                     )
@@ -90,7 +91,7 @@ internal fun CompletedMissionsPanel(
                         animationSpec =
                             tween(
                                 durationMillis =
-                                    PANEL_ENTER_DURATION_MILLIS,
+                                    CompletedMissionsPanelEnterDurationMillis,
                                 easing =
                                     FastOutSlowInEasing
                             )
@@ -104,7 +105,7 @@ internal fun CompletedMissionsPanel(
                 Modifier.fillMaxWidth(),
             shape =
                 RoundedCornerShape(
-                    PANEL_CORNER_RADIUS
+                    CompletedMissionsPanelCornerRadius
                 ),
             color =
                 MaterialTheme
@@ -118,27 +119,36 @@ internal fun CompletedMissionsPanel(
             Column(
                 modifier =
                     Modifier.padding(
-                        PANEL_PADDING
+                        CompletedMissionsPanelPadding
                     )
             ) {
                 MissionSummaryHeader(
                     completedMissionCount =
-                        completedMissionCount
+                        completedMissionCount,
+                    showEnglish =
+                        showEnglish
                 )
 
                 Spacer(
                     modifier =
                         Modifier.height(
-                            HEADER_CONTENT_SPACING
+                            CompletedMissionsHeaderContentSpacing
                         )
                 )
 
                 if (recentMissions.isEmpty()) {
-                    EmptyMissionHistory()
+                    EmptyMissionHistory(
+                        showEnglish =
+                            showEnglish
+                    )
                 } else {
                     Text(
                         text =
-                            "Zuletzt abgeschlossen",
+                            if (showEnglish) {
+                                "Recently completed"
+                            } else {
+                                "Zuletzt abgeschlossen"
+                            },
                         style =
                             MaterialTheme
                                 .typography
@@ -152,32 +162,30 @@ internal fun CompletedMissionsPanel(
                     Spacer(
                         modifier =
                             Modifier.height(
-                                MISSION_LIST_TOP_SPACING
+                                CompletedMissionsListTopSpacing
                             )
                     )
 
-                    recentMissions
-                        .forEachIndexed {
-                                index,
-                                mission ->
+                    recentMissions.forEachIndexed { index, mission ->
+                        CompletedMissionRow(
+                            mission =
+                                mission,
+                            showEnglish =
+                                showEnglish
+                        )
 
-                            CompletedMissionRow(
-                                mission =
-                                    mission
+                        if (
+                            index <
+                            recentMissions.lastIndex
+                        ) {
+                            Spacer(
+                                modifier =
+                                    Modifier.height(
+                                        CompletedMissionRowSpacing
+                                    )
                             )
-
-                            if (
-                                index <
-                                recentMissions.lastIndex
-                            ) {
-                                Spacer(
-                                    modifier =
-                                        Modifier.height(
-                                            MISSION_ROW_SPACING
-                                        )
-                                )
-                            }
                         }
+                    }
                 }
             }
         }
@@ -186,7 +194,8 @@ internal fun CompletedMissionsPanel(
 
 @Composable
 private fun MissionSummaryHeader(
-    completedMissionCount: Int
+    completedMissionCount: Int,
+    showEnglish: Boolean
 ) {
     Row(
         modifier =
@@ -195,22 +204,23 @@ private fun MissionSummaryHeader(
             Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .size(
-                    SUMMARY_ICON_SIZE
-                )
-                .clip(
-                    RoundedCornerShape(
-                        SUMMARY_ICON_RADIUS
+            modifier =
+                Modifier
+                    .size(
+                        CompletedMissionsSummaryIconSize
                     )
-                )
-                .background(
-                    color =
-                        DeutschLime.copy(
-                            alpha =
-                                SUMMARY_ICON_BACKGROUND_ALPHA
+                    .clip(
+                        RoundedCornerShape(
+                            CompletedMissionsSummaryIconRadius
                         )
-                ),
+                    )
+                    .background(
+                        color =
+                            DeutschLime.copy(
+                                alpha =
+                                    CompletedMissionsSummaryIconBackgroundAlpha
+                            )
+                    ),
             contentAlignment =
                 Alignment.Center
         ) {
@@ -227,7 +237,7 @@ private fun MissionSummaryHeader(
         Spacer(
             modifier =
                 Modifier.width(
-                    SUMMARY_CONTENT_SPACING
+                    CompletedMissionsSummaryContentSpacing
                 )
         )
 
@@ -237,7 +247,11 @@ private fun MissionSummaryHeader(
         ) {
             Text(
                 text =
-                    "Gesprächsmissionen",
+                    if (showEnglish) {
+                        "Conversation missions"
+                    } else {
+                        "Gesprächsmissionen"
+                    },
                 style =
                     MaterialTheme
                         .typography
@@ -250,12 +264,15 @@ private fun MissionSummaryHeader(
 
             Text(
                 text =
-                    "Praktische Situationen, die du " +
-                            "gemeistert hast",
+                    if (showEnglish) {
+                        "Real-world situations you've mastered"
+                    } else {
+                        "Praktische Situationen, die du gemeistert hast"
+                    },
                 modifier =
                     Modifier.padding(
                         top =
-                            SUMMARY_DESCRIPTION_TOP_PADDING
+                            CompletedMissionsSummaryDescriptionTopPadding
                     ),
                 style =
                     MaterialTheme
@@ -275,7 +292,7 @@ private fun MissionSummaryHeader(
                             animationSpec =
                                 tween(
                                     durationMillis =
-                                        COUNT_ANIMATION_DURATION_MILLIS
+                                        CompletedMissionCountAnimationDurationMillis
                                 )
                         ) +
                                 slideInVertically(
@@ -289,7 +306,7 @@ private fun MissionSummaryHeader(
                                     animationSpec =
                                         tween(
                                             durationMillis =
-                                                COUNT_ANIMATION_DURATION_MILLIS
+                                                CompletedMissionCountAnimationDurationMillis
                                         )
                                 ) +
                                         slideOutVertically(
@@ -320,7 +337,8 @@ private fun MissionSummaryHeader(
 
 @Composable
 private fun CompletedMissionRow(
-    mission: CompletedMissionUiModel
+    mission: CompletedMissionUiModel,
+    showEnglish: Boolean
 ) {
     val completionFraction =
         if (mission.totalObjectiveCount <= 0) {
@@ -344,7 +362,7 @@ private fun CompletedMissionRow(
         animationSpec =
             tween(
                 durationMillis =
-                    MISSION_PROGRESS_ANIMATION_MILLIS,
+                    CompletedMissionProgressAnimationMillis,
                 easing =
                     FastOutSlowInEasing
             ),
@@ -353,41 +371,43 @@ private fun CompletedMissionRow(
     )
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize()
-            .clip(
-                RoundedCornerShape(
-                    MISSION_ROW_RADIUS
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .animateContentSize()
+                .clip(
+                    RoundedCornerShape(
+                        CompletedMissionRowRadius
+                    )
                 )
-            )
-            .background(
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .surfaceContainerHigh
-            )
-            .padding(
-                MISSION_ROW_PADDING
-            ),
+                .background(
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .surfaceContainerHigh
+                )
+                .padding(
+                    CompletedMissionRowPadding
+                ),
         verticalAlignment =
             Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .size(
-                    MISSION_ICON_SIZE
-                )
-                .clip(
-                    CircleShape
-                )
-                .background(
-                    color =
-                        DeutschLime.copy(
-                            alpha =
-                                MISSION_ICON_BACKGROUND_ALPHA
-                        )
-                ),
+            modifier =
+                Modifier
+                    .size(
+                        CompletedMissionIconSize
+                    )
+                    .clip(
+                        CircleShape
+                    )
+                    .background(
+                        color =
+                            DeutschLime.copy(
+                                alpha =
+                                    CompletedMissionIconBackgroundAlpha
+                            )
+                    ),
             contentAlignment =
                 Alignment.Center
         ) {
@@ -404,7 +424,7 @@ private fun CompletedMissionRow(
         Spacer(
             modifier =
                 Modifier.width(
-                    MISSION_ICON_SPACING
+                    CompletedMissionIconSpacing
                 )
         )
 
@@ -418,6 +438,10 @@ private fun CompletedMissionRow(
                 verticalAlignment =
                     Alignment.CenterVertically
             ) {
+                /*
+                 * Mission titles remain stored/generated
+                 * content and are not translated here.
+                 */
                 Text(
                     text =
                         mission.title,
@@ -441,10 +465,14 @@ private fun CompletedMissionRow(
                     imageVector =
                         Icons.Outlined.CheckCircle,
                     contentDescription =
-                        "Abgeschlossen",
+                        if (showEnglish) {
+                            "Completed"
+                        } else {
+                            "Abgeschlossen"
+                        },
                     modifier =
                         Modifier.size(
-                            COMPLETION_CHECK_SIZE
+                            CompletedMissionCheckSize
                         ),
                     tint =
                         DeutschLime
@@ -457,13 +485,16 @@ private fun CompletedMissionRow(
                         .fillMaxWidth()
                         .padding(
                             top =
-                                MISSION_METADATA_TOP_PADDING
+                                CompletedMissionMetadataTopPadding
                         ),
                 horizontalArrangement =
                     Arrangement.SpaceBetween,
                 verticalAlignment =
                     Alignment.CenterVertically
             ) {
+                /*
+                 * Dynamic model content stays unchanged.
+                 */
                 Text(
                     text =
                         mission.completionLabel,
@@ -479,7 +510,9 @@ private fun CompletedMissionRow(
                     text =
                         formatCompletionDate(
                             timestamp =
-                                mission.completedAt
+                                mission.completedAt,
+                            showEnglish =
+                                showEnglish
                         ),
                     style =
                         MaterialTheme
@@ -494,18 +527,19 @@ private fun CompletedMissionRow(
                 progress = {
                     animatedCompletion
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        top =
-                            MISSION_PROGRESS_TOP_PADDING
-                    )
-                    .height(
-                        MISSION_PROGRESS_HEIGHT
-                    )
-                    .clip(
-                        CircleShape
-                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            top =
+                                CompletedMissionProgressTopPadding
+                        )
+                        .height(
+                            CompletedMissionProgressHeight
+                        )
+                        .clip(
+                            CircleShape
+                        ),
                 color =
                     DeutschLime,
                 trackColor =
@@ -518,24 +552,27 @@ private fun CompletedMissionRow(
 }
 
 @Composable
-private fun EmptyMissionHistory() {
+private fun EmptyMissionHistory(
+    showEnglish: Boolean
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(
-                RoundedCornerShape(
-                    MISSION_ROW_RADIUS
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(
+                    RoundedCornerShape(
+                        CompletedMissionRowRadius
+                    )
                 )
-            )
-            .background(
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .surfaceContainerHigh
-            )
-            .padding(
-                MISSION_ROW_PADDING
-            ),
+                .background(
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .surfaceContainerHigh
+                )
+                .padding(
+                    CompletedMissionRowPadding
+                ),
         verticalAlignment =
             Alignment.CenterVertically
     ) {
@@ -551,13 +588,17 @@ private fun EmptyMissionHistory() {
         Spacer(
             modifier =
                 Modifier.width(
-                    EMPTY_ICON_SPACING
+                    CompletedMissionEmptyIconSpacing
                 )
         )
 
         Text(
             text =
-                "Schließe deine erste Gesprächsmission ab.",
+                if (showEnglish) {
+                    "Complete your first conversation mission."
+                } else {
+                    "Schließe deine erste Gesprächsmission ab."
+                },
             style =
                 MaterialTheme
                     .typography
@@ -569,11 +610,26 @@ private fun EmptyMissionHistory() {
 }
 
 private fun formatCompletionDate(
-    timestamp: Long
+    timestamp: Long,
+    showEnglish: Boolean
 ): String {
     if (timestamp <= 0L) {
         return ""
     }
+
+    val formatter =
+        DateTimeFormatter.ofPattern(
+            if (showEnglish) {
+                "MMM d"
+            } else {
+                "dd. MMM"
+            },
+            if (showEnglish) {
+                Locale.ENGLISH
+            } else {
+                Locale.GERMAN
+            }
+        )
 
     return runCatching {
         Instant
@@ -584,84 +640,7 @@ private fun formatCompletionDate(
                 ZoneId.systemDefault()
             )
             .format(
-                COMPLETION_DATE_FORMATTER
+                formatter
             )
-    }.getOrDefault(
-        ""
-    )
+    }.getOrDefault("")
 }
-
-private val COMPLETION_DATE_FORMATTER =
-    DateTimeFormatter.ofPattern(
-        "dd. MMM",
-        Locale.GERMAN
-    )
-
-private val PANEL_CORNER_RADIUS =
-    28.dp
-
-private val PANEL_PADDING =
-    20.dp
-
-private val SUMMARY_ICON_SIZE =
-    48.dp
-
-private val SUMMARY_ICON_RADIUS =
-    16.dp
-
-private val SUMMARY_CONTENT_SPACING =
-    12.dp
-
-private val SUMMARY_DESCRIPTION_TOP_PADDING =
-    2.dp
-
-private val HEADER_CONTENT_SPACING =
-    20.dp
-
-private val MISSION_LIST_TOP_SPACING =
-    12.dp
-
-private val MISSION_ROW_SPACING =
-    10.dp
-
-private val MISSION_ROW_RADIUS =
-    20.dp
-
-private val MISSION_ROW_PADDING =
-    14.dp
-
-private val MISSION_ICON_SIZE =
-    42.dp
-
-private val MISSION_ICON_SPACING =
-    12.dp
-
-private val COMPLETION_CHECK_SIZE =
-    20.dp
-
-private val MISSION_METADATA_TOP_PADDING =
-    3.dp
-
-private val MISSION_PROGRESS_TOP_PADDING =
-    8.dp
-
-private val MISSION_PROGRESS_HEIGHT =
-    5.dp
-
-private val EMPTY_ICON_SPACING =
-    12.dp
-
-private const val SUMMARY_ICON_BACKGROUND_ALPHA =
-    0.14f
-
-private const val MISSION_ICON_BACKGROUND_ALPHA =
-    0.14f
-
-private const val PANEL_ENTER_DURATION_MILLIS =
-    500
-
-private const val COUNT_ANIMATION_DURATION_MILLIS =
-    300
-
-private const val MISSION_PROGRESS_ANIMATION_MILLIS =
-    850

@@ -6,6 +6,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
 @Composable
@@ -16,15 +18,27 @@ internal fun ChatMessageListScrollEffects(
     isSending: Boolean,
     hasTypingIndicator: Boolean,
     keyboardBottom: Int,
+
+    /*
+     * Actual measured height of ChatBottomBar, including:
+     *
+     * - composer
+     * - reply suggestions
+     * - any additional floating bottom content
+     *
+     * This is the authoritative signal that the visible chat
+     * viewport has become smaller.
+     */
+    bottomOverlayHeight: Dp,
+
     bottomAnchorIndex: Int,
     scrollRequestKey: Int
 ) {
     /*
-     * Initialize with the current message count.
+     * Initialize with the current count.
      *
-     * Messages already loaded from Room when opening the
-     * conversation must not be treated as newly-arrived
-     * messages.
+     * Saved messages already present when the conversation
+     * opens must not be mistaken for newly-arrived messages.
      */
     val previousMessageCount =
         remember {
@@ -34,10 +48,10 @@ internal fun ChatMessageListScrollEffects(
         }
 
     /*
-     * Same idea for reply suggestions.
+     * Suggestions may load after the conversation opens.
      *
-     * If cached suggestions already exist when opening the
-     * conversation, don't treat them as newly appearing.
+     * Tracking their previous count lets us react specifically
+     * when suggestions appear or increase.
      */
     val previousSuggestionCount =
         remember {
@@ -95,14 +109,9 @@ internal fun ChatMessageListScrollEffects(
     )
 
     /*
-     * Reply suggestions can appear after the assistant
-     * message has already been scrolled into view.
+     * Early scroll when suggestions appear.
      *
-     * Because the suggestion row lives above the composer,
-     * its appearance increases the bottom overlay height and
-     * reduces the visible LazyColumn viewport.
-     *
-     * Scroll again after that layout settles.
+     * This reacts to the data becoming available.
      */
     SuggestionScrollEffect(
         listState =
@@ -122,10 +131,32 @@ internal fun ChatMessageListScrollEffects(
     )
 
     /*
-     * Sending remains in the contract because other chat UI
-     * state may rely on it later.
+     * Final authoritative correction.
      *
-     * It does not independently trigger scrolling.
+     * This reacts after ChatBottomBar has actually measured
+     * its new height. It covers:
+     *
+     * - suggestions appearing during an active chat
+     * - suggestions loading after reopening a conversation
+     * - suggestion animations changing the overlay height
+     * - keyboard and composer layout adjustments
+     */
+    BottomOverlayScrollEffect(
+        listState =
+            listState,
+        messageCount =
+            messageCount,
+        bottomOverlayHeight =
+            bottomOverlayHeight,
+        bottomAnchorIndex =
+            bottomAnchorIndex
+    )
+
+    /*
+     * Keep isSending in the function contract.
+     *
+     * Sending alone does not change the visible viewport, so
+     * it does not independently start a scroll animation.
      */
     @Suppress("UNUSED_VARIABLE")
     val ignoredSendingState =
@@ -203,6 +234,9 @@ private fun NewMessageScrollEffect(
     LaunchedEffect(
         messageCount
     ) {
+        /*
+         * Covers message removal and the initial state.
+         */
         if (
             messageCount <=
             previousMessageCount
@@ -215,8 +249,8 @@ private fun NewMessageScrollEffect(
         }
 
         /*
-         * Give the newly-created message and its entrance
-         * animation a moment to enter composition.
+         * Let the message enter composition and begin its
+         * entrance animation.
          */
         delay(
             CONTENT_SCROLL_DELAY_MILLIS
@@ -278,10 +312,9 @@ private fun SuggestionScrollEffect(
         suggestionCount
     ) {
         /*
-         * Suggestions disappeared or the conversation is
-         * empty.
+         * Suggestions disappeared or no messages exist.
          *
-         * Remember the new count but don't force a scroll.
+         * Update the stored count without forcing a scroll.
          */
         if (
             suggestionCount <= 0 ||
@@ -295,14 +328,7 @@ private fun SuggestionScrollEffect(
         }
 
         /*
-         * Only respond when suggestions have actually appeared
-         * or increased.
-         *
-         * Example:
-         *
-         * 0 -> 3
-         *
-         * triggers the second bottom scroll.
+         * Ignore unchanged or reduced suggestion counts.
          */
         if (
             suggestionCount <=
@@ -316,39 +342,16 @@ private fun SuggestionScrollEffect(
         }
 
         /*
-         * The suggestion pills are animated above the composer.
+         * Suggestions normally animate above the composer.
          *
-         * Waiting briefly is important because scrolling on
-         * the exact state update can happen before their new
-         * height has affected the available chat viewport.
+         * This delay gives their visibility transition time to
+         * start affecting the layout.
          */
         delay(
             SUGGESTION_SCROLL_DELAY_MILLIS
         )
 
-        /*
-         * Wait for Compose measurement after the delay.
-         */
         awaitChatLayoutFrames()
-
-        animateToBottomSafely(
-            listState =
-                listState,
-            bottomAnchorIndex =
-                bottomAnchorIndex
-        )
-
-        /*
-         * One extra frame lets the bottom overlay's
-         * onSizeChanged update settle.
-         *
-         * Then perform a final correction. This is intentional
-         * because the floating suggestions can alter the
-         * viewport after the first scroll has begun.
-         */
-        withFrameNanos {
-            // Wait for updated overlay measurement.
-        }
 
         animateToBottomSafely(
             listState =
@@ -363,26 +366,79 @@ private fun SuggestionScrollEffect(
     }
 }
 
+@Composable
+private fun BottomOverlayScrollEffect(
+    listState: LazyListState,
+    messageCount: Int,
+    bottomOverlayHeight: Dp,
+    bottomAnchorIndex: Int
+) {
+    LaunchedEffect(
+        bottomOverlayHeight
+    ) {
+        if (
+            messageCount <= 0 ||
+            bottomOverlayHeight <= 0.dp
+        ) {
+            return@LaunchedEffect
+        }
+
+        /*
+         * onSizeChanged has reported the new bottom-bar
+         * measurement.
+         *
+         * Wait for ChatMessageList to receive the new bottom
+         * padding and for LazyColumn to recalculate its
+         * viewport.
+         */
+        awaitChatLayoutFrames()
+
+        delay(
+            OVERLAY_SCROLL_SETTLE_DELAY_MILLIS
+        )
+
+        /*
+         * First movement follows the new measured viewport.
+         */
+        animateToBottomSafely(
+            listState =
+                listState,
+            bottomAnchorIndex =
+                bottomAnchorIndex
+        )
+
+        /*
+         * Suggestion visibility may still be finishing its
+         * animation. Wait for two more layout frames before
+         * making the final correction.
+         */
+        awaitChatLayoutFrames()
+
+        /*
+         * Use an immediate final correction.
+         *
+         * This avoids an assistant bubble remaining partially
+         * hidden behind the suggestion row after reopening a
+         * conversation.
+         */
+        scrollToBottomSafely(
+            listState =
+                listState,
+            bottomAnchorIndex =
+                bottomAnchorIndex
+        )
+    }
+}
+
 private suspend fun animateToBottomSafely(
     listState: LazyListState,
     bottomAnchorIndex: Int
 ) {
-    val totalItemCount =
-        listState
-            .layoutInfo
-            .totalItemsCount
-
-    if (totalItemCount <= 0) {
-        return
-    }
-
     val safeIndex =
-        bottomAnchorIndex.coerceIn(
-            minimumValue =
-                0,
-            maximumValue =
-                totalItemCount - 1
-        )
+        listState.safeBottomIndex(
+            requestedIndex =
+                bottomAnchorIndex
+        ) ?: return
 
     listState.animateScrollToItem(
         index =
@@ -390,26 +446,64 @@ private suspend fun animateToBottomSafely(
     )
 }
 
+private suspend fun scrollToBottomSafely(
+    listState: LazyListState,
+    bottomAnchorIndex: Int
+) {
+    val safeIndex =
+        listState.safeBottomIndex(
+            requestedIndex =
+                bottomAnchorIndex
+        ) ?: return
+
+    listState.scrollToItem(
+        index =
+            safeIndex
+    )
+}
+
+private fun LazyListState.safeBottomIndex(
+    requestedIndex: Int
+): Int? {
+    val totalItemCount =
+        layoutInfo.totalItemsCount
+
+    if (totalItemCount <= 0) {
+        return null
+    }
+
+    return requestedIndex.coerceIn(
+        minimumValue =
+            0,
+        maximumValue =
+            totalItemCount - 1
+    )
+}
+
 private suspend fun awaitChatLayoutFrames() {
     withFrameNanos {
         /*
-         * Wait for the changed state to enter composition.
+         * Wait for changed state to enter composition.
          */
     }
 
     withFrameNanos {
         /*
-         * Wait for LazyColumn and overlay measurement.
+         * Wait for LazyColumn and bottom-overlay measurement.
          */
     }
 }
 
 /*
- * Suggestions animate above the composer, so this intentionally
- * waits longer than an ordinary composition frame.
- *
- * 160 ms is long enough for the suggestion row to affect the
- * measured bottom overlay while still feeling immediate.
+ * Allows suggestion chips to enter their visibility animation
+ * before the early scroll.
  */
 private const val SUGGESTION_SCROLL_DELAY_MILLIS =
     160L
+
+/*
+ * Allows the updated bottom content padding to reach the
+ * LazyColumn before scrolling.
+ */
+private const val OVERLAY_SCROLL_SETTLE_DELAY_MILLIS =
+    80L

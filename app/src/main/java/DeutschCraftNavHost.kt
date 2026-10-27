@@ -1,33 +1,37 @@
 package com.julesmeister.deutschcraft.app.navigation
 
-import com.julesmeister.deutschcraft.app.navigation.StartupDestination
-import com.julesmeister.deutschcraft.app.navigation.archivedThreadsDestination
-import com.julesmeister.deutschcraft.app.navigation.chatDestination
-import com.julesmeister.deutschcraft.app.navigation.progressDestination
-import com.julesmeister.deutschcraft.app.navigation.startupDestination
-import com.julesmeister.deutschcraft.app.navigation.threadListDestination
-
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
-import com.julesmeister.deutschcraft.ui.theme.DeutschBlack
 
 @Composable
 fun DeutschCraftNavHost() {
     val navController =
         rememberNavController()
 
+    /*
+     * Use the active Material theme instead of DeutschBlack.
+     *
+     * Dark mode:
+     *     DeutschCraftDarkColorScheme.background
+     *
+     * Light mode:
+     *     DeutschCraftLightColorScheme.background
+     */
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                DeutschBlack
-            )
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    MaterialTheme
+                        .colorScheme
+                        .background
+                )
     ) {
         NavHost(
             navController =

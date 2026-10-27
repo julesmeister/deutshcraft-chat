@@ -1,6 +1,12 @@
 package com.julesmeister.deutschcraft.feature.settings.domain
 
 data class UserSettings(
+    val appTheme: AppTheme =
+        AppTheme.DARK,
+
+    val progressLanguage: ProgressLanguage =
+        ProgressLanguage.GERMAN,
+
     val fontScaleOption: FontScaleOption =
         FontScaleOption.NORMAL,
 
@@ -19,4 +25,13 @@ data class UserSettings(
     val fontScale: Float
         get() =
             fontScaleOption.scale
+
+    val isDarkTheme: Boolean
+        get() =
+            appTheme == AppTheme.DARK
+
+    val showProgressInEnglish: Boolean
+        get() =
+            progressLanguage ==
+                    ProgressLanguage.ENGLISH
 }

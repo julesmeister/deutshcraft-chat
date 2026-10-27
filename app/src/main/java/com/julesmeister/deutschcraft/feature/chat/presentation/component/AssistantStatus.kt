@@ -15,8 +15,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.julesmeister.deutschcraft.ui.theme.DeutschLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @Composable
 fun AssistantStatus(
@@ -24,46 +22,80 @@ fun AssistantStatus(
     isAssessing: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val statusText = when {
-        isAssistantTyping -> {
-            "schreibt gerade"
-        }
+    val statusText =
+        when {
+            isAssistantTyping -> {
+                "schreibt gerade"
+            }
 
-        isAssessing -> {
-            "analysiert"
-        }
+            isAssessing -> {
+                "analysiert"
+            }
 
-        else -> {
-            "online"
+            else -> {
+                "online"
+            }
         }
-    }
 
     Row(
-        modifier = modifier,
+        modifier =
+            modifier,
         verticalAlignment =
             Alignment.CenterVertically,
         horizontalArrangement =
-            Arrangement.spacedBy(5.dp)
+            Arrangement.spacedBy(
+                STATUS_SPACING
+            )
     ) {
         Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(DeutschLime)
+            modifier =
+                Modifier
+                    .size(
+                        STATUS_DOT_SIZE
+                    )
+                    .clip(
+                        CircleShape
+                    )
+                    .background(
+                        MaterialTheme
+                            .colorScheme
+                            .primary
+                    )
         )
 
         Text(
-            text = statusText,
-            color = DeutschTextSecondary,
+            text =
+                statusText,
+            color =
+                MaterialTheme
+                    .colorScheme
+                    .onSurfaceVariant,
             style =
-                MaterialTheme.typography
+                MaterialTheme
+                    .typography
                     .labelMedium
                     .copy(
-                        fontSize = 11.sp,
-                        lineHeight = 13.sp
+                        fontSize =
+                            STATUS_FONT_SIZE,
+                        lineHeight =
+                            STATUS_LINE_HEIGHT
                     ),
-            fontWeight = FontWeight.Normal,
-            maxLines = 1
+            fontWeight =
+                FontWeight.Normal,
+            maxLines =
+                1
         )
     }
 }
+
+private val STATUS_SPACING =
+    5.dp
+
+private val STATUS_DOT_SIZE =
+    6.dp
+
+private val STATUS_FONT_SIZE =
+    11.sp
+
+private val STATUS_LINE_HEIGHT =
+    13.sp

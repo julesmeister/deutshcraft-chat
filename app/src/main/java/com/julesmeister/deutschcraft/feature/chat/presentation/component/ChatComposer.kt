@@ -33,12 +33,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import com.julesmeister.deutschcraft.ui.theme.DeutschLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschOutline
-import com.julesmeister.deutschcraft.ui.theme.DeutschSurface
-import com.julesmeister.deutschcraft.ui.theme.DeutschSurfaceHigh
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextDisabled
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
 
 @Composable
 fun ChatComposer(
@@ -50,8 +44,13 @@ fun ChatComposer(
     onInputFocused: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme =
+        MaterialTheme.colorScheme
+
     val interactionSource =
-        remember { MutableInteractionSource() }
+        remember {
+            MutableInteractionSource()
+        }
 
     val isFocused by
     interactionSource.collectIsFocusedAsState()
@@ -65,27 +64,51 @@ fun ChatComposer(
                 !isSending
 
     val composerShape =
-        RoundedCornerShape(COMPOSER_CORNER_RADIUS)
+        RoundedCornerShape(
+            COMPOSER_CORNER_RADIUS
+        )
 
     /*
      * Border states:
      *
-     * Not focused        → 1 dp neutral outline
-     * Focused, empty     → 2 dp soft lime
-     * Focused and typing → 2 dp full bright lime
+     * Not focused:
+     * Neutral theme outline.
+     *
+     * Focused and empty:
+     * Soft theme-aware primary.
+     *
+     * Focused with text:
+     * Full theme-aware primary.
      */
     val targetBorderColor =
         when {
-            isFocused && hasText -> DeutschLime
-            isFocused -> DeutschLime.copy(alpha = FOCUSED_EMPTY_BORDER_ALPHA)
-            else -> DeutschOutline
+            isFocused &&
+                    hasText -> {
+                colorScheme.primary
+            }
+
+            isFocused -> {
+                colorScheme
+                    .primary
+                    .copy(
+                        alpha =
+                            FOCUSED_EMPTY_BORDER_ALPHA
+                    )
+            }
+
+            else -> {
+                colorScheme.outline
+            }
         }
 
     val borderColor by
     animateColorAsState(
-        targetValue = targetBorderColor,
-        animationSpec = focusAnimation(),
-        label = "ComposerBorderColor"
+        targetValue =
+            targetBorderColor,
+        animationSpec =
+            focusAnimation(),
+        label =
+            "ComposerBorderColor"
     )
 
     val borderWidth by
@@ -96,22 +119,56 @@ fun ChatComposer(
             } else {
                 UNFOCUSED_BORDER_WIDTH
             },
-        animationSpec = focusAnimation(),
-        label = "ComposerBorderWidth"
+        animationSpec =
+            focusAnimation(),
+        label =
+            "ComposerBorderWidth"
     )
 
     /*
-     * The composer lifts slightly while focused.
+     * The composer uses a slightly stronger surface while
+     * focused.
      */
     val containerColor by
     animateColorAsState(
         targetValue =
-            if (isFocused) DeutschSurfaceHigh else DeutschSurface,
-        animationSpec = focusAnimation(),
-        label = "ComposerContainer"
+            if (isFocused) {
+                colorScheme.surfaceContainerHigh
+            } else {
+                colorScheme.surfaceContainer
+            },
+        animationSpec =
+            focusAnimation(),
+        label =
+            "ComposerContainer"
     )
 
-    LaunchedEffect(isFocused) {
+    val textColor =
+        if (
+            enabled &&
+            !isSending
+        ) {
+            colorScheme.onSurface
+        } else {
+            colorScheme
+                .onSurface
+                .copy(
+                    alpha =
+                        DISABLED_CONTENT_ALPHA
+                )
+        }
+
+    val placeholderColor =
+        colorScheme
+            .onSurfaceVariant
+            .copy(
+                alpha =
+                    PLACEHOLDER_ALPHA
+            )
+
+    LaunchedEffect(
+        isFocused
+    ) {
         if (isFocused) {
             onInputFocused()
         }
@@ -121,77 +178,131 @@ fun ChatComposer(
         modifier =
             modifier
                 .shadow(
-                    elevation = COMPOSER_ELEVATION,
-                    shape = composerShape,
-                    clip = false
+                    elevation =
+                        COMPOSER_ELEVATION,
+                    shape =
+                        composerShape,
+                    clip =
+                        false
                 )
-                .clip(composerShape)
-                .background(containerColor)
+                .clip(
+                    composerShape
+                )
+                .background(
+                    containerColor
+                )
                 .border(
-                    width = borderWidth,
-                    color = borderColor,
-                    shape = composerShape
+                    width =
+                        borderWidth,
+                    color =
+                        borderColor,
+                    shape =
+                        composerShape
                 )
                 .animateContentSize(
                     animationSpec =
                         tween(
-                            durationMillis = COMPOSER_SIZE_ANIMATION_MILLIS,
-                            easing = FastOutSlowInEasing
+                            durationMillis =
+                                COMPOSER_SIZE_ANIMATION_MILLIS,
+                            easing =
+                                FastOutSlowInEasing
                         )
                 )
-                .defaultMinSize(minHeight = MINIMUM_COMPOSER_HEIGHT)
+                .defaultMinSize(
+                    minHeight =
+                        MINIMUM_COMPOSER_HEIGHT
+                )
                 .padding(
-                    start = COMPOSER_START_PADDING,
-                    top = COMPOSER_VERTICAL_PADDING,
-                    end = COMPOSER_END_PADDING,
-                    bottom = COMPOSER_VERTICAL_PADDING
+                    start =
+                        COMPOSER_START_PADDING,
+                    top =
+                        COMPOSER_VERTICAL_PADDING,
+                    end =
+                        COMPOSER_END_PADDING,
+                    bottom =
+                        COMPOSER_VERTICAL_PADDING
                 ),
-        verticalAlignment = Alignment.Bottom
+        verticalAlignment =
+            Alignment.Bottom
     ) {
         BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value =
+                value,
+            onValueChange =
+                onValueChange,
             modifier =
                 Modifier
                     .weight(1f)
                     .sizeIn(
-                        minHeight = TEXT_FIELD_MINIMUM_HEIGHT,
-                        maxHeight = TEXT_FIELD_MAXIMUM_HEIGHT
+                        minHeight =
+                            TEXT_FIELD_MINIMUM_HEIGHT,
+                        maxHeight =
+                            TEXT_FIELD_MAXIMUM_HEIGHT
                     )
-                    .padding(vertical = TEXT_FIELD_VERTICAL_PADDING),
-            enabled = enabled && !isSending,
+                    .padding(
+                        vertical =
+                            TEXT_FIELD_VERTICAL_PADDING
+                    ),
+            enabled =
+                enabled &&
+                        !isSending,
             textStyle =
-                MaterialTheme.typography.bodyLarge.copy(
-                    color =
-                        if (enabled) DeutschTextPrimary else DeutschTextDisabled
+                MaterialTheme
+                    .typography
+                    .bodyLarge
+                    .copy(
+                        color =
+                            textColor
+                    ),
+            cursorBrush =
+                SolidColor(
+                    colorScheme.primary
                 ),
-            cursorBrush = SolidColor(DeutschLime),
-            interactionSource = interactionSource,
+            interactionSource =
+                interactionSource,
             keyboardOptions =
                 KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
+                    capitalization =
+                        KeyboardCapitalization.Sentences,
+
                     /*
-                     * Off on purpose: the keyboard must not fix the
-                     * learner's German before Besser can see it.
+                     * The keyboard must not correct the
+                     * learner's German before Besser evaluates
+                     * the original sentence.
                      */
-                    autoCorrectEnabled = false,
-                    imeAction = ImeAction.Send
+                    autoCorrectEnabled =
+                        false,
+
+                    imeAction =
+                        ImeAction.Send
                 ),
             keyboardActions =
                 KeyboardActions(
                     onSend = {
-                        if (canSend) onSendClick()
+                        if (canSend) {
+                            onSendClick()
+                        }
                     }
                 ),
-            minLines = 1,
-            maxLines = MAXIMUM_INPUT_LINES,
+            minLines =
+                1,
+            maxLines =
+                MAXIMUM_INPUT_LINES,
             decorationBox = { innerTextField ->
-                Box(contentAlignment = Alignment.CenterStart) {
+                Box(
+                    contentAlignment =
+                        Alignment.CenterStart
+                ) {
                     if (value.text.isEmpty()) {
                         Text(
-                            text = "Nachricht auf Deutsch",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = DeutschTextDisabled
+                            text =
+                                "Nachricht auf Deutsch",
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodyLarge,
+                            color =
+                                placeholderColor
                         )
                     }
 
@@ -201,10 +312,14 @@ fun ChatComposer(
         )
 
         ChatSendButton(
-            enabled = canSend,
-            isSending = isSending,
+            enabled =
+                canSend,
+            isSending =
+                isSending,
             onClick = {
-                if (canSend) onSendClick()
+                if (canSend) {
+                    onSendClick()
+                }
             }
         )
     }
@@ -212,31 +327,59 @@ fun ChatComposer(
 
 private fun <T> focusAnimation() =
     tween<T>(
-        durationMillis = FOCUS_ANIMATION_MILLIS,
-        easing = FastOutSlowInEasing
+        durationMillis =
+            FOCUS_ANIMATION_MILLIS,
+        easing =
+            FastOutSlowInEasing
     )
 
-private val COMPOSER_CORNER_RADIUS = 28.dp
-private val COMPOSER_ELEVATION = 8.dp
+private val COMPOSER_CORNER_RADIUS =
+    28.dp
 
-private val UNFOCUSED_BORDER_WIDTH = 1.dp
-private val FOCUSED_BORDER_WIDTH = 2.dp
+private val COMPOSER_ELEVATION =
+    8.dp
 
-private val MINIMUM_COMPOSER_HEIGHT = 56.dp
-private val TEXT_FIELD_MINIMUM_HEIGHT = 40.dp
-private val TEXT_FIELD_MAXIMUM_HEIGHT = 128.dp
-private val COMPOSER_START_PADDING = 18.dp
-private val COMPOSER_END_PADDING = 7.dp
-private val COMPOSER_VERTICAL_PADDING = 7.dp
-private val TEXT_FIELD_VERTICAL_PADDING = 8.dp
+private val UNFOCUSED_BORDER_WIDTH =
+    1.dp
 
-private const val MAXIMUM_INPUT_LINES = 5
+private val FOCUSED_BORDER_WIDTH =
+    2.dp
 
-/*
- * Focused but empty: visible lime that brightens to full
- * strength once the learner starts typing.
- */
-private const val FOCUSED_EMPTY_BORDER_ALPHA = 0.50f
+private val MINIMUM_COMPOSER_HEIGHT =
+    56.dp
 
-private const val FOCUS_ANIMATION_MILLIS = 220
-private const val COMPOSER_SIZE_ANIMATION_MILLIS = 240
+private val TEXT_FIELD_MINIMUM_HEIGHT =
+    40.dp
+
+private val TEXT_FIELD_MAXIMUM_HEIGHT =
+    128.dp
+
+private val COMPOSER_START_PADDING =
+    18.dp
+
+private val COMPOSER_END_PADDING =
+    7.dp
+
+private val COMPOSER_VERTICAL_PADDING =
+    7.dp
+
+private val TEXT_FIELD_VERTICAL_PADDING =
+    8.dp
+
+private const val MAXIMUM_INPUT_LINES =
+    5
+
+private const val FOCUSED_EMPTY_BORDER_ALPHA =
+    0.50f
+
+private const val DISABLED_CONTENT_ALPHA =
+    0.38f
+
+private const val PLACEHOLDER_ALPHA =
+    0.72f
+
+private const val FOCUS_ANIMATION_MILLIS =
+    220
+
+private const val COMPOSER_SIZE_ANIMATION_MILLIS =
+    240

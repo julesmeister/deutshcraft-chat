@@ -10,22 +10,25 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.progress.domain.model.ProgressSummary
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @Composable
 internal fun ProgressContent(
-    progress:
-    ProgressSummary,
-    completedMissionCount:
-    Int,
-    recentCompletedMissions:
-    List<CompletedMissionUiModel>,
-    modifier:
-    Modifier =
-        Modifier
+    progress: ProgressSummary,
+    completedMissionCount: Int,
+    recentCompletedMissions: List<CompletedMissionUiModel>,
+
+    /*
+     * Single language source for the entire Progress screen.
+     *
+     * false = German
+     * true  = English
+     */
+    showEnglish: Boolean,
+
+    modifier: Modifier = Modifier
 ) {
     LazyColumn(
         modifier =
@@ -33,17 +36,17 @@ internal fun ProgressContent(
         contentPadding =
             PaddingValues(
                 start =
-                    CONTENT_HORIZONTAL_PADDING,
+                    ProgressContentHorizontalPadding,
                 top =
-                    CONTENT_TOP_PADDING,
+                    ProgressContentTopPadding,
                 end =
-                    CONTENT_HORIZONTAL_PADDING,
+                    ProgressContentHorizontalPadding,
                 bottom =
-                    CONTENT_BOTTOM_PADDING
+                    ProgressContentBottomPadding
             ),
         verticalArrangement =
             Arrangement.spacedBy(
-                CONTENT_ITEM_SPACING
+                ProgressContentItemSpacing
             )
     ) {
         /*
@@ -55,41 +58,16 @@ internal fun ProgressContent(
             key =
                 PROGRESS_INTRODUCTION_KEY
         ) {
-            ProgressIntroduction()
+            ProgressIntroduction(
+                showEnglish =
+                    showEnglish
+            )
         }
 
         /*
          * ===================================================
          * CEFR level + readiness Bento
          * ===================================================
-         *
-         * Replaces the old separate:
-         *
-         * CurrentNiveauPanel
-         *
-         * and:
-         *
-         * ReadinessPanel
-         *
-         * with one asymmetric dashboard section.
-         *
-         * Visual structure:
-         *
-         * ┌─────────────┬─────────────────────┐
-         * │ Aktuelles   │ Bereitschaft        │
-         * │ Niveau      │                     │
-         * │             │        43%          │
-         * │     B1      │       für B2        │
-         * └─────────────┘                     │
-         * ┌───────────────────────────────────┤
-         * │                                   │
-         * │ ███████████░░░░░░░░░░░░   43%   │
-         * │ Auf dem Weg zu B2                 │
-         * └───────────────────────────────────┘
-         *
-         * The readiness area owns the dominant lime visual
-         * treatment, while the current-level tile remains the
-         * smaller neutral anchor.
          */
         item(
             key =
@@ -97,7 +75,9 @@ internal fun ProgressContent(
         ) {
             CefrLevelReadinessBento(
                 progress =
-                    progress
+                    progress,
+                showEnglish =
+                    showEnglish
             )
         }
 
@@ -105,6 +85,9 @@ internal fun ProgressContent(
          * ===================================================
          * Progress statistics
          * ===================================================
+         *
+         * This panel can receive showEnglish next when its
+         * labels are made bilingual.
          */
         item(
             key =
@@ -129,7 +112,9 @@ internal fun ProgressContent(
                 completedMissionCount =
                     completedMissionCount,
                 recentMissions =
-                    recentCompletedMissions
+                    recentCompletedMissions,
+                showEnglish =
+                    showEnglish
             )
         }
 
@@ -166,11 +151,17 @@ internal fun ProgressContent(
 }
 
 @Composable
-private fun ProgressIntroduction() {
+private fun ProgressIntroduction(
+    showEnglish: Boolean
+) {
     Column {
         Text(
             text =
-                "CEFR-Entwicklung",
+                if (showEnglish) {
+                    "CEFR development"
+                } else {
+                    "CEFR-Entwicklung"
+                },
             style =
                 MaterialTheme
                     .typography
@@ -183,12 +174,17 @@ private fun ProgressIntroduction() {
 
         Text(
             text =
-                "Deine Einschätzung entwickelt sich mit " +
-                        "jeder analysierten deutschen Nachricht.",
+                if (showEnglish) {
+                    "Your assessment develops with every " +
+                            "analyzed German message."
+                } else {
+                    "Deine Einschätzung entwickelt sich mit " +
+                            "jeder analysierten deutschen Nachricht."
+                },
             modifier =
                 Modifier.padding(
                     top =
-                        INTRODUCTION_DESCRIPTION_TOP_PADDING
+                        ProgressIntroductionDescriptionTopPadding
                 ),
             style =
                 MaterialTheme
@@ -200,13 +196,15 @@ private fun ProgressIntroduction() {
     }
 }
 
+/*
+ * Keep LazyColumn keys local.
+ *
+ * These aren't shared UI dimensions or styling values, so
+ * they don't belong in ProgressUiConstants.kt.
+ */
 private const val PROGRESS_INTRODUCTION_KEY =
     "progress_introduction"
 
-/*
- * Current level and readiness now belong to one LazyColumn
- * item instead of two unrelated rows.
- */
 private const val CEFR_LEVEL_READINESS_BENTO_KEY =
     "cefr_level_readiness_bento"
 
@@ -221,18 +219,3 @@ private const val SKILL_BREAKDOWN_KEY =
 
 private const val CONFIDENCE_KEY =
     "confidence"
-
-private val CONTENT_HORIZONTAL_PADDING =
-    20.dp
-
-private val CONTENT_TOP_PADDING =
-    16.dp
-
-private val CONTENT_BOTTOM_PADDING =
-    40.dp
-
-private val CONTENT_ITEM_SPACING =
-    16.dp
-
-private val INTRODUCTION_DESCRIPTION_TOP_PADDING =
-    6.dp

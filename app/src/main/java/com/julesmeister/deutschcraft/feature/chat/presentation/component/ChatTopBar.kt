@@ -38,9 +38,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.presentation.AdaptiveLearningFeedbackEvent
@@ -67,15 +69,7 @@ fun ChatTopBar(
         (String) -> Unit = {},
     onAdaptiveLearningFeedbackShown:
         (String) -> Unit = {},
-
-    /*
-     * True briefly after a message is copied.
-     *
-     * The normal title and subtitle remain visible.
-     * The confirmation appears beside them.
-     */
     showCopiedConfirmation: Boolean = false,
-
     onMissionGuidanceClick:
         () -> Unit = {}
 ) {
@@ -85,20 +79,34 @@ fun ChatTopBar(
         colors =
             TopAppBarDefaults.topAppBarColors(
                 containerColor =
-                    MaterialTheme.colorScheme.background,
+                    MaterialTheme
+                        .colorScheme
+                        .background,
                 scrolledContainerColor =
-                    MaterialTheme.colorScheme.background,
+                    MaterialTheme
+                        .colorScheme
+                        .background,
                 titleContentColor =
-                    MaterialTheme.colorScheme.onBackground,
+                    MaterialTheme
+                        .colorScheme
+                        .onBackground,
                 navigationIconContentColor =
-                    MaterialTheme.colorScheme.onBackground
+                    MaterialTheme
+                        .colorScheme
+                        .onBackground,
+                actionIconContentColor =
+                    MaterialTheme
+                        .colorScheme
+                        .onBackground
             ),
         navigationIcon = {
             AnimatedChatTopBarIconButton(
-                onClick = onBackClick,
+                onClick =
+                    onBackClick,
                 modifier =
                     Modifier.padding(
-                        start = TOP_BAR_EDGE_PADDING
+                        start =
+                            TOP_BAR_EDGE_PADDING
                     )
             ) {
                 Icon(
@@ -107,7 +115,12 @@ fun ChatTopBar(
                             .AutoMirrored
                             .Outlined
                             .ArrowBack,
-                    contentDescription = "Back"
+                    contentDescription =
+                        "Back",
+                    tint =
+                        MaterialTheme
+                            .colorScheme
+                            .onSurface
                 )
             }
         },
@@ -117,8 +130,10 @@ fun ChatTopBar(
                     Modifier
                         .fillMaxWidth()
                         .padding(
-                            start = TITLE_START_PADDING,
-                            end = TITLE_END_PADDING
+                            start =
+                                TITLE_START_PADDING,
+                            end =
+                                TITLE_END_PADDING
                         ),
                 verticalAlignment =
                     Alignment.CenterVertically,
@@ -127,10 +142,6 @@ fun ChatTopBar(
                         COPY_CONFIRMATION_SPACING
                     )
             ) {
-                /*
-                 * Keep the normal title, subtitle, mission,
-                 * assessment and adaptive-learning content.
-                 */
                 AnimatedChatTopBarTitle(
                     isAssistantTyping =
                         isAssistantTyping,
@@ -158,10 +169,6 @@ fun ChatTopBar(
                         Modifier.weight(1f)
                 )
 
-                /*
-                 * Copy confirmation appears beside the
-                 * existing title instead of replacing it.
-                 */
                 AnimatedVisibility(
                     visible =
                         showCopiedConfirmation,
@@ -208,7 +215,8 @@ fun ChatTopBar(
                 }
             }
         },
-        actions = {}
+        actions =
+            {}
     )
 }
 
@@ -230,9 +238,11 @@ private fun TopBarCopyConfirmation() {
         animationSpec =
             spring(
                 dampingRatio =
-                    Spring.DampingRatioMediumBouncy,
+                    Spring
+                        .DampingRatioMediumBouncy,
                 stiffness =
-                    Spring.StiffnessMedium
+                    Spring
+                        .StiffnessMedium
             ),
         label =
             "TopBarCopyConfirmationScale"
@@ -248,8 +258,10 @@ private fun TopBarCopyConfirmation() {
             },
         animationSpec =
             spring(
-                dampingRatio = 0.58f,
-                stiffness = 440f
+                dampingRatio =
+                    COPY_CONFIRMATION_ROTATION_DAMPING,
+                stiffness =
+                    COPY_CONFIRMATION_ROTATION_STIFFNESS
             ),
         label =
             "TopBarCopyConfirmationRotation"
@@ -274,7 +286,10 @@ private fun TopBarCopyConfirmation() {
                         rotation
                 }
                 .clip(
-                    RoundedCornerShape(50)
+                    RoundedCornerShape(
+                        percent =
+                            FULL_CORNER_PERCENT
+                    )
                 )
                 .background(
                     MaterialTheme
@@ -282,16 +297,31 @@ private fun TopBarCopyConfirmation() {
                         .surfaceContainerHigh
                 )
                 .padding(
-                    start = 5.dp,
-                    end = 9.dp,
-                    top = 4.dp,
-                    bottom = 4.dp
+                    start =
+                        COPY_CONFIRMATION_START_PADDING,
+                    end =
+                        COPY_CONFIRMATION_END_PADDING,
+                    top =
+                        COPY_CONFIRMATION_VERTICAL_PADDING,
+                    bottom =
+                        COPY_CONFIRMATION_VERTICAL_PADDING
                 ),
         verticalAlignment =
             Alignment.CenterVertically,
         horizontalArrangement =
-            Arrangement.spacedBy(5.dp)
+            Arrangement.spacedBy(
+                COPY_CONFIRMATION_CONTENT_SPACING
+            )
     ) {
+        /*
+         * Inverted check circle:
+         *
+         * Dark theme:
+         * Light circle with dark check.
+         *
+         * Light theme:
+         * Dark circle with light check.
+         */
         Box(
             modifier =
                 Modifier
@@ -302,14 +332,18 @@ private fun TopBarCopyConfirmation() {
                         CircleShape
                     )
                     .background(
-                        Color.White
+                        MaterialTheme
+                            .colorScheme
+                            .onSurface
                     ),
             contentAlignment =
                 Alignment.Center
         ) {
             Icon(
                 imageVector =
-                    Icons.Outlined.Check,
+                    Icons
+                        .Outlined
+                        .Check,
                 contentDescription =
                     null,
                 modifier =
@@ -317,7 +351,9 @@ private fun TopBarCopyConfirmation() {
                         COPY_CONFIRMATION_CHECK_SIZE
                     ),
                 tint =
-                    Color.Black
+                    MaterialTheme
+                        .colorScheme
+                        .surface
             )
         }
 
@@ -342,8 +378,7 @@ private fun TopBarCopyConfirmation() {
 private fun AnimatedChatTopBarIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    content:
-    @Composable () -> Unit
+    content: @Composable () -> Unit
 ) {
     var isPressed by
     remember {
@@ -401,6 +436,10 @@ private fun AnimatedChatTopBarIconButton(
                                 )
                         }
                 )
+                .semantics {
+                    role =
+                        Role.Button
+                }
                 .pointerInput(
                     onClick
                 ) {
@@ -449,6 +488,21 @@ private val COPY_CONFIRMATION_ICON_CONTAINER_SIZE =
 private val COPY_CONFIRMATION_CHECK_SIZE =
     13.dp
 
+private val COPY_CONFIRMATION_START_PADDING =
+    5.dp
+
+private val COPY_CONFIRMATION_END_PADDING =
+    9.dp
+
+private val COPY_CONFIRMATION_VERTICAL_PADDING =
+    4.dp
+
+private val COPY_CONFIRMATION_CONTENT_SPACING =
+    5.dp
+
+private const val FULL_CORNER_PERCENT =
+    50
+
 private const val NORMAL_ICON_SCALE =
     1f
 
@@ -466,6 +520,12 @@ private const val COPY_CONFIRMATION_INITIAL_SCALE =
 
 private const val COPY_CONFIRMATION_INITIAL_ROTATION =
     -10f
+
+private const val COPY_CONFIRMATION_ROTATION_DAMPING =
+    0.58f
+
+private const val COPY_CONFIRMATION_ROTATION_STIFFNESS =
+    440f
 
 private const val COPY_CONFIRMATION_ENTER_MILLIS =
     160

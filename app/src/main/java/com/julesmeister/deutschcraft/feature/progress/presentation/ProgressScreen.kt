@@ -1,5 +1,10 @@
 package com.julesmeister.deutschcraft.feature.progress.presentation
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,18 +32,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.settings.domain.ProgressLanguage
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProgressScreen(
     uiState: ProgressUiState,
+    progressLanguage: ProgressLanguage,
+    onProgressLanguageChanged: (ProgressLanguage) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    /*
+     * ProgressScreen no longer owns temporary language state.
+     *
+     * The value comes from the persisted UserSettings
+     * preference.
+     */
+    val showEnglish =
+        progressLanguage ==
+                ProgressLanguage.ENGLISH
+
     Scaffold(
         modifier =
             modifier.fillMaxSize(),
@@ -49,18 +64,35 @@ fun ProgressScreen(
         topBar = {
             ProgressTopBar(
                 onBackClick =
-                    onBackClick
+                    onBackClick,
+                showEnglish =
+                    showEnglish,
+                onLanguageToggle = {
+                    val newLanguage =
+                        if (showEnglish) {
+                            ProgressLanguage.GERMAN
+                        } else {
+                            ProgressLanguage.ENGLISH
+                        }
+
+                    onProgressLanguageChanged(
+                        newLanguage
+                    )
+                }
             )
         }
     ) { innerPadding ->
         when {
             uiState.isLoading -> {
                 ProgressLoadingContent(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            innerPadding
-                        )
+                    showEnglish =
+                        showEnglish,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(
+                                innerPadding
+                            )
                 )
             }
 
@@ -72,11 +104,14 @@ fun ProgressScreen(
                         uiState.completedMissionCount,
                     recentCompletedMissions =
                         uiState.recentCompletedMissions,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            innerPadding
-                        )
+                    showEnglish =
+                        showEnglish,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(
+                                innerPadding
+                            )
                 )
             }
 
@@ -84,12 +119,19 @@ fun ProgressScreen(
                 ProgressEmptyContent(
                     message =
                         uiState.errorMessage
-                            ?: DEFAULT_EMPTY_MESSAGE,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            innerPadding
-                        )
+                            ?: if (showEnglish) {
+                                ProgressDefaultEmptyMessageEnglish
+                            } else {
+                                ProgressDefaultEmptyMessageGerman
+                            },
+                    showEnglish =
+                        showEnglish,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(
+                                innerPadding
+                            )
                 )
             }
         }
@@ -99,36 +141,69 @@ fun ProgressScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProgressTopBar(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    showEnglish: Boolean,
+    onLanguageToggle: () -> Unit
 ) {
     TopAppBar(
         title = {
-            Text(
-                text =
-                    "Dein Fortschritt",
-                modifier =
-                    Modifier.padding(
-                        start =
-                            TOP_BAR_TITLE_START_PADDING
-                    ),
-                color =
-                    DeutschTextPrimary,
-                fontWeight =
-                    FontWeight.SemiBold
-            )
+            AnimatedContent(
+                targetState =
+                    showEnglish,
+                transitionSpec = {
+                    fadeIn(
+                        animationSpec =
+                            tween(
+                                durationMillis =
+                                    ProgressLanguageAnimationDurationMillis
+                            )
+                    ) togetherWith
+                            fadeOut(
+                                animationSpec =
+                                    tween(
+                                        durationMillis =
+                                            ProgressLanguageAnimationDurationMillis
+                                    )
+                            )
+                },
+                label =
+                    "ProgressTitleLanguage"
+            ) { english ->
+                Text(
+                    text =
+                        if (english) {
+                            "Your progress"
+                        } else {
+                            "Dein Fortschritt"
+                        },
+                    modifier =
+                        Modifier.padding(
+                            start =
+                                ProgressTopBarTitleStartPadding
+                        ),
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .onBackground,
+                    fontWeight =
+                        FontWeight.SemiBold
+                )
+            }
         },
+
         navigationIcon = {
             IconButton(
                 onClick =
                     onBackClick,
-                modifier = Modifier
-                    .padding(
-                        start =
-                            TOP_BAR_EDGE_PADDING
-                    )
-                    .size(
-                        TOP_BAR_BUTTON_SIZE
-                    ),
+                modifier =
+                    Modifier
+                        .padding(
+                            start =
+                                ProgressTopBarEdgePadding
+                        )
+                        .size(
+                            ProgressTopBarButtonSize
+                        ),
                 shape =
                     CircleShape,
                 colors =
@@ -138,19 +213,36 @@ private fun ProgressTopBar(
                                 .colorScheme
                                 .surfaceContainer,
                         contentColor =
-                            DeutschTextPrimary
+                            MaterialTheme
+                                .colorScheme
+                                .onSurface
                     )
             ) {
                 Icon(
                     imageVector =
-                        Icons.AutoMirrored
+                        Icons
+                            .AutoMirrored
                             .Outlined
                             .ArrowBack,
                     contentDescription =
-                        "Zurück"
+                        if (showEnglish) {
+                            "Back"
+                        } else {
+                            "Zurück"
+                        }
                 )
             }
         },
+
+        actions = {
+            ProgressLanguageButton(
+                showEnglish =
+                    showEnglish,
+                onClick =
+                    onLanguageToggle
+            )
+        },
+
         colors =
             TopAppBarDefaults.topAppBarColors(
                 containerColor =
@@ -162,15 +254,102 @@ private fun ProgressTopBar(
                         .colorScheme
                         .background,
                 titleContentColor =
-                    DeutschTextPrimary,
+                    MaterialTheme
+                        .colorScheme
+                        .onBackground,
                 navigationIconContentColor =
-                    DeutschTextPrimary
+                    MaterialTheme
+                        .colorScheme
+                        .onBackground,
+                actionIconContentColor =
+                    MaterialTheme
+                        .colorScheme
+                        .onBackground
             )
     )
 }
 
 @Composable
+private fun ProgressLanguageButton(
+    showEnglish: Boolean,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick =
+            onClick,
+        modifier =
+            Modifier
+                .padding(
+                    end =
+                        ProgressTopBarEdgePadding
+                )
+                .size(
+                    ProgressTopBarButtonSize
+                ),
+        shape =
+            CircleShape,
+        colors =
+            IconButtonDefaults.iconButtonColors(
+                containerColor =
+                    DeutschLime.copy(
+                        alpha =
+                            ProgressLanguageButtonAlpha
+                    ),
+                contentColor =
+                    MaterialTheme
+                        .colorScheme
+                        .primary
+            )
+    ) {
+        AnimatedContent(
+            targetState =
+                showEnglish,
+            transitionSpec = {
+                fadeIn(
+                    animationSpec =
+                        tween(
+                            durationMillis =
+                                ProgressLanguageAnimationDurationMillis
+                        )
+                ) togetherWith
+                        fadeOut(
+                            animationSpec =
+                                tween(
+                                    durationMillis =
+                                        ProgressLanguageAnimationDurationMillis
+                                )
+                        )
+            },
+            label =
+                "ProgressLanguageButton"
+        ) { english ->
+            /*
+             * This intentionally displays the destination:
+             *
+             * German currently visible -> EN
+             * English currently visible -> DE
+             */
+            Text(
+                text =
+                    if (english) {
+                        "DE"
+                    } else {
+                        "EN"
+                    },
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelMedium,
+                fontWeight =
+                    FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
 private fun ProgressLoadingContent(
+    showEnglish: Boolean,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -183,19 +362,27 @@ private fun ProgressLoadingContent(
     ) {
         CircularProgressIndicator(
             color =
-                DeutschLime
+                MaterialTheme
+                    .colorScheme
+                    .primary
         )
 
         Text(
             text =
-                "Fortschritt wird geladen …",
+                if (showEnglish) {
+                    "Loading progress …"
+                } else {
+                    "Fortschritt wird geladen …"
+                },
             modifier =
                 Modifier.padding(
                     top =
-                        LOADING_TEXT_TOP_PADDING
+                        ProgressLoadingTextTopPadding
                 ),
             color =
-                DeutschTextSecondary,
+                MaterialTheme
+                    .colorScheme
+                    .onSurfaceVariant,
             style =
                 MaterialTheme
                     .typography
@@ -207,12 +394,13 @@ private fun ProgressLoadingContent(
 @Composable
 private fun ProgressEmptyContent(
     message: String,
+    showEnglish: Boolean,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier =
             modifier.padding(
-                EMPTY_CONTENT_PADDING
+                ProgressEmptyContentPadding
             ),
         horizontalAlignment =
             Alignment.CenterHorizontally,
@@ -220,39 +408,47 @@ private fun ProgressEmptyContent(
             Arrangement.Center
     ) {
         Box(
-            modifier = Modifier
-                .size(
-                    EMPTY_ICON_CONTAINER_SIZE
-                )
-                .clip(
-                    CircleShape
-                )
-                .background(
-                    color =
+            modifier =
+                Modifier
+                    .size(
+                        ProgressEmptyIconContainerSize
+                    )
+                    .clip(
+                        CircleShape
+                    )
+                    .background(
                         MaterialTheme
                             .colorScheme
                             .surfaceContainer
-                ),
+                    ),
             contentAlignment =
                 Alignment.Center
         ) {
             Icon(
                 imageVector =
-                    Icons.Outlined.Insights,
+                    Icons
+                        .Outlined
+                        .Insights,
                 contentDescription =
                     null,
                 tint =
-                    DeutschTextSecondary
+                    MaterialTheme
+                        .colorScheme
+                        .onSurfaceVariant
             )
         }
 
         Text(
             text =
-                "Noch keine CEFR-Daten",
+                if (showEnglish) {
+                    "No CEFR data yet"
+                } else {
+                    "Noch keine CEFR-Daten"
+                },
             modifier =
                 Modifier.padding(
                     top =
-                        EMPTY_TITLE_TOP_PADDING
+                        ProgressEmptyTitleTopPadding
                 ),
             style =
                 MaterialTheme
@@ -261,7 +457,9 @@ private fun ProgressEmptyContent(
             fontWeight =
                 FontWeight.SemiBold,
             color =
-                DeutschTextPrimary,
+                MaterialTheme
+                    .colorScheme
+                    .onBackground,
             textAlign =
                 TextAlign.Center
         )
@@ -272,43 +470,18 @@ private fun ProgressEmptyContent(
             modifier =
                 Modifier.padding(
                     top =
-                        EMPTY_MESSAGE_TOP_PADDING
+                        ProgressEmptyMessageTopPadding
                 ),
             style =
                 MaterialTheme
                     .typography
                     .bodyMedium,
             color =
-                DeutschTextSecondary,
+                MaterialTheme
+                    .colorScheme
+                    .onSurfaceVariant,
             textAlign =
                 TextAlign.Center
         )
     }
 }
-
-private const val DEFAULT_EMPTY_MESSAGE =
-    "Noch keine Fortschrittsdaten verfügbar."
-
-private val TOP_BAR_EDGE_PADDING =
-    8.dp
-
-private val TOP_BAR_BUTTON_SIZE =
-    40.dp
-
-private val TOP_BAR_TITLE_START_PADDING =
-    12.dp
-
-private val LOADING_TEXT_TOP_PADDING =
-    16.dp
-
-private val EMPTY_CONTENT_PADDING =
-    32.dp
-
-private val EMPTY_ICON_CONTAINER_SIZE =
-    68.dp
-
-private val EMPTY_TITLE_TOP_PADDING =
-    18.dp
-
-private val EMPTY_MESSAGE_TOP_PADDING =
-    8.dp

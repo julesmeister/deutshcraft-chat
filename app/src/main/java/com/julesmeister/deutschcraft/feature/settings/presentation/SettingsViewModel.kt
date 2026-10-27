@@ -37,6 +37,20 @@ class SettingsViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             when (action) {
+                is SettingsUiAction.ThemeChanged -> {
+                    repository.setAppTheme(
+                        theme =
+                            action.theme
+                    )
+                }
+
+                is SettingsUiAction.ProgressLanguageChanged -> {
+                    repository.setProgressLanguage(
+                        language =
+                            action.language
+                    )
+                }
+
                 is SettingsUiAction.FontScaleChanged -> {
                     repository.setFontScale(
                         option =
@@ -44,36 +58,28 @@ class SettingsViewModel @Inject constructor(
                     )
                 }
 
-                is SettingsUiAction
-                .ReduceAnimationsChanged -> {
-
+                is SettingsUiAction.ReduceAnimationsChanged -> {
                     repository.setReduceAnimations(
                         enabled =
                             action.enabled
                     )
                 }
 
-                is SettingsUiAction
-                .ShowMissionHintsChanged -> {
-
+                is SettingsUiAction.ShowMissionHintsChanged -> {
                     repository.setShowMissionHints(
                         enabled =
                             action.enabled
                     )
                 }
 
-                is SettingsUiAction
-                .ShowExamplePhrasesChanged -> {
-
+                is SettingsUiAction.ShowExamplePhrasesChanged -> {
                     repository.setShowExamplePhrases(
                         enabled =
                             action.enabled
                     )
                 }
 
-                is SettingsUiAction
-                .ShowTargetVocabularyChanged -> {
-
+                is SettingsUiAction.ShowTargetVocabularyChanged -> {
                     repository.setShowTargetVocabulary(
                         enabled =
                             action.enabled
@@ -84,6 +90,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     private companion object {
+
         const val STATE_STOP_TIMEOUT_MILLIS =
             5_000L
     }
