@@ -8,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  *
  * Current database version:
  *
- * 13
+ * 14
  *
  * Known migration history:
  *
@@ -20,6 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * 10 -> 11
  * 11 -> 12
  * 12 -> 13
+ * 13 -> 14
  *
  * Future migrations should continue to be added here and
  * appended to ALL.
@@ -238,7 +239,7 @@ object DatabaseMigrations {
         }
 
     /*
-     * Version 12 introduces persisted per-message mission
+     * Version 12 introduced persisted per-message mission
      * interaction evidence.
      */
     val MIGRATION_11_12 =
@@ -266,7 +267,7 @@ object DatabaseMigrations {
         }
 
     /*
-     * Version 13 introduces learner-marked phrases.
+     * Version 13 introduced learner-marked phrases.
      *
      * Words and grammar the learner highlighted as difficult,
      * together with their AI explanation.
@@ -296,6 +297,64 @@ object DatabaseMigrations {
         }
 
     /*
+     * Version 14 introduces the Besser Growth persistence
+     * layer.
+     *
+     * This adds:
+     *
+     * - the seeded capability catalogue
+     * - message-attached Besser challenges
+     * - progressive challenge hints
+     *
+     * Challenge lifecycle state and refinement metadata are
+     * persisted so the challenge survives navigation,
+     * conversation reloads, and application restarts.
+     */
+    val MIGRATION_13_14 =
+        object : Migration(
+            startVersion =
+                13,
+            endVersion =
+                14
+        ) {
+
+            override fun migrate(
+                database:
+                SupportSQLiteDatabase
+            ) {
+                createBesserCapabilityTable(
+                    database =
+                        database
+                )
+
+                createBesserCapabilityIndices(
+                    database =
+                        database
+                )
+
+                createBesserChallengeTable(
+                    database =
+                        database
+                )
+
+                createBesserChallengeIndices(
+                    database =
+                        database
+                )
+
+                createBesserChallengeHintTable(
+                    database =
+                        database
+                )
+
+                createBesserChallengeHintIndices(
+                    database =
+                        database
+                )
+            }
+        }
+
+    /*
      * Complete migration chain consumed by DatabaseModule:
      *
      * .addMigrations(
@@ -311,7 +370,8 @@ object DatabaseMigrations {
             MIGRATION_9_10,
             MIGRATION_10_11,
             MIGRATION_11_12,
-            MIGRATION_12_13
+            MIGRATION_12_13,
+            MIGRATION_13_14
         )
 
     /*
@@ -956,6 +1016,225 @@ object DatabaseMigrations {
             (
                 `messageId`,
                 `phrase`
+            )
+            """.trimIndent()
+        )
+    }
+
+    /*
+     * =======================================================
+     * VERSION 13 -> 14
+     * BESSER GROWTH SYSTEM
+     * =======================================================
+     */
+
+    private fun createBesserCapabilityTable(
+        database:
+        SupportSQLiteDatabase
+    ) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS
+            `besser_capabilities`
+            (
+                `id` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `description` TEXT NOT NULL,
+                `category` TEXT NOT NULL,
+                `cefr_level` TEXT NOT NULL,
+                `sort_order` INTEGER NOT NULL,
+                `is_active` INTEGER NOT NULL,
+                `created_at` INTEGER NOT NULL,
+                `updated_at` INTEGER NOT NULL,
+                PRIMARY KEY(`id`)
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createBesserCapabilityIndices(
+        database:
+        SupportSQLiteDatabase
+    ) {
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_besser_capabilities_cefr_level`
+            ON `besser_capabilities`
+            (
+                `cefr_level`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_besser_capabilities_category`
+            ON `besser_capabilities`
+            (
+                `category`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_besser_capabilities_is_active`
+            ON `besser_capabilities`
+            (
+                `is_active`
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createBesserChallengeTable(
+        database:
+        SupportSQLiteDatabase
+    ) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS
+            `besser_challenges`
+            (
+                `id` TEXT NOT NULL,
+                `message_id` TEXT NOT NULL,
+                `conversation_id` TEXT NOT NULL,
+                `capability_id` TEXT NOT NULL,
+                `outcome` TEXT NOT NULL,
+                `instruction` TEXT NOT NULL,
+                `reason_code` TEXT NOT NULL,
+                `confidence` REAL NOT NULL,
+                `recommended_assistance_level` TEXT NOT NULL,
+                `actual_assistance_level` TEXT,
+                `status` TEXT NOT NULL,
+                `revealed_hint_count` INTEGER NOT NULL,
+                `original_message_content` TEXT NOT NULL,
+                `refined_message_content` TEXT,
+                `created_at` INTEGER NOT NULL,
+                `accepted_at` INTEGER,
+                `skipped_at` INTEGER,
+                `completed_at` INTEGER,
+                `updated_at` INTEGER NOT NULL,
+                PRIMARY KEY(`id`),
+                FOREIGN KEY(`capability_id`)
+                    REFERENCES `besser_capabilities`(`id`)
+                    ON UPDATE CASCADE
+                    ON DELETE RESTRICT
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createBesserChallengeIndices(
+        database:
+        SupportSQLiteDatabase
+    ) {
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_besser_challenges_message_id`
+            ON `besser_challenges`
+            (
+                `message_id`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_besser_challenges_conversation_id`
+            ON `besser_challenges`
+            (
+                `conversation_id`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_besser_challenges_capability_id`
+            ON `besser_challenges`
+            (
+                `capability_id`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_besser_challenges_status`
+            ON `besser_challenges`
+            (
+                `status`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_besser_challenges_message_id_status`
+            ON `besser_challenges`
+            (
+                `message_id`,
+                `status`
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createBesserChallengeHintTable(
+        database:
+        SupportSQLiteDatabase
+    ) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS
+            `besser_challenge_hints`
+            (
+                `id` TEXT NOT NULL,
+                `challenge_id` TEXT NOT NULL,
+                `position` INTEGER NOT NULL,
+                `content` TEXT NOT NULL,
+                PRIMARY KEY(`id`),
+                FOREIGN KEY(`challenge_id`)
+                    REFERENCES `besser_challenges`(`id`)
+                    ON UPDATE CASCADE
+                    ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createBesserChallengeHintIndices(
+        database:
+        SupportSQLiteDatabase
+    ) {
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_besser_challenge_hints_challenge_id`
+            ON `besser_challenge_hints`
+            (
+                `challenge_id`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS
+            `index_besser_challenge_hints_challenge_id_position`
+            ON `besser_challenge_hints`
+            (
+                `challenge_id`,
+                `position`
             )
             """.trimIndent()
         )

@@ -6,6 +6,8 @@ import com.julesmeister.deutschcraft.core.database.dao.ActivityDayDao
 import com.julesmeister.deutschcraft.core.database.dao.AdaptiveLearningDao
 import com.julesmeister.deutschcraft.core.database.dao.AdaptiveLearningMistakeDao
 import com.julesmeister.deutschcraft.core.database.dao.AssessmentDao
+import com.julesmeister.deutschcraft.core.database.dao.BesserChallengeDao
+import com.julesmeister.deutschcraft.core.database.dao.CapabilityDao
 import com.julesmeister.deutschcraft.core.database.dao.ConversationDao
 import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
 import com.julesmeister.deutschcraft.core.database.dao.MarkedPhraseDao
@@ -25,6 +27,9 @@ import com.julesmeister.deutschcraft.core.database.entity.MessageEntity
 import com.julesmeister.deutschcraft.core.database.entity.SkillScoreEntity
 import com.julesmeister.deutschcraft.core.database.entity.adaptivelearning.AdaptiveLearningEvidenceEntity
 import com.julesmeister.deutschcraft.core.database.entity.adaptivelearning.AdaptiveLearningFocusEntity
+import com.julesmeister.deutschcraft.core.database.entity.besser.BesserChallengeEntity
+import com.julesmeister.deutschcraft.core.database.entity.besser.BesserChallengeHintEntity
+import com.julesmeister.deutschcraft.core.database.entity.besser.CapabilityEntity
 import com.julesmeister.deutschcraft.core.database.entity.learning.MarkedPhraseEntity
 import com.julesmeister.deutschcraft.core.database.entity.learninganalytics.MissionAnalyticsEntity
 import com.julesmeister.deutschcraft.core.database.entity.learninganalytics.MissionInteractionEvidenceEntity
@@ -110,10 +115,38 @@ import com.julesmeister.deutschcraft.core.database.entity.mission.recommendation
          * difficult, with their AI explanation.
          */
 
-        MarkedPhraseEntity::class
+        MarkedPhraseEntity::class,
+
+        /*
+         * ===================================================
+         * Besser growth system
+         * ===================================================
+         *
+         * Capability catalogue and contextual growth
+         * challenges attached to individual learner messages.
+         *
+         * Challenges can later progress through:
+         *
+         * AVAILABLE
+         *     -> ACCEPTED
+         *     -> COMPLETED
+         *
+         * or:
+         *
+         * AVAILABLE / ACCEPTED
+         *     -> SKIPPED
+         *
+         * Challenge hints are persisted independently so they
+         * can be revealed progressively without storing lists
+         * as JSON.
+         */
+
+        CapabilityEntity::class,
+        BesserChallengeEntity::class,
+        BesserChallengeHintEntity::class
     ],
     version =
-        13,
+        14,
     exportSchema =
         true
 )
@@ -147,6 +180,7 @@ abstract class DeutschCraftDatabase :
     /*
      * Learning activity and streak tracking.
      */
+
     abstract fun activityDayDao():
             ActivityDayDao
 
@@ -204,6 +238,19 @@ abstract class DeutschCraftDatabase :
      * shown as explanation bubbles under their message and
      * later reused for practice.
      */
+
     abstract fun markedPhraseDao():
             MarkedPhraseDao
+
+    /*
+     * =======================================================
+     * Besser growth system
+     * =======================================================
+     */
+
+    abstract fun capabilityDao():
+            CapabilityDao
+
+    abstract fun besserChallengeDao():
+            BesserChallengeDao
 }
