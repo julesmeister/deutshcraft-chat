@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
+import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatBottomBar
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatMessageList
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatTopBar
@@ -33,6 +34,8 @@ import com.julesmeister.deutschcraft.feature.messageactions.presentation.Message
 import com.julesmeister.deutschcraft.feature.messageactions.presentation.MessageActionViewModel
 import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceBottomSheet
 import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceUiState
+import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhrase
+import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhraseType
 
 @Composable
 fun ChatScreen(
@@ -44,6 +47,12 @@ fun ChatScreen(
 
     missionResultUiState:
     MissionResultUiState,
+
+    /*
+     * messageId -> phrases the learner marked on that message.
+     */
+    markedPhrases:
+    Map<String, List<MarkedPhrase>>,
 
     onAction:
         (ChatUiAction) -> Unit,
@@ -78,6 +87,20 @@ fun ChatScreen(
     onContinueAfterMissionResult:
         () -> Unit,
 
+    /*
+     * Marked phrase callbacks.
+     */
+    onMarkPhrase:
+        (
+        messageId: String,
+        phrase: String,
+        sourceSentence: String,
+        type: MarkedPhraseType
+    ) -> Unit,
+
+    onRemoveMarkedPhrase:
+        (String) -> Unit,
+
     modifier:
     Modifier =
         Modifier,
@@ -103,13 +126,6 @@ fun ChatScreen(
         .uiState
         .collectAsStateWithLifecycle()
 
-    /*
-     * Message selected for:
-     *
-     * - translation
-     * - explanation
-     * - rephrasing
-     */
     var selectedMessage by
     remember {
         mutableStateOf<ChatMessage?>(
@@ -117,10 +133,6 @@ fun ChatScreen(
         )
     }
 
-    /*
-     * Used to keep the newest message visible when the
-     * keyboard opens.
-     */
     var scrollRequestKey by
     remember {
         mutableIntStateOf(
@@ -128,9 +140,6 @@ fun ChatScreen(
         )
     }
 
-    /*
-     * Measured height of the floating bottom controls.
-     */
     var bottomOverlayHeight by
     remember {
         mutableStateOf(
@@ -138,10 +147,6 @@ fun ChatScreen(
         )
     }
 
-    /*
-     * Show normal chat errors through Snackbar, then consume
-     * the event.
-     */
     LaunchedEffect(
         uiState.errorMessage
     ) {
@@ -163,12 +168,18 @@ fun ChatScreen(
      * =======================================================
      * MESSAGE ACTION SHEET
      * =======================================================
+     *
+     * Learner messages show the Besser version when one
+     * exists. Highlighted phrases are saved against this
+     * message's ID.
      */
-
     selectedMessage?.let { message ->
+        val sheetSentence =
+            message.preferredStudySentence()
+
         MessageActionBottomSheet(
             sentence =
-                message.content,
+                sheetSentence,
 
             selectedAction =
                 messageActionState.selectedAction,
@@ -186,7 +197,7 @@ fun ChatScreen(
                 messageActionViewModel
                     .analyzeSentence(
                         sentence =
-                            message.content,
+                            sheetSentence,
                         action =
                             action
                     )
@@ -197,6 +208,21 @@ fun ChatScreen(
                     null
 
                 messageActionViewModel.reset()
+            },
+
+            isCorrectedVersion =
+                message.isShowingBesserVersion(),
+
+            markedPhrases =
+                markedPhrases[message.id].orEmpty(),
+
+            onMarkPhrase = { phrase, type ->
+                onMarkPhrase(
+                    message.id,
+                    phrase,
+                    sheetSentence,
+                    type
+                )
             }
         )
     }
@@ -205,11 +231,6 @@ fun ChatScreen(
      * =======================================================
      * MISSION GUIDANCE SHEET
      * =======================================================
-     *
-     * Only appears when:
-     *
-     * - an active objective exists
-     * - the learner taps the mission area in the top bar
      */
     MissionGuidanceBottomSheet(
         state =
@@ -232,9 +253,6 @@ fun ChatScreen(
      * =======================================================
      * MISSION RESULT SHEET
      * =======================================================
-     *
-     * Appears after final mission analytics have been
-     * calculated and persisted.
      */
     MissionResultBottomSheet(
         state =
@@ -318,15 +336,6 @@ fun ChatScreen(
                     )
                 },
 
-                /*
-                 * The click reaches MissionTopBarPager through:
-                 *
-                 * ChatTopBar
-                 *     ↓
-                 * AnimatedChatTopBarTitle
-                 *     ↓
-                 * MissionTopBarPager
-                 */
                 onMissionGuidanceClick =
                     onOpenMissionGuidance
             )
@@ -368,11 +377,17 @@ fun ChatScreen(
                 bottomOverlayHeight =
                     bottomOverlayHeight,
 
+                /*
+                 * Explanation bubbles attached under their
+                 * original messages.
+                 */
+                markedPhrases =
+                    markedPhrases,
+
+                onRemoveMarkedPhrase =
+                    onRemoveMarkedPhrase,
+
                 onMessageClick = { message ->
-                    /*
-                     * Clear previous analysis before opening
-                     * another message.
-                     */
                     messageActionViewModel.reset()
 
                     selectedMessage =
@@ -419,4 +434,25 @@ fun ChatScreen(
             )
         }
     }
+}
+
+/*
+ * Learner messages use the Besser correction when one exists.
+ * Emil's messages are already correct.
+ */
+private fun ChatMessage.preferredStudySentence(): String {
+    return if (isShowingBesserVersion()) {
+        correction.orEmpty()
+    } else {
+        content
+    }
+}
+
+/*
+ * True when this is a learner message with a Besser
+ * correction, so the sheet labels it "✦ BESSER-VERSION".
+ */
+private fun ChatMessage.isShowingBesserVersion(): Boolean {
+    return sender == MessageSender.USER &&
+            !correction.isNullOrBlank()
 }

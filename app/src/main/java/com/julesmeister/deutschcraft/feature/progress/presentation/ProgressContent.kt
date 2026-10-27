@@ -17,11 +17,15 @@ import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @Composable
 internal fun ProgressContent(
-    progress: ProgressSummary,
-    completedMissionCount: Int,
+    progress:
+    ProgressSummary,
+    completedMissionCount:
+    Int,
     recentCompletedMissions:
     List<CompletedMissionUiModel>,
-    modifier: Modifier = Modifier
+    modifier:
+    Modifier =
+        Modifier
 ) {
     LazyColumn(
         modifier =
@@ -42,6 +46,11 @@ internal fun ProgressContent(
                 CONTENT_ITEM_SPACING
             )
     ) {
+        /*
+         * ===================================================
+         * Introduction
+         * ===================================================
+         */
         item(
             key =
                 PROGRESS_INTRODUCTION_KEY
@@ -49,26 +58,54 @@ internal fun ProgressContent(
             ProgressIntroduction()
         }
 
+        /*
+         * ===================================================
+         * CEFR level + readiness Bento
+         * ===================================================
+         *
+         * Replaces the old separate:
+         *
+         * CurrentNiveauPanel
+         *
+         * and:
+         *
+         * ReadinessPanel
+         *
+         * with one asymmetric dashboard section.
+         *
+         * Visual structure:
+         *
+         * ┌─────────────┬─────────────────────┐
+         * │ Aktuelles   │ Bereitschaft        │
+         * │ Niveau      │                     │
+         * │             │        43%          │
+         * │     B1      │       für B2        │
+         * └─────────────┘                     │
+         * ┌───────────────────────────────────┤
+         * │                                   │
+         * │ ███████████░░░░░░░░░░░░   43%   │
+         * │ Auf dem Weg zu B2                 │
+         * └───────────────────────────────────┘
+         *
+         * The readiness area owns the dominant lime visual
+         * treatment, while the current-level tile remains the
+         * smaller neutral anchor.
+         */
         item(
             key =
-                CURRENT_LEVEL_KEY
+                CEFR_LEVEL_READINESS_BENTO_KEY
         ) {
-            CurrentNiveauPanel(
+            CefrLevelReadinessBento(
                 progress =
                     progress
             )
         }
 
-        item(
-            key =
-                READINESS_KEY
-        ) {
-            ReadinessPanel(
-                progress =
-                    progress
-            )
-        }
-
+        /*
+         * ===================================================
+         * Progress statistics
+         * ===================================================
+         */
         item(
             key =
                 PROGRESS_STATISTICS_KEY
@@ -79,6 +116,11 @@ internal fun ProgressContent(
             )
         }
 
+        /*
+         * ===================================================
+         * Completed missions
+         * ===================================================
+         */
         item(
             key =
                 COMPLETED_MISSIONS_KEY
@@ -91,6 +133,11 @@ internal fun ProgressContent(
             )
         }
 
+        /*
+         * ===================================================
+         * Skill breakdown
+         * ===================================================
+         */
         item(
             key =
                 SKILL_BREAKDOWN_KEY
@@ -101,6 +148,11 @@ internal fun ProgressContent(
             )
         }
 
+        /*
+         * ===================================================
+         * Confidence
+         * ===================================================
+         */
         item(
             key =
                 CONFIDENCE_KEY
@@ -151,11 +203,12 @@ private fun ProgressIntroduction() {
 private const val PROGRESS_INTRODUCTION_KEY =
     "progress_introduction"
 
-private const val CURRENT_LEVEL_KEY =
-    "current_level"
-
-private const val READINESS_KEY =
-    "readiness"
+/*
+ * Current level and readiness now belong to one LazyColumn
+ * item instead of two unrelated rows.
+ */
+private const val CEFR_LEVEL_READINESS_BENTO_KEY =
+    "cefr_level_readiness_bento"
 
 private const val PROGRESS_STATISTICS_KEY =
     "progress_statistics"

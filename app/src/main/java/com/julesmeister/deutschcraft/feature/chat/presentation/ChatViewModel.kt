@@ -9,6 +9,9 @@ import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.resu
 import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultUiState
 import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceController
 import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceUiState
+import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhrase
+import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhraseType
+import com.julesmeister.deutschcraft.feature.phrasemarking.presentation.MarkedPhraseController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.StateFlow
@@ -26,8 +29,22 @@ class ChatViewModel
     MissionResultController,
 
     private val missionGuidanceController:
-    MissionGuidanceController
+    MissionGuidanceController,
+
+    private val markedPhraseController:
+    MarkedPhraseController
 ) : ViewModel() {
+
+    /*
+     * Conversation opened by navigation.
+     *
+     * Kept as a property because marked phrases need it
+     * whenever the learner marks a new phrase.
+     */
+    private val conversationId: String =
+        savedStateHandle
+            .toRoute<ChatDestination>()
+            .conversationId
 
     /*
      * Main conversation state.
@@ -50,6 +67,16 @@ class ChatViewModel
             StateFlow<MissionGuidanceUiState> =
         missionGuidanceController.uiState
 
+    /*
+     * messageId -> phrases the learner marked on that message.
+     *
+     * ChatMessageList attaches these as explanation bubbles
+     * under the original message.
+     */
+    val markedPhrases:
+            StateFlow<Map<String, List<MarkedPhrase>>> =
+        markedPhraseController.phrasesByMessage
+
     init {
         /*
          * Give MissionGuidanceController the lifecycle-aware
@@ -63,13 +90,20 @@ class ChatViewModel
                 viewModelScope
         )
 
-        val destination =
-            savedStateHandle
-                .toRoute<ChatDestination>()
-
         coordinator.start(
             conversationId =
-                destination.conversationId,
+                conversationId,
+            scope =
+                viewModelScope
+        )
+
+        /*
+         * Observe marked phrases for this conversation from
+         * Room.
+         */
+        markedPhraseController.start(
+            conversationId =
+                conversationId,
             scope =
                 viewModelScope
         )
@@ -86,6 +120,50 @@ class ChatViewModel
         coordinator.onAction(
             action =
                 action,
+            scope =
+                viewModelScope
+        )
+    }
+
+    /*
+     * =======================================================
+     * MARKED PHRASES
+     * =======================================================
+     */
+
+    /*
+     * Saves the phrase immediately (bubble appears as
+     * pending), then fetches the explanation in the
+     * background.
+     */
+    fun markPhrase(
+        messageId: String,
+        phrase: String,
+        sourceSentence: String,
+        type: MarkedPhraseType
+    ) {
+        markedPhraseController.mark(
+            conversationId =
+                conversationId,
+            messageId =
+                messageId,
+            phrase =
+                phrase,
+            sourceSentence =
+                sourceSentence,
+            type =
+                type,
+            scope =
+                viewModelScope
+        )
+    }
+
+    fun removeMarkedPhrase(
+        id: String
+    ) {
+        markedPhraseController.remove(
+            id =
+                id,
             scope =
                 viewModelScope
         )
@@ -142,6 +220,11 @@ class ChatViewModel
 
     override fun onCleared() {
         coordinator.stop()
+
+        /*
+         * Stop observing marked phrases for this conversation.
+         */
+        markedPhraseController.stop()
 
         /*
          * Cancel guidance coroutines managed through this

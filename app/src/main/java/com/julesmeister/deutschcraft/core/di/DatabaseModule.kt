@@ -9,6 +9,7 @@ import com.julesmeister.deutschcraft.core.database.dao.AdaptiveLearningMistakeDa
 import com.julesmeister.deutschcraft.core.database.dao.AssessmentDao
 import com.julesmeister.deutschcraft.core.database.dao.ConversationDao
 import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
+import com.julesmeister.deutschcraft.core.database.dao.MarkedPhraseDao
 import com.julesmeister.deutschcraft.core.database.dao.MessageDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionAnalyticsDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionDao
@@ -37,7 +38,7 @@ object DatabaseModule {
      *
      * Current schema version:
      *
-     * 12
+     * 13
      */
     @Provides
     @Singleton
@@ -60,6 +61,7 @@ object DatabaseModule {
              * 9 -> 10
              * 10 -> 11
              * 11 -> 12
+             * 12 -> 13
              *
              * Future migrations only need to be added to:
              *
@@ -162,9 +164,6 @@ object DatabaseModule {
 
     /*
      * Handles the persisted thread-list recommendation pool.
-     *
-     * Generated recommendations remain separate from actual
-     * conversation missions until the learner starts one.
      */
     @Provides
     fun provideMissionThreadRecommendationDao(
@@ -183,19 +182,6 @@ object DatabaseModule {
 
     /*
      * Stores finalized mission-performance analytics.
-     *
-     * Includes:
-     *
-     * - overall score
-     * - independence
-     * - grammar
-     * - vocabulary
-     * - comprehension
-     * - interaction
-     * - objective analytics
-     *
-     * These records later feed CEFR mastery and readiness
-     * calculations.
      */
     @Provides
     fun provideMissionAnalyticsDao(
@@ -208,20 +194,6 @@ object DatabaseModule {
 
     /*
      * Stores coaching hints actually revealed by the learner.
-     *
-     * Assistance levels:
-     *
-     * 0 hints
-     * Independent
-     *
-     * 1 hint
-     * Gentle support
-     *
-     * 2 hints
-     * Contextual/substantial support
-     *
-     * 3 hints
-     * Direct assistance
      */
     @Provides
     fun provideMissionObjectiveHintUsageDao(
@@ -235,17 +207,6 @@ object DatabaseModule {
     /*
      * Stores semantic interaction evidence for each evaluated
      * learner message during a mission.
-     *
-     * The existing Qwen mission evaluation request produces:
-     *
-     * - relevantReply
-     * - followUpQuestion
-     * - clarification
-     * - replyExpected
-     * - confidence
-     *
-     * These rows later produce mission-level interaction and
-     * comprehension scores.
      */
     @Provides
     fun provideMissionInteractionEvidenceDao(
@@ -276,9 +237,6 @@ object DatabaseModule {
 
     /*
      * Reads DetectedMistakeEntity and its assessment evidence.
-     *
-     * Mission analytics also consumes these records to build
-     * real Besser/grammar evidence.
      */
     @Provides
     fun provideAdaptiveLearningMistakeDao(
@@ -287,6 +245,28 @@ object DatabaseModule {
     ): AdaptiveLearningMistakeDao {
         return database
             .adaptiveLearningMistakeDao()
+    }
+
+    /*
+     * =======================================================
+     * MARKED PHRASES
+     * =======================================================
+     */
+
+    /*
+     * Learner-highlighted difficult words and grammar.
+     *
+     * Used by MarkedPhraseRepository to show explanation
+     * bubbles under their original message and, later, to
+     * bring weak points back into practice.
+     */
+    @Provides
+    fun provideMarkedPhraseDao(
+        database:
+        DeutschCraftDatabase
+    ): MarkedPhraseDao {
+        return database
+            .markedPhraseDao()
     }
 
     private const val DATABASE_NAME =

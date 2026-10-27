@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -20,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -28,6 +30,8 @@ internal fun MessageBubbleContainer(
     backgroundColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    borderColor: Color = Color.Transparent,
+    maxWidth: Dp = DEFAULT_MAXIMUM_BUBBLE_WIDTH,
     content: @Composable BoxScope.() -> Unit
 ) {
     val interactionSource =
@@ -36,99 +40,63 @@ internal fun MessageBubbleContainer(
         }
 
     val isPressed by
-    interactionSource
-        .collectIsPressedAsState()
+    interactionSource.collectIsPressedAsState()
 
     val animatedScale by
     animateFloatAsState(
         targetValue =
-            if (isPressed) {
-                PRESSED_BUBBLE_SCALE
-            } else {
-                NORMAL_BUBBLE_SCALE
-            },
+            if (isPressed) PRESSED_BUBBLE_SCALE else 1f,
         animationSpec =
             spring(
-                dampingRatio =
-                    PRESS_ANIMATION_DAMPING_RATIO,
-                stiffness =
-                    PRESS_ANIMATION_STIFFNESS
+                dampingRatio = 0.72f,
+                stiffness = 650f
             ),
-        label =
-            "MessageBubblePressScale"
+        label = "MessageBubblePressScale"
     )
 
     Box(
-        modifier = modifier
-            .wrapContentWidth()
-            .widthIn(
-                min =
-                    MINIMUM_BUBBLE_WIDTH,
-                max =
-                    MAXIMUM_BUBBLE_WIDTH
-            )
-            .graphicsLayer {
-                scaleX =
-                    animatedScale
-
-                scaleY =
-                    animatedScale
-            }
-            .animateContentSize(
-                animationSpec =
-                    spring(
-                        dampingRatio =
-                            CONTENT_ANIMATION_DAMPING_RATIO,
-                        stiffness =
-                            CONTENT_ANIMATION_STIFFNESS
-                    )
-            )
-            .clip(
-                shape
-            )
-            .background(
-                color =
-                    backgroundColor
-            )
-            .clickable(
-                interactionSource =
-                    interactionSource,
-                indication =
-                    null,
-                onClick =
-                    onClick
-            )
-            .padding(
-                horizontal =
-                    14.dp,
-                vertical =
-                    10.dp
-            ),
-        content =
-            content
+        modifier =
+            modifier
+                .wrapContentWidth()
+                .widthIn(
+                    min = MINIMUM_BUBBLE_WIDTH,
+                    max = maxWidth
+                )
+                .graphicsLayer {
+                    scaleX = animatedScale
+                    scaleY = animatedScale
+                }
+                .animateContentSize(
+                    animationSpec =
+                        spring(
+                            dampingRatio = 0.82f,
+                            stiffness = 420f
+                        )
+                )
+                .clip(shape)
+                .background(backgroundColor)
+                .border(
+                    width = BORDER_WIDTH,
+                    color = borderColor,
+                    shape = shape
+                )
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick
+                )
+                .padding(
+                    start = 14.dp,
+                    end = 12.dp,
+                    top = 9.dp,
+                    bottom = 8.dp
+                ),
+        content = content
     )
 }
 
-private val MINIMUM_BUBBLE_WIDTH =
-    72.dp
+private val MINIMUM_BUBBLE_WIDTH = 64.dp
+private val DEFAULT_MAXIMUM_BUBBLE_WIDTH = 320.dp
+private val BORDER_WIDTH = 0.75.dp
 
-private val MAXIMUM_BUBBLE_WIDTH =
-    320.dp
-
-private const val NORMAL_BUBBLE_SCALE =
-    1f
-
-private const val PRESSED_BUBBLE_SCALE =
-    0.965f
-
-private const val PRESS_ANIMATION_DAMPING_RATIO =
-    0.72f
-
-private const val PRESS_ANIMATION_STIFFNESS =
-    650f
-
-private const val CONTENT_ANIMATION_DAMPING_RATIO =
-    0.82f
-
-private const val CONTENT_ANIMATION_STIFFNESS =
-    420f
+private const val PRESSED_BUBBLE_SCALE = 0.965f

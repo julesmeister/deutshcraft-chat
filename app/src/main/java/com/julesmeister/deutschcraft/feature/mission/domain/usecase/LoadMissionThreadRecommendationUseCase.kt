@@ -22,17 +22,20 @@ import kotlinx.coroutines.sync.withLock
  *
  * Initial loading:
  *
- * 1. Return an existing persisted recommendation immediately.
- * 2. If Room has none, generate and persist one.
- * 3. The coordinator then fills the pool to five in the
+ * 1. Return an existing DISPLAYED / READY recommendation.
+ * 2. Otherwise reactivate the oldest SKIPPED recommendation.
+ * 3. Only if Room has none at all, generate and persist one.
+ * 4. The coordinator then fills the pool to five in the
  *    background.
  *
  * Left swipe:
  *
  * 1. Mark the current recommendation SKIPPED.
- * 2. Return the next persisted recommendation immediately.
- * 3. If no next recommendation exists, generate one fallback.
- * 4. Refill the pool to five in the background.
+ * 2. Return the next READY recommendation immediately.
+ * 3. If none remain, wrap around to the oldest SKIPPED one
+ *    (round-robin through what is already in Room).
+ * 4. Generate only when Room has no recommendations at all.
+ * 5. Refill the pool to five in the background.
  */
 class LoadMissionThreadRecommendationUseCase
 @Inject constructor(
@@ -47,9 +50,6 @@ class LoadMissionThreadRecommendationUseCase
     /*
      * Protects visible recommendation loading and queue
      * advancement.
-     *
-     * A swipe cannot modify recommendation statuses while an
-     * initial load is performing the same operation.
      */
     private val loadingMutex =
         Mutex()
@@ -62,9 +62,6 @@ class LoadMissionThreadRecommendationUseCase
 
     /*
      * Serializes scenario selection and AI generation.
-     *
-     * This prevents two callers from selecting the same
-     * scenario before either result is persisted.
      */
     private val generationMutex =
         Mutex()
@@ -72,17 +69,15 @@ class LoadMissionThreadRecommendationUseCase
     /*
      * Loads the recommendation that should be displayed.
      *
-     * forceRefresh = false:
+     * Order:
      *
-     * - Restore a DISPLAYED recommendation when one exists.
-     * - Otherwise display the oldest READY recommendation.
-     * - Generate one if Room is empty.
+     * 1. Existing DISPLAYED / oldest READY recommendation
+     * 2. Oldest SKIPPED recommendation (wrap-around)
+     * 3. Generate a new one, only when Room has nothing
      *
-     * forceRefresh = true:
-     *
-     * - Mark the current recommendation SKIPPED.
-     * - Load the next READY recommendation.
-     * - Generate one only if the persisted pool is exhausted.
+     * forceRefresh = true first marks the visible
+     * recommendation SKIPPED, so a swipe moves to the next one
+     * and, after the last, back to the beginning.
      */
     suspend operator fun invoke(
         cefrLevel: CefrLevel,
@@ -104,6 +99,9 @@ class LoadMissionThreadRecommendationUseCase
                         cefrLevel
                 )
 
+            var justSkippedId: String? =
+                null
+
             if (
                 forceRefresh &&
                 currentRecommendation != null
@@ -112,6 +110,9 @@ class LoadMissionThreadRecommendationUseCase
                     recommendationId =
                         currentRecommendation.id
                 )
+
+                justSkippedId =
+                    currentRecommendation.id
 
                 Log.d(
                     USE_CASE_TAG,
@@ -132,12 +133,10 @@ class LoadMissionThreadRecommendationUseCase
             }
 
             /*
-             * After a forced refresh, the skipped row is no
-             * longer eligible, so this query returns the next
-             * persisted recommendation.
+             * 1. Next READY / DISPLAYED recommendation.
              *
-             * During ordinary loading, it returns the existing
-             * DISPLAYED or oldest READY row.
+             * After a forced refresh, the skipped row is no
+             * longer eligible, so this returns the next one.
              */
             val persistedRecommendation =
                 recommendationStore.getNextEligible(
@@ -176,11 +175,43 @@ class LoadMissionThreadRecommendationUseCase
             }
 
             /*
-             * No persisted recommendation is available.
-             *
-             * Generate only one now so the UI can show its
-             * first recommendation without waiting for the
-             * complete five-item pool.
+             * 2. No fresh recommendation left: wrap around to
+             *    the oldest skipped one. Instant, no Qwen.
+             */
+            val recycledRecommendation =
+                recommendationStore.reactivateNextSkipped(
+                    cefrLevel =
+                        cefrLevel,
+                    excludedRecommendationId =
+                        justSkippedId
+                )
+
+            if (recycledRecommendation != null) {
+                Log.d(
+                    USE_CASE_TAG,
+                    buildString {
+                        append(
+                            "Wrapped around to skipped "
+                        )
+                        append(
+                            "recommendation. id="
+                        )
+                        append(
+                            recycledRecommendation.id
+                        )
+                        append(", scenario=")
+                        append(
+                            recycledRecommendation.scenarioType
+                        )
+                    }
+                )
+
+                return@withLock recycledRecommendation
+            }
+
+            /*
+             * 3. Room has no recommendations at all for this
+             *    level. Generate one so the cell is not empty.
              */
             generateAndPersistOne(
                 cefrLevel =
@@ -229,16 +260,9 @@ class LoadMissionThreadRecommendationUseCase
     /*
      * Ensures Room contains five eligible recommendations.
      *
-     * This runs after the first recommendation becomes
-     * visible.
-     *
      * Every successfully generated recommendation is saved
-     * immediately. Therefore:
-     *
-     * - The pool survives process death.
-     * - The pool survives app restarts.
-     * - The learner can swipe through already-generated
-     *   recommendations quickly.
+     * immediately, so the pool survives process death and app
+     * restarts.
      */
     suspend fun prefetchUntilFull(
         cefrLevel: CefrLevel,
@@ -408,9 +432,6 @@ class LoadMissionThreadRecommendationUseCase
 
     /*
      * Generates and persists one distinct recommendation.
-     *
-     * Scenario selection and generation are serialized so the
-     * same scenario cannot be selected concurrently.
      */
     private suspend fun generateAndPersistOne(
         cefrLevel: CefrLevel,
@@ -438,14 +459,6 @@ class LoadMissionThreadRecommendationUseCase
                             cefrLevel
                     )
 
-            /*
-             * Combine:
-             *
-             * - Persisted recommendation history
-             * - Existing thread scenario types
-             * - Active/completed mission scenario types when
-             *   those are supplied by the coordinator
-             */
             val completeExclusions =
                 expandScenarioFamilyExclusions(
                     excludedScenarioTypes =
@@ -483,14 +496,6 @@ class LoadMissionThreadRecommendationUseCase
                         return@withLock null
                     }
 
-            /*
-             * Defensive duplicate check.
-             *
-             * The selector already receives the exclusions,
-             * but the store also protects against a scenario
-             * already persisted as READY, DISPLAYED, or
-             * STARTED.
-             */
             val scenarioAlreadyActive =
                 recommendationStore.hasActiveScenario(
                     cefrLevel =
@@ -565,11 +570,6 @@ class LoadMissionThreadRecommendationUseCase
             ) {
                 throw cancellationException
             } catch (throwable: Throwable) {
-                /*
-                 * One failed recommendation must not break the
-                 * thread list or discard already-persisted
-                 * recommendations.
-                 */
                 Log.e(
                     USE_CASE_TAG,
                     "Recommendation generation or persistence " +
@@ -584,10 +584,6 @@ class LoadMissionThreadRecommendationUseCase
 
     /*
      * Selects a CEFR curriculum scenario.
-     *
-     * Recent conversation text is intentionally empty because
-     * the featured recommendation cell should not repeatedly
-     * derive suggestions from coffee-related conversations.
      */
     private fun selectScenario(
         cefrLevel: CefrLevel,
@@ -613,10 +609,6 @@ class LoadMissionThreadRecommendationUseCase
                     )
             )
 
-        /*
-         * This final guard prevents a selector fallback from
-         * silently returning an excluded scenario.
-         */
         return selectedScenario
             ?.takeIf { scenario ->
                 scenario.type !in
@@ -626,15 +618,6 @@ class LoadMissionThreadRecommendationUseCase
 
     /*
      * Temporarily excludes related scenario families.
-     *
-     * This prevents recommendation sequences such as:
-     *
-     * Café ordering
-     * Bakery ordering
-     * Restaurant ordering
-     * Grocery shopping
-     *
-     * even though each item has a different title.
      */
     private fun expandScenarioFamilyExclusions(
         excludedScenarioTypes:
@@ -825,17 +808,9 @@ class LoadMissionThreadRecommendationUseCase
         const val TARGET_RECOMMENDATION_COUNT =
             5
 
-        /*
-         * Each generation attempt may fail JSON parsing,
-         * validation, duplicate checks, or networking.
-         */
         const val MAXIMUM_GENERATION_ATTEMPTS =
             15
 
-        /*
-         * Stop the cycle when repeated failures indicate an
-         * unavailable service or insufficient scenarios.
-         */
         const val MAXIMUM_CONSECUTIVE_FAILURES =
             5
 

@@ -8,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  *
  * Current database version:
  *
- * 12
+ * 13
  *
  * Known migration history:
  *
@@ -19,6 +19,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * 9 -> 10
  * 10 -> 11
  * 11 -> 12
+ * 12 -> 13
  *
  * Future migrations should continue to be added here and
  * appended to ALL.
@@ -239,9 +240,6 @@ object DatabaseMigrations {
     /*
      * Version 12 introduces persisted per-message mission
      * interaction evidence.
-     *
-     * This stores the semantic interaction classification
-     * returned by the existing Qwen mission-evaluation call.
      */
     val MIGRATION_11_12 =
         object : Migration(
@@ -268,6 +266,36 @@ object DatabaseMigrations {
         }
 
     /*
+     * Version 13 introduces learner-marked phrases.
+     *
+     * Words and grammar the learner highlighted as difficult,
+     * together with their AI explanation.
+     */
+    val MIGRATION_12_13 =
+        object : Migration(
+            startVersion =
+                12,
+            endVersion =
+                13
+        ) {
+
+            override fun migrate(
+                database:
+                SupportSQLiteDatabase
+            ) {
+                createMarkedPhraseTable(
+                    database =
+                        database
+                )
+
+                createMarkedPhraseIndices(
+                    database =
+                        database
+                )
+            }
+        }
+
+    /*
      * Complete migration chain consumed by DatabaseModule:
      *
      * .addMigrations(
@@ -282,7 +310,8 @@ object DatabaseMigrations {
             MIGRATION_8_9,
             MIGRATION_9_10,
             MIGRATION_10_11,
-            MIGRATION_11_12
+            MIGRATION_11_12,
+            MIGRATION_12_13
         )
 
     /*
@@ -854,6 +883,79 @@ object DatabaseMigrations {
             (
                 `conversationMissionId`,
                 `evaluatedAt`
+            )
+            """.trimIndent()
+        )
+    }
+
+    /*
+     * =======================================================
+     * VERSION 12 -> 13
+     * MARKED PHRASES
+     * =======================================================
+     */
+
+    private fun createMarkedPhraseTable(
+        database:
+        SupportSQLiteDatabase
+    ) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS
+            `marked_phrases`
+            (
+                `id` TEXT NOT NULL,
+                `conversationId` TEXT NOT NULL,
+                `messageId` TEXT NOT NULL,
+                `phrase` TEXT NOT NULL,
+                `sourceSentence` TEXT NOT NULL,
+                `markType` TEXT NOT NULL,
+                `meaning` TEXT,
+                `explanation` TEXT,
+                `example` TEXT,
+                `explanationStatus` TEXT NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`id`)
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createMarkedPhraseIndices(
+        database:
+        SupportSQLiteDatabase
+    ) {
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_marked_phrases_conversationId`
+            ON `marked_phrases`
+            (
+                `conversationId`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_marked_phrases_messageId`
+            ON `marked_phrases`
+            (
+                `messageId`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS
+            `index_marked_phrases_messageId_phrase`
+            ON `marked_phrases`
+            (
+                `messageId`,
+                `phrase`
             )
             """.trimIndent()
         )

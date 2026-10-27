@@ -29,11 +29,22 @@ internal fun AnimatedMessageItem(
     isLatestUserMessage: Boolean,
     isLatestAssistantMessage: Boolean,
     hasAlreadyBeenSeen: Boolean,
+
+    /*
+     * True when this message has at least one marked-phrase
+     * bubble directly underneath it.
+     *
+     * This is forwarded to MessageBubble so only the joining
+     * bottom corner of the source bubble becomes flat.
+     */
+    hasAttachedPhrase: Boolean,
+
     onAnimationStarted: () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var isVisible by remember(
+    var isVisible by
+    remember(
         message.id
     ) {
         mutableStateOf(
@@ -45,18 +56,31 @@ internal fun AnimatedMessageItem(
         message.id,
         hasAlreadyBeenSeen
     ) {
+        /*
+         * Messages restored from Room should appear
+         * immediately instead of replaying their entrance
+         * animation.
+         */
         if (hasAlreadyBeenSeen) {
-            isVisible = true
+            isVisible =
+                true
+
             return@LaunchedEffect
         }
 
+        /*
+         * Small delay allows the previous UI state to settle
+         * before a newly-created message enters.
+         */
         delay(
-            MESSAGE_ENTRANCE_START_DELAY_MILLIS.milliseconds
+            MESSAGE_ENTRANCE_START_DELAY_MILLIS
+                .milliseconds
         )
 
         onAnimationStarted()
 
-        isVisible = true
+        isVisible =
+            true
     }
 
     AnimatedVisibility(
@@ -78,6 +102,8 @@ internal fun AnimatedMessageItem(
                 isLatestUserMessage,
             isLatestAssistantMessage =
                 isLatestAssistantMessage,
+            hasAttachedPhrase =
+                hasAttachedPhrase,
             onClick =
                 onClick
         )

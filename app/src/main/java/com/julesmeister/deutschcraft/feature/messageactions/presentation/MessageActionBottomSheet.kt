@@ -6,13 +6,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Translate
@@ -33,6 +33,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.messageactions.domain.SentenceAnalysisType
 import com.julesmeister.deutschcraft.feature.messageactions.domain.SentenceInsight
+import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhrase
+import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhraseType
+import com.julesmeister.deutschcraft.feature.phrasemarking.presentation.PhraseMarkingSection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +47,25 @@ fun MessageActionBottomSheet(
     errorMessage: String?,
     onActionClick: (SentenceAnalysisType) -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+
+    /*
+     * True when sentence is the Besser version of a learner
+     * message rather than the original text.
+     */
+    isCorrectedVersion: Boolean = false,
+
+    /*
+     * Phrases already marked on this message. They are
+     * underlined in the highlighter.
+     */
+    markedPhrases: List<MarkedPhrase> = emptyList(),
+
+    /*
+     * Called when the learner highlights a phrase and picks
+     * a mark type in the dialog.
+     */
+    onMarkPhrase: (phrase: String, type: MarkedPhraseType) -> Unit = { _, _ -> }
 ) {
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true
@@ -84,37 +105,26 @@ fun MessageActionBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(
                     start = 20.dp,
                     end = 20.dp,
+                    top = 16.dp,
                     bottom = 32.dp
                 )
         ) {
-            Text(
-                text = "Selected sentence",
-                style = MaterialTheme.typography.labelLarge,
-                color =
-                    MaterialTheme.colorScheme.onSurfaceVariant
+            /*
+             * Selectable sentence.
+             *
+             * Tap words to highlight a phrase, then mark it as
+             * a difficult word or grammar to understand.
+             */
+            PhraseMarkingSection(
+                sentence = sentence,
+                isCorrectedVersion = isCorrectedVersion,
+                markedPhrases = markedPhrases,
+                onMark = onMarkPhrase
             )
-
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
-                shape = RoundedCornerShape(22.dp),
-                color =
-                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                tonalElevation = 0.dp,
-                shadowElevation = 0.dp
-            ) {
-                Text(
-                    text = sentence,
-                    modifier = Modifier.padding(18.dp),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
 
             Text(
                 text = "Learn from this sentence",
@@ -132,8 +142,7 @@ fun MessageActionBottomSheet(
                 supportingText =
                     "See the meaning of the entire sentence.",
                 isSelected =
-                    selectedAction ==
-                            SentenceAnalysisType.TRANSLATE,
+                    selectedAction == SentenceAnalysisType.TRANSLATE,
                 enabled = !isLoading,
                 icon = {
                     Icon(
@@ -142,9 +151,7 @@ fun MessageActionBottomSheet(
                     )
                 },
                 onClick = {
-                    onActionClick(
-                        SentenceAnalysisType.TRANSLATE
-                    )
+                    onActionClick(SentenceAnalysisType.TRANSLATE)
                 }
             )
 
@@ -153,8 +160,7 @@ fun MessageActionBottomSheet(
                 supportingText =
                     "Understand how the sentence expresses its meaning.",
                 isSelected =
-                    selectedAction ==
-                            SentenceAnalysisType.EXPLAIN,
+                    selectedAction == SentenceAnalysisType.EXPLAIN,
                 enabled = !isLoading,
                 icon = {
                     Icon(
@@ -163,9 +169,7 @@ fun MessageActionBottomSheet(
                     )
                 },
                 onClick = {
-                    onActionClick(
-                        SentenceAnalysisType.EXPLAIN
-                    )
+                    onActionClick(SentenceAnalysisType.EXPLAIN)
                 }
             )
 
@@ -174,8 +178,7 @@ fun MessageActionBottomSheet(
                 supportingText =
                     "See simpler, natural, and advanced alternatives.",
                 isSelected =
-                    selectedAction ==
-                            SentenceAnalysisType.REPHRASE,
+                    selectedAction == SentenceAnalysisType.REPHRASE,
                 enabled = !isLoading,
                 icon = {
                     Icon(
@@ -184,27 +187,18 @@ fun MessageActionBottomSheet(
                     )
                 },
                 onClick = {
-                    onActionClick(
-                        SentenceAnalysisType.REPHRASE
-                    )
+                    onActionClick(SentenceAnalysisType.REPHRASE)
                 }
             )
 
             if (
                 isLoading ||
                 errorMessage != null ||
-                (
-                        selectedAction != null &&
-                                insight != null
-                        )
+                (selectedAction != null && insight != null)
             ) {
                 HorizontalDivider(
-                    modifier = Modifier.padding(
-                        vertical = 20.dp
-                    ),
-                    color = MaterialTheme
-                        .colorScheme
-                        .outlineVariant
+                    modifier = Modifier.padding(vertical = 20.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
             }
 
@@ -214,13 +208,10 @@ fun MessageActionBottomSheet(
                 }
 
                 errorMessage != null -> {
-                    MessageActionError(
-                        message = errorMessage
-                    )
+                    MessageActionError(message = errorMessage)
                 }
 
-                selectedAction != null &&
-                        insight != null -> {
+                selectedAction != null && insight != null -> {
                     MessageActionResult(
                         selectedAction = selectedAction,
                         insight = insight
@@ -279,9 +270,7 @@ private fun MessageActionRow(
                 modifier = Modifier
                     .size(42.dp)
                     .background(
-                        color = contentColor.copy(
-                            alpha = 0.1f
-                        ),
+                        color = contentColor.copy(alpha = 0.1f),
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -296,8 +285,7 @@ private fun MessageActionRow(
             ) {
                 Text(
                     text = title,
-                    style =
-                        MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = contentColor
                 )
@@ -305,11 +293,8 @@ private fun MessageActionRow(
                 Text(
                     text = supportingText,
                     modifier = Modifier.padding(top = 3.dp),
-                    style =
-                        MaterialTheme.typography.bodySmall,
-                    color = contentColor.copy(
-                        alpha = 0.72f
-                    )
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor.copy(alpha = 0.72f)
                 )
             }
         }
@@ -334,8 +319,7 @@ private fun MessageActionLoading() {
             text = "Analyzing sentence...",
             modifier = Modifier.padding(start = 12.dp),
             style = MaterialTheme.typography.bodyMedium,
-            color =
-                MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -355,9 +339,7 @@ private fun MessageActionError(
             text = message,
             modifier = Modifier.padding(16.dp),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme
-                .colorScheme
-                .onErrorContainer
+            color = MaterialTheme.colorScheme.onErrorContainer
         )
     }
 }
@@ -369,21 +351,15 @@ private fun MessageActionResult(
 ) {
     when (selectedAction) {
         SentenceAnalysisType.TRANSLATE -> {
-            TranslationTab(
-                translation = insight.translation
-            )
+            TranslationTab(translation = insight.translation)
         }
 
         SentenceAnalysisType.EXPLAIN -> {
-            ExplanationTab(
-                explanation = insight.explanation
-            )
+            ExplanationTab(explanation = insight.explanation)
         }
 
         SentenceAnalysisType.REPHRASE -> {
-            RephraseTab(
-                insight = insight
-            )
+            RephraseTab(insight = insight)
         }
     }
 }

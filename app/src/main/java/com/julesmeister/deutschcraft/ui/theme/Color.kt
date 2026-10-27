@@ -41,3 +41,34 @@ val DeutschSuccess = Color(0xFF9BEC72)
 val DeutschWarning = Color(0xFFFFD166)
 val DeutschError = Color(0xFFFF8A80)
 val DeutschInfo = Color(0xFF8CC8FF)
+/*
+ * Chat bubbles
+ *
+ * Emil (assistant) = sky
+ * Learner          = lime
+ *
+ * Latest message on each side is vibrant.
+ * Older messages fade to a deep tint of the same hue.
+ */
+
+/*
+ * Emil's accent. Same value as DeutschInfo, named for chat use.
+ */
+val DeutschSky = Color(0xFF8CC8FF)
+
+/*
+ * Readable dark navy on DeutschSky.
+ */
+val DeutschTextOnSky = Color(0xFF0D1620)
+
+/*
+ * DeutschSurface with ~18% DeutschSky blended in.
+ * Used for Emil's older replies.
+ */
+val DeutschAssistantBubble = Color(0xFF2F3C47)
+
+/*
+ * DeutschSurface with ~18% DeutschLime blended in.
+ * Used for the learner's older messages.
+ */
+val DeutschUserBubble = Color(0xFF374631)

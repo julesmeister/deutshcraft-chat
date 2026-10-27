@@ -16,7 +16,9 @@ import kotlinx.coroutines.flow.Flow
  *     Currently visible or previously displayed.
  *
  * SKIPPED
- *     Swiped away by the learner.
+ *     Swiped away by the learner. Skipped recommendations
+ *     can return to rotation once no READY recommendation
+ *     remains (round-robin).
  *
  * STARTED
  *     Converted into a real conversation mission.
@@ -109,6 +111,24 @@ interface MissionThreadRecommendationStore {
     suspend fun markSkipped(
         recommendationId: String
     )
+
+    /*
+     * Reactivates the oldest skipped recommendation for the
+     * level and returns it as DISPLAYED.
+     *
+     * This lets swiping wrap around to the beginning of the
+     * recommendations already stored in Room instead of
+     * showing an empty cell.
+     *
+     * excludedRecommendationId is avoided first. It is only
+     * reused when it is the sole recommendation available.
+     *
+     * Returns null when no skipped recommendation exists.
+     */
+    suspend fun reactivateNextSkipped(
+        cefrLevel: CefrLevel,
+        excludedRecommendationId: String?
+    ): MissionThreadRecommendation?
 
     /*
      * Links the recommendation to the conversation and

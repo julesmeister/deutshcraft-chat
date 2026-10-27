@@ -1,29 +1,44 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiState
+import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhrase
+import com.julesmeister.deutschcraft.feature.phrasemarking.presentation.MarkedPhraseBubble
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -32,7 +47,14 @@ fun ChatMessageList(
     onMessageClick: (ChatMessage) -> Unit,
     modifier: Modifier = Modifier,
     scrollRequestKey: Int = 0,
-    bottomOverlayHeight: Dp = 0.dp
+    bottomOverlayHeight: Dp = 0.dp,
+
+    /*
+     * messageId -> phrases the learner marked on that message.
+     */
+    markedPhrases: Map<String, List<MarkedPhrase>> = emptyMap(),
+
+    onRemoveMarkedPhrase: (String) -> Unit = {}
 ) {
     val messageCount =
         uiState.messages.size
@@ -42,52 +64,34 @@ fun ChatMessageList(
 
     /*
      * Do not create LazyListState while the conversation is
-     * still empty.
-     *
-     * Room usually emits an empty state first and the saved
-     * messages afterward. Creating the state during that
-     * empty emission permanently initializes it at index 0.
+     * still empty. Room usually emits an empty list first.
      */
     if (
         messageCount == 0 &&
         !hasTypingIndicator
     ) {
         ChatMessageListEmptyState(
-            modifier =
-                modifier
+            modifier = modifier
         )
 
         return
     }
 
-    val suggestionCount =
-        uiState.suggestions.size
+    val entries =
+        remember(uiState.messages) {
+            buildChatListEntries(
+                messages = uiState.messages
+            )
+        }
 
     /*
-     * LazyColumn contains:
-     *
-     * messageCount message items
-     * + optional typing indicator
-     * + one bottom-anchor item
-     *
-     * Therefore this value is the index of the bottom
-     * anchor.
+     * Marked-phrase notes live inside each message item, so
+     * they do not change this count.
      */
     val bottomAnchorIndex =
-        calculateBottomAnchorIndex(
-            messageCount =
-                messageCount,
-            hasTypingIndicator =
-                hasTypingIndicator
-        )
+        entries.size +
+                if (hasTypingIndicator) 1 else 0
 
-    /*
-     * This state is now created only after messages exist.
-     *
-     * The conversation therefore opens directly at the
-     * bottom anchor instead of rendering index 0 first and
-     * scrolling afterward.
-     */
     val listState =
         rememberLazyListState(
             initialFirstVisibleItemIndex =
@@ -99,68 +103,50 @@ fun ChatMessageList(
 
     val keyboardBottom =
         WindowInsets.ime.getBottom(
-            density =
-                density
+            density = density
         )
 
     val latestUserMessageId =
-        remember(
-            uiState.messages
-        ) {
+        remember(uiState.messages) {
             uiState.messages
                 .lastOrNull { message ->
-                    message.sender ==
-                            MessageSender.USER
+                    message.sender == MessageSender.USER
                 }
                 ?.id
         }
 
     val latestAssistantMessageId =
-        remember(
-            uiState.messages
-        ) {
+        remember(uiState.messages) {
             uiState.messages
                 .lastOrNull { message ->
-                    message.sender ==
-                            MessageSender.ASSISTANT
+                    message.sender == MessageSender.ASSISTANT
                 }
                 ?.id
         }
 
     /*
-     * Existing messages should not replay their entrance
-     * animations when the conversation opens.
+     * Existing messages must not replay their entrance
+     * animation when the conversation opens.
      */
     val seenMessageIds =
         remember {
             mutableStateMapOf<String, Boolean>()
                 .apply {
                     uiState.messages.forEach { message ->
-                        put(
-                            message.id,
-                            true
-                        )
+                        put(message.id, true)
                     }
                 }
         }
 
     ChatMessageListScrollEffects(
-        listState =
-            listState,
-        messageCount =
-            messageCount,
-        suggestionCount =
-            suggestionCount,
-        isSending =
-            uiState.isSending,
-        hasTypingIndicator =
-            hasTypingIndicator,
-        keyboardBottom =
-            keyboardBottom,
-        bottomAnchorIndex =
-            bottomAnchorIndex,
-        scrollRequestKey =
-            scrollRequestKey
+        listState = listState,
+        messageCount = messageCount,
+        suggestionCount = uiState.suggestions.size,
+        isSending = uiState.isSending,
+        hasTypingIndicator = hasTypingIndicator,
+        keyboardBottom = keyboardBottom,
+        bottomAnchorIndex = bottomAnchorIndex,
+        scrollRequestKey = scrollRequestKey
     )
 
     LazyColumn(
@@ -168,8 +154,6 @@ fun ChatMessageList(
             modifier.fillMaxSize(),
         state =
             listState,
-        reverseLayout =
-            false,
         contentPadding =
             PaddingValues(
                 top =
@@ -177,86 +161,284 @@ fun ChatMessageList(
                 bottom =
                     bottomOverlayHeight +
                             MESSAGE_LIST_BOTTOM_BREATHING_ROOM
-            ),
-        verticalArrangement =
-            Arrangement.spacedBy(
-                MESSAGE_SPACING
             )
     ) {
         items(
-            items =
-                uiState.messages,
-            key = { message ->
-                message.id
+            items = entries,
+            key = { entry -> entry.key },
+            contentType = { entry ->
+                when (entry) {
+                    is ChatListEntry.DateSeparator -> "date"
+                    is ChatListEntry.Message -> "message"
+                }
             }
-        ) { message ->
-            AnimatedMessageItem(
-                message =
-                    message,
-                correction =
-                    message.correction,
-                isLatestUserMessage =
-                    message.id ==
-                            latestUserMessageId,
-                isLatestAssistantMessage =
-                    message.id ==
-                            latestAssistantMessageId,
-                hasAlreadyBeenSeen =
-                    seenMessageIds[
-                        message.id
-                    ] == true,
-                onAnimationStarted = {
-                    seenMessageIds[
-                        message.id
-                    ] = true
-                },
-                onClick = {
-                    onMessageClick(
-                        message
+        ) { entry ->
+            when (entry) {
+                is ChatListEntry.DateSeparator -> {
+                    ChatDateSeparator(
+                        label = entry.label
                     )
-                },
-                modifier =
-                    Modifier.padding(
-                        horizontal =
-                            MESSAGE_HORIZONTAL_PADDING,
-                        vertical =
-                            MESSAGE_VERTICAL_PADDING
-                    )
-            )
+                }
+
+                is ChatListEntry.Message -> {
+                    val message =
+                        entry.message
+
+                    val isUserMessage =
+                        message.sender == MessageSender.USER
+
+                    val attachedPhrases =
+                        markedPhrases[message.id].orEmpty()
+
+                    Column(
+                        modifier =
+                            Modifier
+                                .padding(
+                                    start =
+                                        MESSAGE_HORIZONTAL_PADDING,
+                                    end =
+                                        MESSAGE_HORIZONTAL_PADDING,
+                                    top =
+                                        if (entry.isFirstInGroup) {
+                                            GROUP_START_SPACING
+                                        } else {
+                                            GROUPED_MESSAGE_SPACING
+                                        }
+                                )
+                                .animateContentSize()
+                    ) {
+                        /*
+                         * Source bubble keeps its normal rounded
+                         * corners.
+                         */
+                        AnimatedMessageItem(
+                            message = message,
+                            correction = message.correction,
+                            isLatestUserMessage =
+                                message.id == latestUserMessageId,
+                            isLatestAssistantMessage =
+                                message.id == latestAssistantMessageId,
+                            hasAlreadyBeenSeen =
+                                seenMessageIds[message.id] == true,
+
+                            /*
+                             * Tells the source bubble whether a marked-phrase note
+                             * is connected directly underneath it.
+                             */
+                            hasAttachedPhrase =
+                                attachedPhrases.isNotEmpty(),
+
+                            onAnimationStarted = {
+                                seenMessageIds[message.id] = true
+                            },
+                            onClick = {
+                                onMessageClick(message)
+                            },
+                            modifier = Modifier
+                        )
+
+                        /*
+                         * Notes sit flush under the bubble with no
+                         * gap. Their top edge is flat; only the
+                         * last note rounds its bottom corners.
+                         */
+                        attachedPhrases.forEachIndexed { index, phrase ->
+                            MarkedPhraseBubble(
+                                phrase = phrase,
+                                isUserMessage = isUserMessage,
+                                isLast =
+                                    index == attachedPhrases.lastIndex,
+                                onRemove = {
+                                    onRemoveMarkedPhrase(phrase.id)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         if (hasTypingIndicator) {
-            item(
-                key =
-                    TYPING_INDICATOR_KEY
-            ) {
+            item(key = TYPING_INDICATOR_KEY) {
                 TypingIndicator(
                     modifier =
                         Modifier.padding(
-                            horizontal =
-                                MESSAGE_HORIZONTAL_PADDING,
-                            vertical =
-                                TYPING_INDICATOR_VERTICAL_PADDING
+                            start = MESSAGE_HORIZONTAL_PADDING,
+                            end = MESSAGE_HORIZONTAL_PADDING,
+                            top = GROUP_START_SPACING
                         )
                 )
             }
         }
 
-        /*
-         * Stable final item used as the bottom scrolling
-         * target.
-         */
-        item(
-            key =
-                BOTTOM_ANCHOR_KEY
-        ) {
+        item(key = BOTTOM_ANCHOR_KEY) {
             Spacer(
                 modifier =
-                    Modifier.height(
-                        BOTTOM_ANCHOR_HEIGHT
-                    )
+                    Modifier.height(BOTTOM_ANCHOR_HEIGHT)
             )
         }
+    }
+}
+
+/*
+ * ===========================================================
+ * LIST ENTRIES
+ * ===========================================================
+ */
+
+private sealed interface ChatListEntry {
+
+    val key: String
+
+    data class DateSeparator(
+        val label: String,
+        override val key: String
+    ) : ChatListEntry
+
+    data class Message(
+        val message: ChatMessage,
+        val isFirstInGroup: Boolean
+    ) : ChatListEntry {
+
+        override val key: String
+            get() = message.id
+    }
+}
+
+private fun buildChatListEntries(
+    messages: List<ChatMessage>
+): List<ChatListEntry> {
+    val zone =
+        ZoneId.systemDefault()
+
+    val today =
+        LocalDate.now(zone)
+
+    val entries =
+        mutableListOf<ChatListEntry>()
+
+    var previousDate: LocalDate? = null
+    var previousMessage: ChatMessage? = null
+
+    messages.forEach { message ->
+        val messageDate =
+            Instant
+                .ofEpochMilli(message.timestamp)
+                .atZone(zone)
+                .toLocalDate()
+
+        val isNewDay =
+            messageDate != previousDate
+
+        if (isNewDay) {
+            entries.add(
+                ChatListEntry.DateSeparator(
+                    label =
+                        formatDateSeparator(
+                            date = messageDate,
+                            today = today
+                        ),
+                    key = "date-$messageDate"
+                )
+            )
+        }
+
+        val previous =
+            previousMessage
+
+        val isFirstInGroup =
+            isNewDay ||
+                    previous == null ||
+                    previous.sender != message.sender ||
+                    message.timestamp - previous.timestamp >
+                    GROUP_TIME_WINDOW_MILLIS
+
+        entries.add(
+            ChatListEntry.Message(
+                message = message,
+                isFirstInGroup = isFirstInGroup
+            )
+        )
+
+        previousDate = messageDate
+        previousMessage = message
+    }
+
+    return entries
+}
+
+private fun formatDateSeparator(
+    date: LocalDate,
+    today: LocalDate
+): String {
+    return when {
+        date == today -> "Heute"
+
+        date == today.minusDays(1) -> "Gestern"
+
+        date.year == today.year -> {
+            date.format(
+                DateTimeFormatter.ofPattern(
+                    "EEEE, d. MMMM",
+                    Locale.GERMAN
+                )
+            )
+        }
+
+        else -> {
+            date.format(
+                DateTimeFormatter.ofPattern(
+                    "d. MMMM yyyy",
+                    Locale.GERMAN
+                )
+            )
+        }
+    }
+}
+
+/*
+ * ===========================================================
+ * DATE SEPARATOR
+ * ===========================================================
+ */
+
+@Composable
+private fun ChatDateSeparator(
+    label: String
+) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(
+                    top = DATE_SEPARATOR_TOP_PADDING,
+                    bottom = DATE_SEPARATOR_BOTTOM_PADDING
+                ),
+        contentAlignment =
+            Alignment.Center
+    ) {
+        Text(
+            text = label,
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(
+                        MaterialTheme
+                            .colorScheme
+                            .surfaceContainerHigh
+                            .copy(alpha = 0.85f)
+                    )
+                    .padding(
+                        horizontal = 12.dp,
+                        vertical = 4.dp
+                    ),
+            style =
+                MaterialTheme.typography.labelSmall,
+            fontWeight =
+                FontWeight.Medium,
+            color =
+                MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -265,41 +447,22 @@ private fun ChatMessageListEmptyState(
     modifier: Modifier
 ) {
     Box(
-        modifier =
-            modifier.fillMaxSize(),
-        contentAlignment =
-            Alignment.Center
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
         ChatEmptyState()
     }
 }
 
-private fun calculateBottomAnchorIndex(
-    messageCount: Int,
-    hasTypingIndicator: Boolean
-): Int {
-    return messageCount +
-            if (hasTypingIndicator) {
-                1
-            } else {
-                0
-            }
-}
+private const val GROUP_TIME_WINDOW_MILLIS =
+    5 * 60 * 1_000L
 
-private val MESSAGE_LIST_TOP_PADDING =
-    8.dp
+private val MESSAGE_LIST_TOP_PADDING = 4.dp
+private val MESSAGE_LIST_BOTTOM_BREATHING_ROOM = 8.dp
+private val MESSAGE_HORIZONTAL_PADDING = 12.dp
 
-private val MESSAGE_LIST_BOTTOM_BREATHING_ROOM =
-    6.dp
+private val GROUP_START_SPACING = 12.dp
+private val GROUPED_MESSAGE_SPACING = 2.dp
 
-private val MESSAGE_SPACING =
-    6.dp
-
-private val MESSAGE_HORIZONTAL_PADDING =
-    12.dp
-
-private val MESSAGE_VERTICAL_PADDING =
-    2.dp
-
-private val TYPING_INDICATOR_VERTICAL_PADDING =
-    4.dp
+private val DATE_SEPARATOR_TOP_PADDING = 16.dp
+private val DATE_SEPARATOR_BOTTOM_PADDING = 4.dp

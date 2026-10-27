@@ -113,6 +113,41 @@ interface MissionThreadRecommendationDao {
     ): Int
 
     /*
+     * Oldest skipped, non-expired recommendation for the
+     * level, excluding one ID (the recommendation that was
+     * just skipped).
+     *
+     * Ordering by skippedAt ASC turns skipped rows into a
+     * round-robin queue: the first one swiped away returns
+     * first.
+     *
+     * Pass an empty string to exclude nothing.
+     */
+    @Transaction
+    @Query(
+        """
+        SELECT *
+        FROM mission_thread_recommendations
+        WHERE cefrLevel = :cefrLevel
+          AND status = 'SKIPPED'
+          AND (
+              expiresAt IS NULL
+              OR expiresAt > :currentTime
+          )
+          AND id != :excludedRecommendationId
+        ORDER BY
+            skippedAt ASC,
+            createdAt ASC
+        LIMIT 1
+        """
+    )
+    suspend fun getOldestSkippedRecommendation(
+        cefrLevel: String,
+        currentTime: Long,
+        excludedRecommendationId: String
+    ): MissionThreadRecommendationWithObjectives?
+
+    /*
      * Returns scenario identities that must be excluded from
      * generation.
      *
@@ -236,6 +271,30 @@ interface MissionThreadRecommendationDao {
     suspend fun markSkipped(
         recommendationId: String,
         skippedAt: Long
+    ): Int
+
+    /*
+     * Brings a skipped recommendation back into rotation as
+     * the visible one.
+     *
+     * skippedAt is cleared. When the learner swipes it away
+     * again, markSkipped gives it a fresh skippedAt and it
+     * moves to the end of the round-robin queue.
+     */
+    @Query(
+        """
+        UPDATE mission_thread_recommendations
+        SET status = 'DISPLAYED',
+            displayedAt = :displayedAt,
+            skippedAt = NULL,
+            updatedAt = :displayedAt
+        WHERE id = :recommendationId
+          AND status = 'SKIPPED'
+        """
+    )
+    suspend fun reactivateSkipped(
+        recommendationId: String,
+        displayedAt: Long
     ): Int
 
     @Query(

@@ -235,6 +235,79 @@ class RoomMissionThreadRecommendationStore
         )
     }
 
+    /*
+     * Round-robin wrap-around.
+     *
+     * When no READY recommendation is left, the oldest
+     * skipped recommendation becomes the visible one again.
+     *
+     * The just-skipped recommendation is avoided first. It is
+     * only reused when it is the only recommendation in Room,
+     * so the cell is never empty while recommendations exist.
+     */
+    override suspend fun reactivateNextSkipped(
+        cefrLevel: CefrLevel,
+        excludedRecommendationId: String?
+    ): MissionThreadRecommendation? {
+        val now =
+            clock.millis()
+
+        /*
+         * An empty-string exclusion matches no row.
+         */
+        val preferredCandidate =
+            dao.getOldestSkippedRecommendation(
+                cefrLevel =
+                    cefrLevel.name,
+                currentTime =
+                    now,
+                excludedRecommendationId =
+                    excludedRecommendationId.orEmpty()
+            )
+
+        val candidate =
+            preferredCandidate
+                ?: if (!excludedRecommendationId.isNullOrBlank()) {
+                    /*
+                     * Only one recommendation exists. Keep
+                     * showing it instead of an empty cell.
+                     */
+                    dao.getOldestSkippedRecommendation(
+                        cefrLevel =
+                            cefrLevel.name,
+                        currentTime =
+                            now,
+                        excludedRecommendationId =
+                            ""
+                    )
+                } else {
+                    null
+                }
+                ?: return null
+
+        val recommendation =
+            candidate.toDomainOrNull()
+                ?: return null
+
+        val changedRows =
+            dao.reactivateSkipped(
+                recommendationId =
+                    recommendation.id,
+                displayedAt =
+                    now
+            )
+
+        Log.d(
+            STORE_TAG,
+            "Reactivated skipped recommendation. " +
+                    "id=${recommendation.id}, " +
+                    "scenario=${recommendation.scenarioType}, " +
+                    "rows=$changedRows"
+        )
+
+        return recommendation
+    }
+
     override suspend fun markStarted(
         recommendationId: String,
         conversationId: String,

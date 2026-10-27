@@ -1,173 +1,163 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.ui.theme.DeutschAssistantBubble
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
+import com.julesmeister.deutschcraft.ui.theme.DeutschSky
+import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
+import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnSky
+import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
+import com.julesmeister.deutschcraft.ui.theme.DeutschUserBubble
 
 internal data class MessageBubbleColors(
     val backgroundColor: Color,
-    val contentColor: Color
+    val contentColor: Color,
+    val borderColor: Color
 )
 
+/*
+ * Chat color language:
+ *
+ * Emil latest     → solid DeutschSky, navy text
+ * Emil older      → deep sky tint, light text
+ * Learner latest  → solid DeutschLime, dark text
+ * Learner older   → deep lime tint, light text
+ *
+ * When a newer message arrives, the previous "latest" bubble
+ * fades back to its tint instead of jumping.
+ */
 @Composable
 internal fun rememberMessageBubbleColors(
     isUserMessage: Boolean,
     isLatestUserMessage: Boolean,
     isLatestAssistantMessage: Boolean
 ): MessageBubbleColors {
-    val regularUserColor =
-        MaterialTheme
-            .colorScheme
-            .primaryContainer
+    val targetBackground =
+        when {
+            isUserMessage && isLatestUserMessage -> DeutschLime
+            isUserMessage -> DeutschUserBubble
+            isLatestAssistantMessage -> DeutschSky
+            else -> DeutschAssistantBubble
+        }
 
-    val regularUserContentColor =
-        MaterialTheme
-            .colorScheme
-            .onPrimaryContainer
+    val targetContent =
+        when {
+            isUserMessage && isLatestUserMessage -> DeutschTextOnLime
+            !isUserMessage && isLatestAssistantMessage -> DeutschTextOnSky
+            else -> DeutschTextPrimary
+        }
 
-    val latestUserColor =
-        DeutschLime
-
-    /*
-     * Deep forest green remains readable over the
-     * bright DeutschLime background.
-     */
-    val latestUserContentColor =
-        Color(0xFF17331A)
-
-    val assistantStartColor =
-        MaterialTheme
-            .colorScheme
-            .surfaceContainer
-
-    val assistantPulseColor =
-        MaterialTheme
-            .colorScheme
-            .surfaceContainerHigh
-
-    val assistantContentColor =
-        MaterialTheme
-            .colorScheme
-            .onSurface
-
-    /*
-     * The transition can remain active for all composed
-     * bubbles, but its value is applied only to the latest
-     * assistant bubble.
-     */
-    val infiniteTransition =
-        rememberInfiniteTransition(
-            label =
-                "AssistantBubblePulse"
-        )
-
-    val pulseFraction by
-    infiniteTransition.animateFloat(
-        initialValue =
-            0f,
-        targetValue =
-            1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation =
-                    tween(
-                        durationMillis =
-                            PULSE_DURATION_MILLIS,
-                        easing =
-                            FastOutSlowInEasing
-                    ),
-                repeatMode =
-                    RepeatMode.Reverse
-            ),
-        label =
-            "AssistantBubblePulseFraction"
+    val backgroundColor by
+    animateColorAsState(
+        targetValue = targetBackground,
+        animationSpec = tween(COLOR_TRANSITION_MILLIS),
+        label = "BubbleBackground"
     )
 
-    val backgroundColor =
-        when {
-            isUserMessage &&
-                    isLatestUserMessage -> {
-                latestUserColor
-            }
-
-            isUserMessage -> {
-                regularUserColor
-            }
-
-            isLatestAssistantMessage -> {
-                lerp(
-                    start =
-                        assistantStartColor,
-                    stop =
-                        assistantPulseColor,
-                    fraction =
-                        pulseFraction *
-                                PULSE_COLOR_STRENGTH
-                )
-            }
-
-            else -> {
-                assistantStartColor
-            }
-        }
-
-    val contentColor =
-        when {
-            isUserMessage &&
-                    isLatestUserMessage -> {
-                latestUserContentColor
-            }
-
-            isUserMessage -> {
-                regularUserContentColor
-            }
-
-            else -> {
-                assistantContentColor
-            }
-        }
+    val contentColor by
+    animateColorAsState(
+        targetValue = targetContent,
+        animationSpec = tween(COLOR_TRANSITION_MILLIS),
+        label = "BubbleContent"
+    )
 
     return MessageBubbleColors(
-        backgroundColor =
-            backgroundColor,
-        contentColor =
-            contentColor
+        backgroundColor = backgroundColor,
+        contentColor = contentColor,
+        /*
+         * Both bubble types are filled with color now,
+         * so no hairline border is needed.
+         */
+        borderColor = Color.Transparent
     )
 }
-
 internal fun messageBubbleShape(
-    isUserMessage: Boolean
+    isUserMessage: Boolean,
+    hasAttachedPhrase: Boolean = false
 ): RoundedCornerShape {
     return if (isUserMessage) {
+        /*
+         * USER
+         *
+         * Normal:
+         *
+         * ╭────────────╮
+         * │            │
+         * ╰────────────╯
+         *
+         * With attachment:
+         *
+         * ╭────────────╮
+         * │            │
+         * ┌────────────╯
+         *
+         * Only bottom-left becomes flat.
+         * The normal bottom-right tail remains.
+         */
         RoundedCornerShape(
-            topStart = 20.dp,
-            topEnd = 20.dp,
-            bottomStart = 20.dp,
-            bottomEnd = 6.dp
+            topStart =
+                SOURCE_BUBBLE_CORNER,
+            topEnd =
+                SOURCE_BUBBLE_CORNER,
+            bottomStart =
+                if (hasAttachedPhrase) {
+                    ATTACHMENT_CORNER
+                } else {
+                    SOURCE_BUBBLE_CORNER
+                },
+            bottomEnd =
+                SOURCE_BUBBLE_TAIL_CORNER
         )
     } else {
+        /*
+         * ASSISTANT
+         *
+         * Normal:
+         *
+         * ╭────────────╮
+         * │            │
+         * ╰────────────╯
+         *
+         * With attachment:
+         *
+         * ╭────────────╮
+         * │            │
+         * ╰────────────┐
+         *
+         * Only bottom-right becomes flat.
+         * The normal bottom-left tail remains.
+         */
         RoundedCornerShape(
-            topStart = 20.dp,
-            topEnd = 20.dp,
-            bottomStart = 6.dp,
-            bottomEnd = 20.dp
+            topStart =
+                SOURCE_BUBBLE_CORNER,
+            topEnd =
+                SOURCE_BUBBLE_CORNER,
+            bottomStart =
+                SOURCE_BUBBLE_TAIL_CORNER,
+            bottomEnd =
+                if (hasAttachedPhrase) {
+                    ATTACHMENT_CORNER
+                } else {
+                    SOURCE_BUBBLE_CORNER
+                }
         )
     }
 }
 
-private const val PULSE_DURATION_MILLIS =
-    2_200
+private val SOURCE_BUBBLE_CORNER =
+    20.dp
 
-private const val PULSE_COLOR_STRENGTH =
-    0.45f
+private val SOURCE_BUBBLE_TAIL_CORNER =
+    6.dp
+
+private val ATTACHMENT_CORNER =
+    0.dp
+
+
+private const val COLOR_TRANSITION_MILLIS = 450

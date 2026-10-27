@@ -8,7 +8,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 /*
  * Navigation-level entry point for the chat feature.
  *
- * ChatRoute owns ViewModel collection while ChatScreen remains
+ * ChatRoute collects ViewModel state while ChatScreen stays
  * a stateless presentation component.
  */
 @Composable
@@ -43,6 +43,14 @@ fun ChatRoute(
         .missionResultUiState
         .collectAsStateWithLifecycle()
 
+    /*
+     * messageId -> phrases the learner marked on that message.
+     */
+    val markedPhrases by
+    viewModel
+        .markedPhrases
+        .collectAsStateWithLifecycle()
+
     ChatScreen(
         uiState =
             uiState,
@@ -53,6 +61,9 @@ fun ChatRoute(
         missionResultUiState =
             missionResultUiState,
 
+        markedPhrases =
+            markedPhrases,
+
         onAction =
             viewModel::onAction,
 
@@ -60,14 +71,11 @@ fun ChatRoute(
             onBackClick,
 
         /*
-         * Mission top-bar tap.
+         * Mission guidance.
          */
         onOpenMissionGuidance =
             viewModel::openMissionGuidance,
 
-        /*
-         * Mission Guidance sheet.
-         */
         onDismissMissionGuidance =
             viewModel::dismissMissionGuidance,
 
@@ -81,12 +89,21 @@ fun ChatRoute(
             viewModel::toggleMissionExamples,
 
         /*
-         * Mission Result sheet.
+         * Mission result.
          */
         onDismissMissionResult =
             viewModel::dismissMissionResult,
 
         onContinueAfterMissionResult =
-            viewModel::continueAfterMissionResult
+            viewModel::continueAfterMissionResult,
+
+        /*
+         * Marked phrases.
+         */
+        onMarkPhrase =
+            viewModel::markPhrase,
+
+        onRemoveMarkedPhrase =
+            viewModel::removeMarkedPhrase
     )
 }
