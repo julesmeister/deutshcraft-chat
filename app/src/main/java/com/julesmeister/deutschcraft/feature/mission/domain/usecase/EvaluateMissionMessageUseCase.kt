@@ -4,23 +4,43 @@ import android.util.Log
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
+import com.julesmeister.deutschcraft.feature.learninganalytics.domain.MissionAnalytics
+import com.julesmeister.deutschcraft.feature.learninganalytics.domain.usecase.CompleteMissionObjectiveWithAnalyticsUseCase
+import com.julesmeister.deutschcraft.feature.learninganalytics.domain.usecase.ObjectiveCompletionResult
 import com.julesmeister.deutschcraft.feature.mission.data.ai.MissionEvaluationSpeaker
 import com.julesmeister.deutschcraft.feature.mission.data.ai.MissionEvaluationTurn
 import com.julesmeister.deutschcraft.feature.mission.data.ai.MissionObjectiveEvaluationAiGateway
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionObjective
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionStatus
-import com.julesmeister.deutschcraft.feature.mission.domain.repository.MissionRepository
 import javax.inject.Inject
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 
+/*
+ * Evaluates the learner's latest message against the current
+ * active mission objective.
+ *
+ * Responsibilities:
+ *
+ * - Evaluate only the current unfinished objective
+ * - Reject AI results below the completion threshold
+ * - Persist successful objective completion
+ * - Detect mission completion from the persisted Room state
+ * - Trigger final mission analytics when the mission finishes
+ *
+ * Mission completion persistence is delegated to:
+ *
+ * CompleteMissionObjectiveWithAnalyticsUseCase
+ *
+ * This keeps analytics orchestration out of the evaluator.
+ */
 class EvaluateMissionMessageUseCase
 @Inject constructor(
     private val aiGateway:
     MissionObjectiveEvaluationAiGateway,
-    private val missionRepository:
-    MissionRepository
+    private val completeMissionObjectiveWithAnalytics:
+    CompleteMissionObjectiveWithAnalyticsUseCase
 ) {
 
     suspend operator fun invoke(
@@ -45,7 +65,8 @@ class EvaluateMissionMessageUseCase
 
             return MissionMessageEvaluationSummary(
                 outcome =
-                    MissionMessageEvaluationOutcome.SKIPPED
+                    MissionMessageEvaluationOutcome
+                        .SKIPPED
             )
         }
 
@@ -64,12 +85,19 @@ class EvaluateMissionMessageUseCase
 
                     return MissionMessageEvaluationSummary(
                         outcome =
-                            MissionMessageEvaluationOutcome.SKIPPED
+                            MissionMessageEvaluationOutcome
+                                .SKIPPED
                     )
                 }
 
         val currentObjective =
             currentObjectiveProgress.objective
+
+        val progressPercentageBefore =
+            calculateCurrentProgressPercentage(
+                mission =
+                    mission
+            )
 
         val recentConversation =
             createRecentConversation(
@@ -82,23 +110,42 @@ class EvaluateMissionMessageUseCase
         Log.d(
             USE_CASE_TAG,
             buildString {
-                append("Evaluating mission objective. ")
-                append("missionId=")
-                append(mission.id)
-                append(", objectiveId=")
-                append(currentObjective.id)
-                append(", objectiveTitle=")
-                append(currentObjective.title)
-                append(", recentTurns=")
-                append(recentConversation.size)
-                append(", currentProgress=")
                 append(
-                    calculateCurrentProgressPercentage(
-                        mission =
-                            mission
-                    )
+                    "Evaluating mission objective. "
                 )
-                append("%")
+                append(
+                    "missionId="
+                )
+                append(
+                    mission.id
+                )
+                append(
+                    ", objectiveId="
+                )
+                append(
+                    currentObjective.id
+                )
+                append(
+                    ", objectiveTitle="
+                )
+                append(
+                    currentObjective.title
+                )
+                append(
+                    ", recentTurns="
+                )
+                append(
+                    recentConversation.size
+                )
+                append(
+                    ", currentProgress="
+                )
+                append(
+                    progressPercentageBefore
+                )
+                append(
+                    "%"
+                )
             }
         )
 
@@ -106,7 +153,9 @@ class EvaluateMissionMessageUseCase
             try {
                 aiGateway.evaluateMessage(
                     learnerMessage =
-                        learnerMessage.content.trim(),
+                        learnerMessage
+                            .content
+                            .trim(),
                     recentConversation =
                         recentConversation,
                     cefrLevel =
@@ -121,11 +170,12 @@ class EvaluateMissionMessageUseCase
                         mission.template.assistantRole,
 
                     /*
-                     * Only evaluate the currently active
+                     * Deliberately evaluate only the current
                      * objective.
                      *
-                     * This prevents one learner response from
-                     * skipping several mission steps at once.
+                     * One learner response therefore cannot
+                     * complete several future mission
+                     * objectives simultaneously.
                      */
                     unfinishedObjectives =
                         listOf(
@@ -151,12 +201,22 @@ class EvaluateMissionMessageUseCase
                         currentObjective.id,
                     currentObjectiveTitle =
                         currentObjective.title,
+                    progressPercentageBefore =
+                        progressPercentageBefore,
+                    projectedProgressPercentage =
+                        progressPercentageBefore,
                     outcome =
                         MissionMessageEvaluationOutcome
                             .EVALUATION_FAILED
                 )
             }
 
+        /*
+         * Qwen can theoretically return more than one result.
+         *
+         * Only results for the objective we explicitly asked
+         * it to evaluate are accepted.
+         */
         val matchingEvaluations =
             evaluationResult
                 .completedObjectives
@@ -176,28 +236,41 @@ class EvaluateMissionMessageUseCase
                 ?.confidence
                 ?.coerceIn(
                     minimumValue =
-                        0f,
+                        MINIMUM_CONFIDENCE,
                     maximumValue =
-                        1f
+                        MAXIMUM_CONFIDENCE
                 )
 
         Log.d(
             USE_CASE_TAG,
             buildString {
-                append("Mission AI evaluation received. ")
-                append("objectiveId=")
-                append(currentObjective.id)
-                append(", matchingResults=")
-                append(matchingEvaluations.size)
-                append(", highestConfidence=")
-                append(highestConfidence)
+                append(
+                    "Mission AI evaluation received. "
+                )
+                append(
+                    "objectiveId="
+                )
+                append(
+                    currentObjective.id
+                )
+                append(
+                    ", matchingResults="
+                )
+                append(
+                    matchingEvaluations.size
+                )
+                append(
+                    ", highestConfidence="
+                )
+                append(
+                    highestConfidence
+                )
             }
         )
 
         /*
-         * No matching objective means Qwen did not find
-         * enough evidence that the learner completed the
-         * current goal.
+         * No matching result means there is not enough
+         * evidence that the current objective was completed.
          */
         if (highestMatchingEvaluation == null) {
             return createNotCompletedSummary(
@@ -211,15 +284,15 @@ class EvaluateMissionMessageUseCase
         }
 
         /*
-         * The learner may have demonstrated the correct
-         * intent, but Qwen may still be uncertain.
+         * A matching result may still have insufficient
+         * confidence.
          *
-         * Confidence below the completion threshold remains
-         * incomplete. The next UI slice can present this as
-         * "almost there" when it exceeds the partial threshold.
+         * Results between the partial and completion
+         * thresholds are treated as partial attempts.
          */
         if (
-            highestMatchingEvaluation.confidence <
+            highestConfidence == null ||
+            highestConfidence <
             MINIMUM_COMPLETION_CONFIDENCE
         ) {
             return createNotCompletedSummary(
@@ -228,127 +301,185 @@ class EvaluateMissionMessageUseCase
                 currentObjective =
                     currentObjective,
                 confidence =
-                    highestMatchingEvaluation.confidence
+                    highestConfidence
             )
         }
 
-        val unfinishedObjectiveCountBeforeCompletion =
-            mission.objectiveProgress.count { progress ->
-                !progress.isCompleted
-            }
-
-        val completedObjectiveCountBeforeCompletion =
-            mission.objectiveProgress.count { progress ->
-                progress.isCompleted
-            }
-
-        val totalObjectiveCount =
-            mission.objectiveProgress.size
-
-        val missionWillBeCompleted =
-            unfinishedObjectiveCountBeforeCompletion ==
-                    FINAL_OBJECTIVE_REMAINING_COUNT
-
-        val projectedCompletedCount =
-            (
-                    completedObjectiveCountBeforeCompletion +
-                            1
-                    )
-                .coerceAtMost(
-                    maximumValue =
-                        totalObjectiveCount
+        /*
+         * The AI considers the current objective completed.
+         *
+         * Do not calculate whether the mission will finish
+         * from the old in-memory mission here.
+         *
+         * Persist the objective first and let the orchestration
+         * use case reload the authoritative Room state.
+         */
+        return try {
+            val completionResult =
+                completeMissionObjectiveWithAnalytics(
+                    conversationMissionId =
+                        mission.id,
+                    objectiveId =
+                        currentObjective.id,
+                    messageId =
+                        learnerMessage.id,
+                    confidence =
+                        highestConfidence
                 )
 
-        val projectedProgressPercentage =
-            calculateProgressPercentage(
-                completedObjectiveCount =
-                    projectedCompletedCount,
-                totalObjectiveCount =
-                    totalObjectiveCount
-            )
+            when (completionResult) {
+                is ObjectiveCompletionResult
+                .ObjectiveCompleted -> {
 
-        return try {
-            missionRepository.completeObjective(
-                conversationMissionId =
-                    mission.id,
-                objectiveId =
-                    currentObjective.id,
-                messageId =
-                    learnerMessage.id,
-                confidence =
-                    highestMatchingEvaluation
-                        .confidence
-                        .coerceIn(
-                            minimumValue =
-                                0f,
-                            maximumValue =
-                                1f
-                        )
-            )
-
-            Log.i(
-                USE_CASE_TAG,
-                buildString {
-                    append("Mission objective completed. ")
-                    append("missionId=")
-                    append(mission.id)
-                    append(", objectiveId=")
-                    append(currentObjective.id)
-                    append(", objectiveTitle=")
-                    append(currentObjective.title)
-                    append(", confidence=")
-                    append(
-                        highestMatchingEvaluation
-                            .confidence
+                    Log.i(
+                        USE_CASE_TAG,
+                        buildString {
+                            append(
+                                "Mission objective completed. "
+                            )
+                            append(
+                                "missionId="
+                            )
+                            append(
+                                mission.id
+                            )
+                            append(
+                                ", objectiveId="
+                            )
+                            append(
+                                currentObjective.id
+                            )
+                            append(
+                                ", objectiveTitle="
+                            )
+                            append(
+                                currentObjective.title
+                            )
+                            append(
+                                ", confidence="
+                            )
+                            append(
+                                highestConfidence
+                            )
+                            append(
+                                ", persistedProgress="
+                            )
+                            append(
+                                completionResult
+                                    .progressPercentage
+                            )
+                            append(
+                                "%"
+                            )
+                        }
                     )
-                    append(", projectedProgress=")
-                    append(projectedProgressPercentage)
-                    append("%")
-                    append(", missionCompleted=")
-                    append(missionWillBeCompleted)
-                }
-            )
 
-            MissionMessageEvaluationSummary(
-                evaluatedObjectiveCount =
-                    1,
-                completedObjectiveIds =
-                    listOf(
-                        currentObjective.id
-                    ),
-                completedObjectiveTitle =
-                    currentObjective.title,
-                currentObjectiveId =
-                    currentObjective.id,
-                currentObjectiveTitle =
-                    currentObjective.title,
-                highestConfidence =
-                    highestMatchingEvaluation
-                        .confidence
-                        .coerceIn(
-                            minimumValue =
-                                0f,
-                            maximumValue =
-                                1f
-                        ),
-                progressPercentageBefore =
-                    calculateCurrentProgressPercentage(
-                        mission =
-                            mission
-                    ),
-                projectedProgressPercentage =
-                    projectedProgressPercentage,
-                missionCompleted =
-                    missionWillBeCompleted,
-                outcome =
-                    if (missionWillBeCompleted) {
-                        MissionMessageEvaluationOutcome
-                            .MISSION_COMPLETED
-                    } else {
-                        MissionMessageEvaluationOutcome
-                            .OBJECTIVE_COMPLETED
-                    }
-            )
+                    MissionMessageEvaluationSummary(
+                        evaluatedObjectiveCount =
+                            1,
+                        completedObjectiveIds =
+                            listOf(
+                                currentObjective.id
+                            ),
+                        completedObjectiveTitle =
+                            currentObjective.title,
+                        currentObjectiveId =
+                            currentObjective.id,
+                        currentObjectiveTitle =
+                            currentObjective.title,
+                        highestConfidence =
+                            highestConfidence,
+                        progressPercentageBefore =
+                            progressPercentageBefore,
+                        projectedProgressPercentage =
+                            completionResult
+                                .progressPercentage,
+                        missionCompleted =
+                            false,
+                        outcome =
+                            MissionMessageEvaluationOutcome
+                                .OBJECTIVE_COMPLETED
+                    )
+                }
+
+                is ObjectiveCompletionResult
+                .MissionCompleted -> {
+
+                    Log.i(
+                        USE_CASE_TAG,
+                        buildString {
+                            append(
+                                "Mission completed and analytics "
+                            )
+                            append(
+                                "were finalized. "
+                            )
+                            append(
+                                "missionId="
+                            )
+                            append(
+                                mission.id
+                            )
+                            append(
+                                ", objectiveId="
+                            )
+                            append(
+                                currentObjective.id
+                            )
+                            append(
+                                ", confidence="
+                            )
+                            append(
+                                highestConfidence
+                            )
+                            append(
+                                ", overallScore="
+                            )
+                            append(
+                                completionResult
+                                    .analytics
+                                    .overallScore
+                            )
+                            append(
+                                ", independenceScore="
+                            )
+                            append(
+                                completionResult
+                                    .analytics
+                                    .independenceScore
+                            )
+                        }
+                    )
+
+                    MissionMessageEvaluationSummary(
+                        evaluatedObjectiveCount =
+                            1,
+                        completedObjectiveIds =
+                            listOf(
+                                currentObjective.id
+                            ),
+                        completedObjectiveTitle =
+                            currentObjective.title,
+                        currentObjectiveId =
+                            currentObjective.id,
+                        currentObjectiveTitle =
+                            currentObjective.title,
+                        highestConfidence =
+                            highestConfidence,
+                        progressPercentageBefore =
+                            progressPercentageBefore,
+                        projectedProgressPercentage =
+                            MAXIMUM_PROGRESS_PERCENTAGE,
+                        missionCompleted =
+                            true,
+                        analytics =
+                            completionResult.analytics,
+                        outcome =
+                            MissionMessageEvaluationOutcome
+                                .MISSION_COMPLETED
+                    )
+                }
+            }
         } catch (
             cancellationException:
             CancellationException
@@ -361,10 +492,18 @@ class EvaluateMissionMessageUseCase
                     append(
                         "Could not persist completed objective. "
                     )
-                    append("missionId=")
-                    append(mission.id)
-                    append(", objectiveId=")
-                    append(currentObjective.id)
+                    append(
+                        "missionId="
+                    )
+                    append(
+                        mission.id
+                    )
+                    append(
+                        ", objectiveId="
+                    )
+                    append(
+                        currentObjective.id
+                    )
                 },
                 throwable
             )
@@ -377,24 +516,13 @@ class EvaluateMissionMessageUseCase
                 currentObjectiveTitle =
                     currentObjective.title,
                 highestConfidence =
-                    highestMatchingEvaluation
-                        .confidence
-                        .coerceIn(
-                            minimumValue =
-                                0f,
-                            maximumValue =
-                                1f
-                        ),
+                    highestConfidence,
                 progressPercentageBefore =
-                    calculateCurrentProgressPercentage(
-                        mission =
-                            mission
-                    ),
+                    progressPercentageBefore,
                 projectedProgressPercentage =
-                    calculateCurrentProgressPercentage(
-                        mission =
-                            mission
-                    ),
+                    progressPercentageBefore,
+                missionCompleted =
+                    false,
                 outcome =
                     MissionMessageEvaluationOutcome
                         .PERSISTENCE_FAILED
@@ -434,8 +562,10 @@ class EvaluateMissionMessageUseCase
     }
 
     private fun createRecentConversation(
-        recentMessages: List<ChatMessage>,
-        learnerMessage: ChatMessage
+        recentMessages:
+        List<ChatMessage>,
+        learnerMessage:
+        ChatMessage
     ): List<MissionEvaluationTurn> {
         val contextMessages =
             recentMessages
@@ -444,7 +574,7 @@ class EvaluateMissionMessageUseCase
                     message.content.isNotBlank()
                 }
                 /*
-                 * Exclude anything that was saved after the
+                 * Do not include messages persisted after the
                  * learner message currently being evaluated.
                  */
                 .filter { message ->
@@ -488,27 +618,32 @@ class EvaluateMissionMessageUseCase
                         message.sender ==
                         MessageSender.USER
                     ) {
-                        MissionEvaluationSpeaker.LEARNER
+                        MissionEvaluationSpeaker
+                            .LEARNER
                     } else {
-                        MissionEvaluationSpeaker.ASSISTANT
+                        MissionEvaluationSpeaker
+                            .ASSISTANT
                     },
                 content =
-                    message.content.trim()
+                    message
+                        .content
+                        .trim()
             )
         }
     }
 
     private fun createNotCompletedSummary(
         mission: ConversationMission,
-        currentObjective: MissionObjective,
+        currentObjective:
+        MissionObjective,
         confidence: Float?
     ): MissionMessageEvaluationSummary {
         val safeConfidence =
             confidence?.coerceIn(
                 minimumValue =
-                    0f,
+                    MINIMUM_CONFIDENCE,
                 maximumValue =
-                    1f
+                    MAXIMUM_CONFIDENCE
             )
 
         val outcome =
@@ -527,13 +662,27 @@ class EvaluateMissionMessageUseCase
         Log.d(
             USE_CASE_TAG,
             buildString {
-                append("Mission objective not completed. ")
-                append("objectiveId=")
-                append(currentObjective.id)
-                append(", confidence=")
-                append(safeConfidence)
-                append(", outcome=")
-                append(outcome)
+                append(
+                    "Mission objective not completed. "
+                )
+                append(
+                    "objectiveId="
+                )
+                append(
+                    currentObjective.id
+                )
+                append(
+                    ", confidence="
+                )
+                append(
+                    safeConfidence
+                )
+                append(
+                    ", outcome="
+                )
+                append(
+                    outcome
+                )
             }
         )
 
@@ -564,27 +713,43 @@ class EvaluateMissionMessageUseCase
     }
 
     private fun findCurrentObjectiveProgress(
-        mission: ConversationMission
+        mission:
+        ConversationMission
     ) =
         mission.currentObjective
             ?.takeIf { progress ->
                 !progress.isCompleted
             }
-            ?: mission.objectiveProgress
+            ?: mission
+                .objectiveProgress
+                .sortedBy { progress ->
+                    progress
+                        .objective
+                        .sequenceNumber
+                }
                 .firstOrNull { progress ->
                     !progress.isCompleted
                 }
 
+    /*
+     * This helper is retained for the pre-evaluation view of
+     * progress.
+     *
+     * After successful persistence, the updated percentage
+     * comes from the Room-backed ConversationMission instead.
+     */
     private fun calculateCurrentProgressPercentage(
-        mission: ConversationMission
+        mission:
+        ConversationMission
     ): Int {
         val totalObjectiveCount =
             mission.objectiveProgress.size
 
         val completedObjectiveCount =
-            mission.objectiveProgress.count { progress ->
-                progress.isCompleted
-            }
+            mission.objectiveProgress
+                .count { progress ->
+                    progress.isCompleted
+                }
 
         return calculateProgressPercentage(
             completedObjectiveCount =
@@ -610,9 +775,9 @@ class EvaluateMissionMessageUseCase
             .roundToInt()
             .coerceIn(
                 minimumValue =
-                    0,
+                    MINIMUM_PROGRESS_PERCENTAGE,
                 maximumValue =
-                    100
+                    MAXIMUM_PROGRESS_PERCENTAGE
             )
     }
 
@@ -634,30 +799,36 @@ class EvaluateMissionMessageUseCase
             "EvaluateMissionMessage"
 
         /*
-         * Previously this was 0.88, which was too strict for
-         * valid conversational paraphrases.
-         *
-         * 0.78 still requires meaningful evaluator
-         * confidence while accepting natural alternatives.
+         * A confidence of 0.78 or greater completes the
+         * current objective.
          */
         const val MINIMUM_COMPLETION_CONFIDENCE =
             0.78f
 
         /*
-         * A matching result above this threshold but below
-         * completion is treated as a partial attempt.
+         * Matching results between 0.55 and 0.78 count as
+         * meaningful partial attempts.
          */
         const val MINIMUM_PARTIAL_ATTEMPT_CONFIDENCE =
             0.55f
-
-        const val FINAL_OBJECTIVE_REMAINING_COUNT =
-            1
 
         const val MAXIMUM_RECENT_MESSAGE_COUNT =
             12
 
         const val PERCENTAGE_MULTIPLIER =
             100f
+
+        const val MINIMUM_PROGRESS_PERCENTAGE =
+            0
+
+        const val MAXIMUM_PROGRESS_PERCENTAGE =
+            100
+
+        const val MINIMUM_CONFIDENCE =
+            0f
+
+        const val MAXIMUM_CONFIDENCE =
+            1f
     }
 }
 
@@ -671,6 +842,12 @@ enum class MissionMessageEvaluationOutcome {
     PERSISTENCE_FAILED
 }
 
+/*
+ * Result consumed by the conversation presentation pipeline.
+ *
+ * analytics is populated only when this learner message
+ * completed the complete mission.
+ */
 data class MissionMessageEvaluationSummary(
     val evaluatedObjectiveCount: Int =
         0,
@@ -700,9 +877,21 @@ data class MissionMessageEvaluationSummary(
     val missionCompleted: Boolean =
         false,
 
+    /*
+     * Available immediately when this evaluation completed
+     * the entire mission.
+     *
+     * The analytics have already been persisted in Room
+     * before this summary is returned.
+     */
+    val analytics:
+    MissionAnalytics? =
+        null,
+
     val outcome:
     MissionMessageEvaluationOutcome =
-        MissionMessageEvaluationOutcome.SKIPPED
+        MissionMessageEvaluationOutcome
+            .SKIPPED
 ) {
 
     val completedObjectiveCount: Int
@@ -730,4 +919,8 @@ data class MissionMessageEvaluationSummary(
         get() =
             projectedProgressPercentage >
                     progressPercentageBefore
+
+    val hasFinalAnalytics: Boolean
+        get() =
+            analytics != null
 }

@@ -8,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  *
  * Current database version:
  *
- * 10
+ * 12
  *
  * Known migration history:
  *
@@ -17,9 +17,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * 7 -> 8
  * 8 -> 9
  * 9 -> 10
+ * 10 -> 11
+ * 11 -> 12
  *
- * Keep future migrations in this object so DatabaseModule
- * has one migration source to follow.
+ * Future migrations should continue to be added here and
+ * appended to ALL.
  */
 object DatabaseMigrations {
 
@@ -29,9 +31,8 @@ object DatabaseMigrations {
      * The project code supplied for 5 -> 6 did not contain
      * migration SQL.
      *
-     * If your original project previously contained real
-     * 5 -> 6 SQL, restore those statements here instead of
-     * leaving this migration empty.
+     * If the original project contained real 5 -> 6 SQL,
+     * restore those statements here.
      */
     val MIGRATION_5_6 =
         object : Migration(
@@ -46,8 +47,8 @@ object DatabaseMigrations {
                 SupportSQLiteDatabase
             ) {
                 /*
-                 * Keep the original version 5 -> 6 migration
-                 * here if one existed.
+                 * Restore the original 5 -> 6 SQL here if
+                 * version 6 changed the database schema.
                  */
             }
         }
@@ -96,7 +97,7 @@ object DatabaseMigrations {
 
     /*
      * Version 8 introduced persistent adaptive-learning
-     * focuses and their evidence records.
+     * focuses and message-level evidence.
      */
     val MIGRATION_7_8 =
         object : Migration(
@@ -133,11 +134,8 @@ object DatabaseMigrations {
         }
 
     /*
-     * Version 9 introduced the persistent five-item mission
-     * recommendation pool.
-     *
-     * Recommendation drafts remain separate from actual
-     * ConversationMission records.
+     * Version 9 introduced persistent thread-list mission
+     * recommendations.
      */
     val MIGRATION_8_9 =
         object : Migration(
@@ -175,15 +173,6 @@ object DatabaseMigrations {
 
     /*
      * Version 10 introduced persistent mission analytics.
-     *
-     * Mission analytics later feed:
-     *
-     * - Mission result summaries
-     * - Independence scoring
-     * - Besser learning feedback
-     * - Vocabulary performance
-     * - CEFR mastery
-     * - Next-level readiness
      */
     val MIGRATION_9_10 =
         object : Migration(
@@ -220,15 +209,70 @@ object DatabaseMigrations {
         }
 
     /*
-     * Single list consumed by DatabaseModule.
+     * Version 11 introduced persistent mission-objective hint
+     * usage.
+     */
+    val MIGRATION_10_11 =
+        object : Migration(
+            startVersion =
+                10,
+            endVersion =
+                11
+        ) {
+
+            override fun migrate(
+                database:
+                SupportSQLiteDatabase
+            ) {
+                createMissionObjectiveHintUsageTable(
+                    database =
+                        database
+                )
+
+                createMissionObjectiveHintUsageIndices(
+                    database =
+                        database
+                )
+            }
+        }
+
+    /*
+     * Version 12 introduces persisted per-message mission
+     * interaction evidence.
      *
-     * When version 11 is introduced:
+     * This stores the semantic interaction classification
+     * returned by the existing Qwen mission-evaluation call.
+     */
+    val MIGRATION_11_12 =
+        object : Migration(
+            startVersion =
+                11,
+            endVersion =
+                12
+        ) {
+
+            override fun migrate(
+                database:
+                SupportSQLiteDatabase
+            ) {
+                createMissionInteractionEvidenceTable(
+                    database =
+                        database
+                )
+
+                createMissionInteractionEvidenceIndices(
+                    database =
+                        database
+                )
+            }
+        }
+
+    /*
+     * Complete migration chain consumed by DatabaseModule:
      *
-     * 1. Create MIGRATION_10_11 above.
-     * 2. Add MIGRATION_10_11 to this array.
-     *
-     * DatabaseModule itself will not need another migration
-     * import.
+     * .addMigrations(
+     *     *DatabaseMigrations.ALL
+     * )
      */
     val ALL =
         arrayOf(
@@ -236,14 +280,16 @@ object DatabaseMigrations {
             MIGRATION_6_7,
             MIGRATION_7_8,
             MIGRATION_8_9,
-            MIGRATION_9_10
+            MIGRATION_9_10,
+            MIGRATION_10_11,
+            MIGRATION_11_12
         )
 
     /*
-     * -------------------------------------------------------
-     * Version 7 -> 8
-     * Adaptive learning
-     * -------------------------------------------------------
+     * =======================================================
+     * VERSION 7 -> 8
+     * ADAPTIVE LEARNING
+     * =======================================================
      */
 
     private fun createAdaptiveLearningFocusTable(
@@ -408,10 +454,10 @@ object DatabaseMigrations {
     }
 
     /*
-     * -------------------------------------------------------
-     * Version 8 -> 9
-     * Mission recommendation persistence
-     * -------------------------------------------------------
+     * =======================================================
+     * VERSION 8 -> 9
+     * MISSION RECOMMENDATIONS
+     * =======================================================
      */
 
     private fun createMissionRecommendationTable(
@@ -551,10 +597,10 @@ object DatabaseMigrations {
     }
 
     /*
-     * -------------------------------------------------------
-     * Version 9 -> 10
-     * Mission analytics
-     * -------------------------------------------------------
+     * =======================================================
+     * VERSION 9 -> 10
+     * MISSION ANALYTICS
+     * =======================================================
      */
 
     private fun createMissionAnalyticsTable(
@@ -666,6 +712,148 @@ object DatabaseMigrations {
             ON `mission_objective_analytics`
             (
                 `missionId`
+            )
+            """.trimIndent()
+        )
+    }
+
+    /*
+     * =======================================================
+     * VERSION 10 -> 11
+     * MISSION OBJECTIVE HINT USAGE
+     * =======================================================
+     */
+
+    private fun createMissionObjectiveHintUsageTable(
+        database:
+        SupportSQLiteDatabase
+    ) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS
+            `mission_objective_hint_usage`
+            (
+                `conversationMissionId` TEXT NOT NULL,
+                `objectiveId` TEXT NOT NULL,
+                `hintLevel` INTEGER NOT NULL,
+                `hintText` TEXT NOT NULL,
+                `revealedAt` INTEGER NOT NULL,
+                PRIMARY KEY(
+                    `conversationMissionId`,
+                    `objectiveId`,
+                    `hintLevel`
+                )
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createMissionObjectiveHintUsageIndices(
+        database:
+        SupportSQLiteDatabase
+    ) {
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_mission_objective_hint_usage_conversationMissionId`
+            ON `mission_objective_hint_usage`
+            (
+                `conversationMissionId`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_mission_objective_hint_usage_conversationMissionId_objectiveId`
+            ON `mission_objective_hint_usage`
+            (
+                `conversationMissionId`,
+                `objectiveId`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_mission_objective_hint_usage_revealedAt`
+            ON `mission_objective_hint_usage`
+            (
+                `revealedAt`
+            )
+            """.trimIndent()
+        )
+    }
+
+    /*
+     * =======================================================
+     * VERSION 11 -> 12
+     * MISSION INTERACTION EVIDENCE
+     * =======================================================
+     */
+
+    private fun createMissionInteractionEvidenceTable(
+        database:
+        SupportSQLiteDatabase
+    ) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS
+            `mission_interaction_evidence`
+            (
+                `conversationMissionId` TEXT NOT NULL,
+                `messageId` TEXT NOT NULL,
+                `relevantReply` INTEGER NOT NULL,
+                `followUpQuestion` INTEGER NOT NULL,
+                `clarification` INTEGER NOT NULL,
+                `replyExpected` INTEGER NOT NULL,
+                `confidence` REAL NOT NULL,
+                `evaluatedAt` INTEGER NOT NULL,
+                PRIMARY KEY(
+                    `conversationMissionId`,
+                    `messageId`
+                )
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun createMissionInteractionEvidenceIndices(
+        database:
+        SupportSQLiteDatabase
+    ) {
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_mission_interaction_evidence_conversationMissionId`
+            ON `mission_interaction_evidence`
+            (
+                `conversationMissionId`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS
+            `index_mission_interaction_evidence_messageId`
+            ON `mission_interaction_evidence`
+            (
+                `messageId`
+            )
+            """.trimIndent()
+        )
+
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS
+            `index_mission_interaction_evidence_conversationMissionId_evaluatedAt`
+            ON `mission_interaction_evidence`
+            (
+                `conversationMissionId`,
+                `evaluatedAt`
             )
             """.trimIndent()
         )

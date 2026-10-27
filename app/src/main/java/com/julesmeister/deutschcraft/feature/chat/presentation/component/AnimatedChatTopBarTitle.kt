@@ -13,6 +13,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -58,7 +59,19 @@ internal fun AnimatedChatTopBarTitle(
         (String) -> Unit,
     onAdaptiveLearningFeedbackShown:
         (String) -> Unit,
-    modifier: Modifier = Modifier
+
+    /*
+     * Opens the learner-facing mission guidance sheet.
+     *
+     * This callback is used only by MissionTopBarPager.
+     * Normal Emil status and temporary status messages remain
+     * non-clickable.
+     */
+    onMissionGuidanceClick:
+        () -> Unit,
+
+    modifier: Modifier =
+        Modifier
 ) {
     val missionTitle =
         activeMissionTitle
@@ -102,14 +115,8 @@ internal fun AnimatedChatTopBarTitle(
     }
 
     /*
-     * Adaptive feedback remains visible slightly longer than
-     * mission completion because the learner may need time to
-     * read its guidance.
-     *
-     * The effect can run while a mission event is visible.
-     * Therefore, adaptive feedback uses a longer duration so
-     * it does not normally expire before the higher-priority
-     * mission event disappears.
+     * Adaptive feedback remains visible longer because the
+     * learner may need additional time to read it.
      */
     LaunchedEffect(
         adaptiveLearningFeedbackEvent?.eventId,
@@ -120,11 +127,12 @@ internal fun AnimatedChatTopBarTitle(
                 ?: return@LaunchedEffect
 
         /*
-         * Do not start the adaptive-feedback display timer
-         * while a higher-priority objective-completion event
-         * still owns the top bar.
+         * Objective completion has higher display priority.
          */
-        if (objectiveCompletionEvent != null) {
+        if (
+            objectiveCompletionEvent !=
+            null
+        ) {
             return@LaunchedEffect
         }
 
@@ -144,32 +152,41 @@ internal fun AnimatedChatTopBarTitle(
      * 2. Adaptive-learning feedback
      * 3. Assistant typing
      * 4. Assessment
-     * 5. Mission pager or normal status
+     * 5. Mission / normal state
      */
     val temporaryStatus =
         when {
-            objectiveCompletionEvent != null -> {
+            objectiveCompletionEvent !=
+                    null -> {
+
                 ChatTopBarTemporaryStatus
                     .ObjectiveCompleted(
                         eventId =
-                            objectiveCompletionEvent.eventId,
+                            objectiveCompletionEvent
+                                .eventId,
                         objectiveTitle =
                             objectiveCompletionEvent
                                 .objectiveTitle
                     )
             }
 
-            adaptiveLearningFeedbackEvent != null -> {
+            adaptiveLearningFeedbackEvent !=
+                    null -> {
+
                 ChatTopBarTemporaryStatus
                     .AdaptiveLearningFeedback(
                         eventId =
-                            adaptiveLearningFeedbackEvent.eventId,
+                            adaptiveLearningFeedbackEvent
+                                .eventId,
                         type =
-                            adaptiveLearningFeedbackEvent.type,
+                            adaptiveLearningFeedbackEvent
+                                .type,
                         message =
-                            adaptiveLearningFeedbackEvent.message,
+                            adaptiveLearningFeedbackEvent
+                                .message,
                         focusTitle =
-                            adaptiveLearningFeedbackEvent.focusTitle
+                            adaptiveLearningFeedbackEvent
+                                .focusTitle
                     )
             }
 
@@ -191,21 +208,22 @@ internal fun AnimatedChatTopBarTitle(
     AnimatedContent(
         targetState =
             temporaryStatus,
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(
-                min =
-                    TOP_BAR_CONTENT_MINIMUM_HEIGHT
-            )
-            .animateContentSize(
-                animationSpec =
-                    tween(
-                        durationMillis =
-                            STATUS_SIZE_ANIMATION_MILLIS,
-                        easing =
-                            FastOutSlowInEasing
-                    )
-            ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .heightIn(
+                    min =
+                        TOP_BAR_CONTENT_MINIMUM_HEIGHT
+                )
+                .animateContentSize(
+                    animationSpec =
+                        tween(
+                            durationMillis =
+                                STATUS_SIZE_ANIMATION_MILLIS,
+                            easing =
+                                FastOutSlowInEasing
+                        )
+                ),
         transitionSpec = {
             val enterTransition =
                 fadeIn(
@@ -267,9 +285,25 @@ internal fun AnimatedChatTopBarTitle(
     ) { displayedStatus ->
         when (displayedStatus) {
             null -> {
-                if (missionTitle == null) {
+                if (
+                    missionTitle ==
+                    null
+                ) {
                     NormalStatus()
                 } else {
+                    /*
+                     * Only the persistent active mission area
+                     * receives the mission-guidance click.
+                     *
+                     * Temporary statuses such as:
+                     *
+                     * - Emil schreibt
+                     * - Skill Assessment
+                     * - Objective completed
+                     * - Adaptive feedback
+                     *
+                     * do not open the guidance sheet.
+                     */
                     MissionTopBarPager(
                         missionTitle =
                             missionTitle,
@@ -279,6 +313,8 @@ internal fun AnimatedChatTopBarTitle(
                             missionGuidance,
                         missionProgressPercentage =
                             missionProgressPercentage,
+                        onMissionGuidanceClick =
+                            onMissionGuidanceClick,
                         modifier =
                             Modifier.fillMaxWidth()
                     )
@@ -340,7 +376,8 @@ internal fun AnimatedChatTopBarTitle(
 
 @Composable
 private fun AdaptiveLearningStatus(
-    type: AdaptiveLearningFeedbackType,
+    type:
+    AdaptiveLearningFeedbackType,
     message: String,
     focusTitle: String?
 ) {
@@ -357,24 +394,25 @@ private fun AdaptiveLearningStatus(
             Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .size(
-                    STATUS_ICON_SIZE
-                )
-                .clip(
-                    RoundedCornerShape(
-                        STATUS_ICON_CORNER_RADIUS
+            modifier =
+                Modifier
+                    .size(
+                        STATUS_ICON_SIZE
                     )
-                )
-                .background(
-                    color =
-                        presentation
-                            .accentColor
-                            .copy(
-                                alpha =
-                                    ADAPTIVE_ICON_BACKGROUND_ALPHA
-                            )
-                ),
+                    .clip(
+                        RoundedCornerShape(
+                            STATUS_ICON_CORNER_RADIUS
+                        )
+                    )
+                    .background(
+                        color =
+                            presentation
+                                .accentColor
+                                .copy(
+                                    alpha =
+                                        ADAPTIVE_ICON_BACKGROUND_ALPHA
+                                )
+                    ),
             contentAlignment =
                 Alignment.Center
         ) {
@@ -395,7 +433,9 @@ private fun AdaptiveLearningStatus(
 
         Column(
             modifier =
-                Modifier.weight(1f),
+                Modifier.weight(
+                    1f
+                ),
             horizontalAlignment =
                 Alignment.Start
         ) {
@@ -424,25 +464,9 @@ private fun AdaptiveLearningStatus(
                     TextOverflow.Ellipsis
             )
 
-            Text(
+            MarqueeSubtitle(
                 text =
-                    message,
-                modifier =
-                    Modifier.fillMaxWidth(),
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelSmall,
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
-                textAlign =
-                    TextAlign.Start,
-                maxLines =
-                    2,
-                overflow =
-                    TextOverflow.Ellipsis
+                    message
             )
         }
     }
@@ -450,10 +474,13 @@ private fun AdaptiveLearningStatus(
 
 @Composable
 private fun adaptiveFeedbackPresentation(
-    type: AdaptiveLearningFeedbackType
+    type:
+    AdaptiveLearningFeedbackType
 ): AdaptiveFeedbackPresentation {
     return when (type) {
-        AdaptiveLearningFeedbackType.GENTLE_REMINDER -> {
+        AdaptiveLearningFeedbackType
+            .GENTLE_REMINDER -> {
+
             AdaptiveFeedbackPresentation(
                 icon =
                     "💡",
@@ -464,7 +491,9 @@ private fun adaptiveFeedbackPresentation(
             )
         }
 
-        AdaptiveLearningFeedbackType.REPEATED_MISTAKE -> {
+        AdaptiveLearningFeedbackType
+            .REPEATED_MISTAKE -> {
+
             AdaptiveFeedbackPresentation(
                 icon =
                     "↻",
@@ -477,7 +506,9 @@ private fun adaptiveFeedbackPresentation(
             )
         }
 
-        AdaptiveLearningFeedbackType.PARTIAL_SUCCESS -> {
+        AdaptiveLearningFeedbackType
+            .PARTIAL_SUCCESS -> {
+
             AdaptiveFeedbackPresentation(
                 icon =
                     "◐",
@@ -488,7 +519,9 @@ private fun adaptiveFeedbackPresentation(
             )
         }
 
-        AdaptiveLearningFeedbackType.SUCCESS -> {
+        AdaptiveLearningFeedbackType
+            .SUCCESS -> {
+
             AdaptiveFeedbackPresentation(
                 icon =
                     "✓",
@@ -499,7 +532,9 @@ private fun adaptiveFeedbackPresentation(
             )
         }
 
-        AdaptiveLearningFeedbackType.IMPROVING -> {
+        AdaptiveLearningFeedbackType
+            .IMPROVING -> {
+
             AdaptiveFeedbackPresentation(
                 icon =
                     "✨",
@@ -510,7 +545,9 @@ private fun adaptiveFeedbackPresentation(
             )
         }
 
-        AdaptiveLearningFeedbackType.MASTERED -> {
+        AdaptiveLearningFeedbackType
+            .MASTERED -> {
+
             AdaptiveFeedbackPresentation(
                 icon =
                     "🏆",
@@ -521,7 +558,9 @@ private fun adaptiveFeedbackPresentation(
             )
         }
 
-        AdaptiveLearningFeedbackType.NEEDS_REVIEW -> {
+        AdaptiveLearningFeedbackType
+            .NEEDS_REVIEW -> {
+
             AdaptiveFeedbackPresentation(
                 icon =
                     "↺",
@@ -577,17 +616,18 @@ private fun NormalStatus() {
                 Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier
-                    .size(
-                        ONLINE_DOT_SIZE
-                    )
-                    .clip(
-                        CircleShape
-                    )
-                    .background(
-                        color =
-                            DeutschLime
-                    )
+                modifier =
+                    Modifier
+                        .size(
+                            ONLINE_DOT_SIZE
+                        )
+                        .clip(
+                            CircleShape
+                        )
+                        .background(
+                            color =
+                                DeutschLime
+                        )
             )
 
             Spacer(
@@ -628,21 +668,22 @@ private fun SimpleStatus(
             Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .size(
-                    STATUS_ICON_SIZE
-                )
-                .clip(
-                    RoundedCornerShape(
-                        STATUS_ICON_CORNER_RADIUS
+            modifier =
+                Modifier
+                    .size(
+                        STATUS_ICON_SIZE
                     )
-                )
-                .background(
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .primaryContainer
-                ),
+                    .clip(
+                        RoundedCornerShape(
+                            STATUS_ICON_CORNER_RADIUS
+                        )
+                    )
+                    .background(
+                        color =
+                            MaterialTheme
+                                .colorScheme
+                                .primaryContainer
+                    ),
             contentAlignment =
                 Alignment.Center
         ) {
@@ -663,7 +704,9 @@ private fun SimpleStatus(
 
         Column(
             modifier =
-                Modifier.weight(1f),
+                Modifier.weight(
+                    1f
+                ),
             horizontalAlignment =
                 Alignment.Start
         ) {
@@ -686,28 +729,53 @@ private fun SimpleStatus(
                     TextOverflow.Ellipsis
             )
 
-            Text(
+            MarqueeSubtitle(
                 text =
-                    subtitle,
-                modifier =
-                    Modifier.fillMaxWidth(),
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelSmall,
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
-                textAlign =
-                    TextAlign.Start,
-                maxLines =
-                    1,
-                overflow =
-                    TextOverflow.Ellipsis
+                    subtitle
             )
         }
     }
+}
+
+/*
+ * Shared one-line scrolling subtitle.
+ *
+ * basicMarquee only moves when the text exceeds the available
+ * width. Short text therefore remains visually stationary.
+ */
+@Composable
+private fun MarqueeSubtitle(
+    text: String,
+    modifier: Modifier =
+        Modifier
+) {
+    Text(
+        text =
+            text,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .basicMarquee(
+                    iterations =
+                        Int.MAX_VALUE
+                ),
+        style =
+            MaterialTheme
+                .typography
+                .labelSmall,
+        color =
+            MaterialTheme
+                .colorScheme
+                .onSurfaceVariant,
+        textAlign =
+            TextAlign.Start,
+        maxLines =
+            1,
+        softWrap =
+            false,
+        overflow =
+            TextOverflow.Clip
+    )
 }
 
 private data class AdaptiveFeedbackPresentation(
@@ -731,7 +799,8 @@ private sealed interface ChatTopBarTemporaryStatus {
 
     data class AdaptiveLearningFeedback(
         val eventId: String,
-        val type: AdaptiveLearningFeedbackType,
+        val type:
+        AdaptiveLearningFeedbackType,
         val message: String,
         val focusTitle: String?
     ) : ChatTopBarTemporaryStatus

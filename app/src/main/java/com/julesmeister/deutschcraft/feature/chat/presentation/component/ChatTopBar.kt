@@ -31,13 +31,16 @@ import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.presentation.AdaptiveLearningFeedbackEvent
 import com.julesmeister.deutschcraft.feature.chat.presentation.MissionObjectiveCompletionEvent
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(
+    ExperimentalMaterial3Api::class
+)
 @Composable
 fun ChatTopBar(
     isAssistantTyping: Boolean,
     isAssessing: Boolean,
     onBackClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier =
+        Modifier,
     activeMissionTitle: String? =
         null,
     currentMissionObjective: String? =
@@ -57,6 +60,15 @@ fun ChatTopBar(
         {},
     onAdaptiveLearningFeedbackShown:
         (String) -> Unit =
+        {},
+
+    /*
+     * Called when the learner taps the active mission content.
+     *
+     * The callback eventually opens MissionGuidanceBottomSheet.
+     */
+    onMissionGuidanceClick:
+        () -> Unit =
         {}
 ) {
     TopAppBar(
@@ -93,7 +105,8 @@ fun ChatTopBar(
             ) {
                 Icon(
                     imageVector =
-                        Icons.AutoMirrored
+                        Icons
+                            .AutoMirrored
                             .Outlined
                             .ArrowBack,
                     contentDescription =
@@ -103,16 +116,18 @@ fun ChatTopBar(
         },
         title = {
             /*
-             * The animated title rotates between:
+             * AnimatedChatTopBarTitle owns the decision about
+             * whether an active mission is currently visible.
              *
-             * - Normal Emil status
-             * - Assistant typing status
-             * - Assessment status
-             * - Active mission progress
-             * - Current mission objective
-             * - Mission guidance
-             * - Objective-completion feedback
-             * - Adaptive-learning feedback
+             * Therefore the click callback is passed down
+             * instead of making the complete TopAppBar title
+             * clickable here.
+             *
+             * This prevents:
+             *
+             * Emil ist online
+             *
+             * from opening an empty mission-guidance sheet.
              */
             AnimatedChatTopBarTitle(
                 isAssistantTyping =
@@ -135,24 +150,30 @@ fun ChatTopBar(
                     onObjectiveCompletionShown,
                 onAdaptiveLearningFeedbackShown =
                     onAdaptiveLearningFeedbackShown,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        start =
-                            TITLE_START_PADDING,
-                        end =
-                            TITLE_END_PADDING
-                    )
+                onMissionGuidanceClick =
+                    onMissionGuidanceClick,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start =
+                                TITLE_START_PADDING,
+                            end =
+                                TITLE_END_PADDING
+                        )
             )
         },
         actions = {
             /*
              * Global progress, streak, settings, and thread
-             * actions belong to the thread-list top bar.
+             * actions remain in the thread-list top bar.
              *
-             * The chat top bar remains focused on the active
-             * conversation, mission, and adaptive-learning
-             * feedback.
+             * The chat top bar stays focused on:
+             *
+             * - Emil
+             * - active mission
+             * - assessment
+             * - adaptive-learning feedback
              */
         }
     )
@@ -161,8 +182,10 @@ fun ChatTopBar(
 @Composable
 private fun AnimatedChatTopBarIconButton(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
+    modifier: Modifier =
+        Modifier,
+    content:
+    @Composable () -> Unit
 ) {
     var isPressed by
     remember {
@@ -191,56 +214,57 @@ private fun AnimatedChatTopBarIconButton(
     )
 
     Box(
-        modifier = modifier
-            .size(
-                TOP_BAR_ICON_BUTTON_SIZE
-            )
-            .graphicsLayer {
-                scaleX =
-                    animatedScale
-
-                scaleY =
-                    animatedScale
-            }
-            .clip(
-                CircleShape
-            )
-            .background(
-                color =
-                    if (isPressed) {
-                        MaterialTheme
-                            .colorScheme
-                            .surfaceContainerHigh
-                    } else {
-                        MaterialTheme
-                            .colorScheme
-                            .surfaceContainer
-                            .copy(
-                                alpha =
-                                    NORMAL_BUTTON_ALPHA
-                            )
-                    }
-            )
-            .pointerInput(
-                onClick
-            ) {
-                detectTapGestures(
-                    onPress = {
-                        isPressed =
-                            true
-
-                        try {
-                            tryAwaitRelease()
-                        } finally {
-                            isPressed =
-                                false
-                        }
-                    },
-                    onTap = {
-                        onClick()
-                    }
+        modifier =
+            modifier
+                .size(
+                    TOP_BAR_ICON_BUTTON_SIZE
                 )
-            },
+                .graphicsLayer {
+                    scaleX =
+                        animatedScale
+
+                    scaleY =
+                        animatedScale
+                }
+                .clip(
+                    CircleShape
+                )
+                .background(
+                    color =
+                        if (isPressed) {
+                            MaterialTheme
+                                .colorScheme
+                                .surfaceContainerHigh
+                        } else {
+                            MaterialTheme
+                                .colorScheme
+                                .surfaceContainer
+                                .copy(
+                                    alpha =
+                                        NORMAL_BUTTON_ALPHA
+                                )
+                        }
+                )
+                .pointerInput(
+                    onClick
+                ) {
+                    detectTapGestures(
+                        onPress = {
+                            isPressed =
+                                true
+
+                            try {
+                                tryAwaitRelease()
+                            } finally {
+                                isPressed =
+                                    false
+                            }
+                        },
+                        onTap = {
+                            onClick()
+                        }
+                    )
+                },
         contentAlignment =
             Alignment.Center
     ) {
@@ -255,15 +279,15 @@ private val TOP_BAR_EDGE_PADDING =
     8.dp
 
 /*
- * Provides visual separation between the circular back
- * button and the changing title content.
+ * Visual separation between the circular back button and
+ * changing title content.
  */
 private val TITLE_START_PADDING =
     8.dp
 
 /*
- * The chat top bar no longer has right-side actions, so the
- * animated title can use most of the remaining width.
+ * No right-side chat actions currently exist, so mission
+ * information can use most of the remaining width.
  */
 private val TITLE_END_PADDING =
     16.dp

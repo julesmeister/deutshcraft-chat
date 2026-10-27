@@ -1,7 +1,8 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,7 +41,20 @@ internal fun MissionTopBarPager(
     currentObjective: String?,
     currentGuidance: String?,
     missionProgressPercentage: Int,
-    modifier: Modifier = Modifier
+
+    /*
+     * Opens the Mission Guidance bottom sheet.
+     *
+     * Both mission pages act as the entry point:
+     *
+     * - Progress page
+     * - Objective/guidance page
+     */
+    onMissionGuidanceClick:
+        () -> Unit,
+
+    modifier: Modifier =
+        Modifier
 ) {
     val pages =
         buildMissionTopBarPages(
@@ -64,15 +78,17 @@ internal fun MissionTopBarPager(
         )
 
     /*
-     * Restart the automatic timer whenever:
+     * Restart automatic rotation whenever:
      *
-     * - The user manually changes the page
+     * - The learner manually moves to another page
+     * - The active mission changes
      * - The current objective changes
-     * - The number of available pages changes
+     * - The current guidance changes
+     * - The page count changes
      *
-     * collectLatest cancels the previous timer whenever the
-     * page changes, so a manual swipe gives the learner a
-     * full reading period before auto-rotation resumes.
+     * collectLatest cancels the old timer whenever settledPage
+     * changes, giving a manually selected page a complete
+     * reading period.
      */
     LaunchedEffect(
         pagerState,
@@ -83,31 +99,36 @@ internal fun MissionTopBarPager(
     ) {
         snapshotFlow {
             pagerState.settledPage
-        }.collectLatest { settledPage ->
-            if (pages.size <= 1) {
+        }.collectLatest {
+            if (
+                pages.size <=
+                1
+            ) {
                 return@collectLatest
             }
 
             delay(
-                AUTO_ADVANCE_DELAY_MILLIS.milliseconds
+                AUTO_ADVANCE_DELAY_MILLIS
+                    .milliseconds
             )
 
             /*
-             * A manual swipe may begin while the automatic
-             * delay is running.
-             *
-             * Wait until the user's gesture has fully settled
-             * before calculating the next page.
+             * If the learner starts swiping near the end of
+             * the automatic delay, wait for that gesture to
+             * finish instead of fighting the pager.
              */
-            while (pagerState.isScrollInProgress) {
+            while (
+                pagerState.isScrollInProgress
+            ) {
                 delay(
-                    MANUAL_SCROLL_CHECK_DELAY_MILLIS.milliseconds
+                    MANUAL_SCROLL_CHECK_DELAY_MILLIS
+                        .milliseconds
                 )
             }
 
             /*
-             * Read settledPage again because the learner may
-             * have swiped during the delay.
+             * Read settledPage again because a manual swipe
+             * may have happened during the delay.
              */
             val currentSettledPage =
                 pagerState.settledPage
@@ -119,7 +140,8 @@ internal fun MissionTopBarPager(
                 ) {
                     0
                 } else {
-                    currentSettledPage + 1
+                    currentSettledPage +
+                            1
                 }
 
             pagerState.animateScrollToPage(
@@ -129,9 +151,20 @@ internal fun MissionTopBarPager(
         }
     }
 
+    /*
+     * The complete active-mission area is clickable.
+     *
+     * Tapping either the progress page or objective page opens
+     * the same learner-support bottom sheet.
+     */
     Column(
         modifier =
-            modifier.fillMaxWidth(),
+            modifier
+                .fillMaxWidth()
+                .clickable(
+                    onClick =
+                        onMissionGuidanceClick
+                ),
         horizontalAlignment =
             Alignment.Start
     ) {
@@ -141,7 +174,8 @@ internal fun MissionTopBarPager(
             modifier =
                 Modifier.fillMaxWidth(),
             userScrollEnabled =
-                pages.size > 1,
+                pages.size >
+                        1,
             beyondViewportPageCount =
                 1,
             key = { pageIndex ->
@@ -156,7 +190,10 @@ internal fun MissionTopBarPager(
             )
         }
 
-        if (pages.size > 1) {
+        if (
+            pages.size >
+            1
+        ) {
             MissionTopBarPageIndicator(
                 pageCount =
                     pages.size,
@@ -184,12 +221,13 @@ private fun buildMissionTopBarPages(
                 title =
                     missionTitle,
                 percentage =
-                    missionProgressPercentage.coerceIn(
-                        minimumValue =
-                            0,
-                        maximumValue =
-                            100
-                    )
+                    missionProgressPercentage
+                        .coerceIn(
+                            minimumValue =
+                                0,
+                            maximumValue =
+                                100
+                        )
             )
         )
 
@@ -207,7 +245,10 @@ private fun buildMissionTopBarPages(
                     String::isNotBlank
                 )
 
-        if (safeObjective != null) {
+        if (
+            safeObjective !=
+            null
+        ) {
             add(
                 MissionTopBarPage.Objective(
                     objective =
@@ -224,7 +265,8 @@ private fun buildMissionTopBarPages(
 @Composable
 private fun MissionTopBarPageContent(
     page: MissionTopBarPage,
-    modifier: Modifier = Modifier
+    modifier: Modifier =
+        Modifier
 ) {
     when (page) {
         is MissionTopBarPage.Progress -> {
@@ -255,7 +297,8 @@ private fun MissionTopBarPageContent(
 private fun MissionProgressPage(
     title: String,
     percentage: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier =
+        Modifier
 ) {
     val safePercentage =
         percentage.coerceIn(
@@ -307,18 +350,20 @@ private fun MissionProgressPage(
         ) {
             LinearProgressIndicator(
                 progress = {
-                    safePercentage / 100f
+                    safePercentage /
+                            100f
                 },
-                modifier = Modifier
-                    .width(
-                        MISSION_PROGRESS_WIDTH
-                    )
-                    .height(
-                        MISSION_PROGRESS_HEIGHT
-                    )
-                    .clip(
-                        CircleShape
-                    ),
+                modifier =
+                    Modifier
+                        .width(
+                            MISSION_PROGRESS_WIDTH
+                        )
+                        .height(
+                            MISSION_PROGRESS_HEIGHT
+                        )
+                        .clip(
+                            CircleShape
+                        ),
                 color =
                     DeutschLime,
                 trackColor =
@@ -356,7 +401,8 @@ private fun MissionProgressPage(
 private fun MissionObjectivePage(
     objective: String,
     guidance: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier =
+        Modifier
 ) {
     Row(
         modifier =
@@ -365,22 +411,23 @@ private fun MissionObjectivePage(
             Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .size(
-                    MISSION_GUIDANCE_ICON_SIZE
-                )
-                .clip(
-                    RoundedCornerShape(
-                        MISSION_GUIDANCE_ICON_RADIUS
+            modifier =
+                Modifier
+                    .size(
+                        MISSION_GUIDANCE_ICON_SIZE
                     )
-                )
-                .background(
-                    color =
-                        DeutschLime.copy(
-                            alpha =
-                                MISSION_GUIDANCE_ICON_ALPHA
+                    .clip(
+                        RoundedCornerShape(
+                            MISSION_GUIDANCE_ICON_RADIUS
                         )
-                ),
+                    )
+                    .background(
+                        color =
+                            DeutschLime.copy(
+                                alpha =
+                                    MISSION_GUIDANCE_ICON_ALPHA
+                            )
+                    ),
             contentAlignment =
                 Alignment.Center
         ) {
@@ -401,10 +448,18 @@ private fun MissionObjectivePage(
 
         Column(
             modifier =
-                Modifier.weight(1f),
+                Modifier.weight(
+                    1f
+                ),
             horizontalAlignment =
                 Alignment.Start
         ) {
+            /*
+             * Keep the current objective stable.
+             *
+             * Guidance is the more descriptive learner-facing
+             * text, so only that line gets marquee behavior.
+             */
             Text(
                 text =
                     objective,
@@ -428,6 +483,13 @@ private fun MissionObjectivePage(
                     TextOverflow.Ellipsis
             )
 
+            /*
+             * Long guidance automatically scrolls.
+             *
+             * Short guidance remains stationary because
+             * basicMarquee activates only when the content is
+             * wider than the available layout width.
+             */
             Text(
                 text =
                     guidance,
@@ -437,6 +499,10 @@ private fun MissionObjectivePage(
                         .padding(
                             top =
                                 MISSION_GUIDANCE_TEXT_SPACING
+                        )
+                        .basicMarquee(
+                            iterations =
+                                Int.MAX_VALUE
                         ),
                 style =
                     MaterialTheme
@@ -450,8 +516,10 @@ private fun MissionObjectivePage(
                     TextAlign.Start,
                 maxLines =
                     1,
+                softWrap =
+                    false,
                 overflow =
-                    TextOverflow.Ellipsis
+                    TextOverflow.Clip
             )
         }
     }
@@ -461,7 +529,8 @@ private fun MissionObjectivePage(
 private fun MissionTopBarPageIndicator(
     pageCount: Int,
     selectedPage: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier =
+        Modifier
 ) {
     Row(
         modifier =
@@ -481,34 +550,35 @@ private fun MissionTopBarPageIndicator(
                         selectedPage
 
             Box(
-                modifier = Modifier
-                    .width(
-                        if (isSelected) {
-                            SELECTED_PAGE_INDICATOR_WIDTH
-                        } else {
-                            PAGE_INDICATOR_SIZE
-                        }
-                    )
-                    .height(
-                        PAGE_INDICATOR_SIZE
-                    )
-                    .clip(
-                        CircleShape
-                    )
-                    .background(
-                        color =
+                modifier =
+                    Modifier
+                        .width(
                             if (isSelected) {
-                                DeutschLime
+                                SELECTED_PAGE_INDICATOR_WIDTH
                             } else {
-                                MaterialTheme
-                                    .colorScheme
-                                    .onSurfaceVariant
-                                    .copy(
-                                        alpha =
-                                            UNSELECTED_INDICATOR_ALPHA
-                                    )
+                                PAGE_INDICATOR_SIZE
                             }
-                    )
+                        )
+                        .height(
+                            PAGE_INDICATOR_SIZE
+                        )
+                        .clip(
+                            CircleShape
+                        )
+                        .background(
+                            color =
+                                if (isSelected) {
+                                    DeutschLime
+                                } else {
+                                    MaterialTheme
+                                        .colorScheme
+                                        .onSurfaceVariant
+                                        .copy(
+                                            alpha =
+                                                UNSELECTED_INDICATOR_ALPHA
+                                        )
+                                }
+                        )
             )
         }
     }

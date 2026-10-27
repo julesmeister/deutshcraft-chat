@@ -1,6 +1,8 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import android.util.Log
+import com.julesmeister.deutschcraft.feature.learninganalytics.domain.MissionAnalytics
+import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultController
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -10,15 +12,22 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class ChatSessionCoordinator @Inject constructor(
+class ChatSessionCoordinator
+@Inject constructor(
     private val sessionInitializer:
     ChatSessionInitializer,
+
     private val sessionObservers:
     ChatSessionObservers,
+
     private val messageController:
     ChatSessionMessageController,
+
     private val missionController:
-    ChatSessionMissionController
+    ChatSessionMissionController,
+
+    private val missionResultController:
+    MissionResultController
 ) {
 
     private val _uiState =
@@ -26,11 +35,12 @@ class ChatSessionCoordinator @Inject constructor(
             ChatUiState()
         )
 
-    val uiState: StateFlow<ChatUiState> =
+    val uiState:
+            StateFlow<ChatUiState> =
         _uiState.asStateFlow()
 
     /*
-     * Runtime state is separate from visible UI state.
+     * Runtime state remains separate from visible UI state.
      *
      * It contains:
      *
@@ -46,9 +56,6 @@ class ChatSessionCoordinator @Inject constructor(
 
     /*
      * Starts the chat session once.
-     *
-     * The coordinator first observes the global streak,
-     * then initializes the requested conversation.
      */
     fun start(
         conversationId: String,
@@ -80,8 +87,8 @@ class ChatSessionCoordinator @Inject constructor(
     }
 
     /*
-     * Routes presentation actions to the controller that
-     * owns the corresponding behavior.
+     * Routes UI actions to the controller responsible for
+     * that behavior.
      */
     fun onAction(
         action: ChatUiAction,
@@ -116,6 +123,15 @@ class ChatSessionCoordinator @Inject constructor(
                         _uiState,
                     onMissionOpportunityCheckRequested =
                         ::checkForMissionOpportunity,
+
+                    /*
+                     * When message processing completes the
+                     * entire mission, the message controller
+                     * forwards the finalized analytics here.
+                     */
+                    onMissionCompleted =
+                        ::showMissionResult,
+
                     onError =
                         ::showError
                 )
@@ -151,9 +167,7 @@ class ChatSessionCoordinator @Inject constructor(
                     )
             }
 
-            is ChatUiAction
-            .AdaptiveLearningFeedbackShown -> {
-
+            is ChatUiAction.AdaptiveLearningFeedbackShown -> {
                 consumeAdaptiveLearningFeedback(
                     eventId =
                         action.eventId
@@ -169,9 +183,6 @@ class ChatSessionCoordinator @Inject constructor(
     /*
      * Stops every job and observer associated with the
      * currently opened conversation.
-     *
-     * The active mission is also cleared so it cannot leak
-     * into another conversation.
      */
     fun stop() {
         runtime.clear()
@@ -213,14 +224,11 @@ class ChatSessionCoordinator @Inject constructor(
             /*
              * Start observing messages and the active
              * Room-backed mission.
-             *
-             * When the mission observer emits, the complete
-             * ConversationMission is placed in runtime so it
-             * can be supplied to ChatMessageSender.
              */
             observeConversation(
                 conversationId =
-                    initializationResult.conversationId,
+                    initializationResult
+                        .conversationId,
                 scope =
                     scope
             )
@@ -284,10 +292,11 @@ class ChatSessionCoordinator @Inject constructor(
     }
 
     /*
-     * Applies message-list updates emitted by Room.
+     * Applies message-list changes emitted by Room.
      */
     private fun applyMessageUpdate(
-        update: ChatMessagesUpdate
+        update:
+        ChatMessagesUpdate
     ) {
         _uiState.update { state ->
             state.withMessages(
@@ -298,8 +307,7 @@ class ChatSessionCoordinator @Inject constructor(
     }
 
     /*
-     * Applies streak updates from the existing streak
-     * observer.
+     * Applies streak changes from the existing observer.
      */
     private fun applyStreakUpdate(
         streakDays: Int
@@ -313,8 +321,49 @@ class ChatSessionCoordinator @Inject constructor(
     }
 
     /*
-     * Called by ChatSessionMessageController after a normal
-     * message succeeds and no active mission exists.
+     * Receives finalized analytics when a learner message
+     * completes the mission.
+     *
+     * At this point analytics have already been calculated
+     * and persisted.
+     */
+    private fun showMissionResult(
+        missionTitle: String,
+        analytics:
+        MissionAnalytics
+    ) {
+        missionResultController.showResult(
+            missionTitle =
+                missionTitle,
+            analytics =
+                analytics
+        )
+
+        Log.i(
+            COORDINATOR_TAG,
+            buildString {
+                append(
+                    "Showing completed mission result. "
+                )
+                append(
+                    "missionId="
+                )
+                append(
+                    analytics.missionId
+                )
+                append(
+                    ", overall="
+                )
+                append(
+                    analytics.overallScore
+                )
+            }
+        )
+    }
+
+    /*
+     * Called after a normal message succeeds when no active
+     * mission exists.
      */
     private fun checkForMissionOpportunity(
         conversationId: String,
@@ -334,12 +383,7 @@ class ChatSessionCoordinator @Inject constructor(
 
     /*
      * Removes adaptive-learning feedback only when the event
-     * ID reported by the top bar matches the event currently
-     * stored in state.
-     *
-     * This prevents an older delayed callback from clearing a
-     * newer event that arrived while the previous event was
-     * still being displayed.
+     * ID matches the currently displayed event.
      */
     private fun consumeAdaptiveLearningFeedback(
         eventId: String

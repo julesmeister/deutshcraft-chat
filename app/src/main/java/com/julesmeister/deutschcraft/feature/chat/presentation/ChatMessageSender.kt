@@ -12,19 +12,42 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.SendChatMessageUseCase
+import com.julesmeister.deutschcraft.feature.learninganalytics.domain.MissionAnalytics
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
+import com.julesmeister.deutschcraft.feature.mission.domain.usecase.MissionMessageEvaluationSummary
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 
-class ChatMessageSender @Inject constructor(
+/*
+ * Coordinates one complete learner-message operation.
+ *
+ * The normal chat send happens first.
+ *
+ * After the learner and assistant messages are persisted, this
+ * class runs:
+ *
+ * - mission objective evaluation
+ * - mission interaction evidence
+ * - final mission analytics when applicable
+ * - adaptive-learning processing
+ *
+ * Post-send learning failures do not convert an otherwise
+ * successful chat send into a failed send.
+ */
+class ChatMessageSender
+@Inject constructor(
     private val sendChatMessage:
     SendChatMessageUseCase,
+
     private val localDataSource:
     ChatLocalDataSource,
+
     private val replySuggestionCache:
     ReplySuggestionCache,
+
     private val missionEvaluationCoordinator:
     ChatMissionEvaluationCoordinator,
+
     private val runAdaptiveLearningForMessage:
     RunAdaptiveLearningForMessageUseCase
 ) {
@@ -36,11 +59,11 @@ class ChatMessageSender @Inject constructor(
         ConversationMission?
     ): ChatMessageSendResult {
         /*
-         * The active mission must enter the send use case
-         * before assistant generation begins.
+         * The active mission must be supplied before assistant
+         * generation begins.
          *
-         * This is the critical connection that allows Emil
-         * to adopt the mission role and focus on the current
+         * This allows Emil to adopt the temporary mission role
+         * and guide the conversation toward the current
          * objective.
          */
         val result =
@@ -65,6 +88,12 @@ class ChatMessageSender @Inject constructor(
                 suggestions
         )
 
+        /*
+         * The learner message has now been persisted.
+         *
+         * Run mission evaluation and adaptive learning against
+         * the exact Room-backed message.
+         */
         val learningResult =
             processSavedLearnerMessage(
                 conversationId =
@@ -82,13 +111,24 @@ class ChatMessageSender @Inject constructor(
                 result.assessmentWarning,
             adaptiveLearningFeedback =
                 learningResult
-                    .adaptiveLearningFeedback
+                    .adaptiveLearningFeedback,
+
+            /*
+             * These fields are populated only when this send
+             * completed the entire active mission.
+             */
+            completedMissionTitle =
+                learningResult
+                    .completedMissionTitle,
+            completedMissionAnalytics =
+                learningResult
+                    .completedMissionAnalytics
         )
     }
 
     /*
-     * Compatibility overload for callers that do not yet
-     * supply active mission state.
+     * Compatibility overload for callers that do not supply
+     * active mission state.
      */
     suspend fun send(
         conversationId: String,
@@ -111,10 +151,10 @@ class ChatMessageSender @Inject constructor(
      *
      * At this point, SendChatMessageUseCase has already saved:
      *
-     * - The learner message
-     * - The assistant response
-     * - Any assessment evidence
-     * - Any correction
+     * - learner message
+     * - assistant message
+     * - assessment evidence
+     * - Besser correction, when applicable
      */
     private suspend fun processSavedLearnerMessage(
         conversationId: String,
@@ -176,11 +216,12 @@ class ChatMessageSender @Inject constructor(
                     }
 
             /*
-             * Stop at the current learner message.
+             * Stop the history at the learner message being
+             * evaluated.
              *
-             * The assistant response has already been saved,
-             * but it must not be included as if it occurred
-             * before the learner message under evaluation.
+             * The new assistant response already exists in
+             * Room, but it must not appear before the learner
+             * turn in mission evaluation.
              */
             val recentMessages =
                 savedMessages
@@ -203,27 +244,49 @@ class ChatMessageSender @Inject constructor(
                     append(
                         "Processing saved learner message. "
                     )
-                    append("messageId=")
-                    append(savedLearnerMessage.id)
-                    append(", conversationId=")
-                    append(conversationId)
-                    append(", recentMessages=")
-                    append(recentMessages.size)
-                    append(", activeMission=")
-                    append(activeMission?.id)
+                    append(
+                        "messageId="
+                    )
+                    append(
+                        savedLearnerMessage.id
+                    )
+                    append(
+                        ", conversationId="
+                    )
+                    append(
+                        conversationId
+                    )
+                    append(
+                        ", recentMessages="
+                    )
+                    append(
+                        recentMessages.size
+                    )
+                    append(
+                        ", activeMission="
+                    )
+                    append(
+                        activeMission?.id
+                    )
                 }
             )
 
-            evaluateMissionIfActive(
-                activeMission =
-                    activeMission,
-                learnerMessage =
-                    savedLearnerMessage,
-                recentMessages =
-                    recentMessages,
-                cefrLevel =
-                    conversation.cefrLevel
-            )
+            /*
+             * The returned summary may contain final
+             * MissionAnalytics when this message completed the
+             * final required objective.
+             */
+            val missionEvaluationSummary =
+                evaluateMissionIfActive(
+                    activeMission =
+                        activeMission,
+                    learnerMessage =
+                        savedLearnerMessage,
+                    recentMessages =
+                        recentMessages,
+                    cefrLevel =
+                        conversation.cefrLevel
+                )
 
             val adaptiveLearningResult =
                 runAdaptiveLearning(
@@ -237,11 +300,69 @@ class ChatMessageSender @Inject constructor(
                         conversation.cefrLevel
                 )
 
+            val completedMissionAnalytics =
+                missionEvaluationSummary
+                    ?.analytics
+
+            val completedMissionTitle =
+                if (
+                    completedMissionAnalytics !=
+                    null
+                ) {
+                    activeMission
+                        ?.template
+                        ?.title
+                        ?.trim()
+                        ?.takeIf(
+                            String::isNotBlank
+                        )
+                } else {
+                    null
+                }
+
+            if (
+                completedMissionAnalytics !=
+                null
+            ) {
+                Log.i(
+                    SENDER_TAG,
+                    buildString {
+                        append(
+                            "Final mission analytics returned. "
+                        )
+                        append(
+                            "missionId="
+                        )
+                        append(
+                            completedMissionAnalytics.missionId
+                        )
+                        append(
+                            ", overall="
+                        )
+                        append(
+                            completedMissionAnalytics.overallScore
+                        )
+                        append(
+                            ", title="
+                        )
+                        append(
+                            completedMissionTitle
+                        )
+                    }
+                )
+            }
+
             ChatLearningProcessingResult(
+                missionEvaluationSummary =
+                    missionEvaluationSummary,
                 adaptiveLearningResult =
                     adaptiveLearningResult,
                 adaptiveLearningFeedback =
-                    adaptiveLearningResult.feedback
+                    adaptiveLearningResult.feedback,
+                completedMissionTitle =
+                    completedMissionTitle,
+                completedMissionAnalytics =
+                    completedMissionAnalytics
             )
         } catch (
             cancellationException:
@@ -250,11 +371,10 @@ class ChatMessageSender @Inject constructor(
             throw cancellationException
         } catch (throwable: Throwable) {
             /*
-             * The normal chat operation has already
-             * succeeded.
+             * The normal chat operation already succeeded.
              *
-             * Mission or adaptive-learning failures must not
-             * convert the successful send into an error.
+             * Learning-processing failure must not turn the
+             * successful learner message into a send failure.
              */
             Log.e(
                 SENDER_TAG,
@@ -266,14 +386,23 @@ class ChatMessageSender @Inject constructor(
         }
     }
 
+    /*
+     * Evaluates the saved learner message against the active
+     * mission.
+     *
+     * The evaluation summary is returned instead of discarded
+     * so finalized analytics can reach the presentation layer.
+     */
     private suspend fun evaluateMissionIfActive(
         activeMission:
         ConversationMission?,
-        learnerMessage: ChatMessage,
+        learnerMessage:
+        ChatMessage,
         recentMessages:
         List<ChatMessage>,
-        cefrLevel: CefrLevel
-    ) {
+        cefrLevel:
+        CefrLevel
+    ): MissionMessageEvaluationSummary? {
         if (activeMission == null) {
             Log.d(
                 SENDER_TAG,
@@ -281,10 +410,10 @@ class ChatMessageSender @Inject constructor(
                         "conversation has no active mission."
             )
 
-            return
+            return null
         }
 
-        try {
+        return try {
             missionEvaluationCoordinator.evaluate(
                 mission =
                     activeMission,
@@ -301,20 +430,28 @@ class ChatMessageSender @Inject constructor(
         ) {
             throw cancellationException
         } catch (throwable: Throwable) {
+            /*
+             * Mission evaluation is supplementary to the
+             * successful chat send.
+             */
             Log.e(
                 SENDER_TAG,
                 "Mission evaluation could not be completed.",
                 throwable
             )
+
+            null
         }
     }
 
     private suspend fun runAdaptiveLearning(
-        learnerMessage: ChatMessage,
+        learnerMessage:
+        ChatMessage,
         conversationId: String,
         recentMessages:
         List<ChatMessage>,
-        cefrLevel: CefrLevel
+        cefrLevel:
+        CefrLevel
     ): AdaptiveLearningMessageResult {
         return try {
             val result =
@@ -357,8 +494,10 @@ class ChatMessageSender @Inject constructor(
     }
 
     private fun findSavedLearnerMessage(
-        messages: List<ChatMessage>,
-        submittedMessageText: String
+        messages:
+        List<ChatMessage>,
+        submittedMessageText:
+        String
     ): ChatMessage? {
         val normalizedSubmittedText =
             submittedMessageText.trim()
@@ -385,7 +524,8 @@ class ChatMessageSender @Inject constructor(
     }
 
     private fun logAdaptiveLearningResult(
-        learnerMessage: ChatMessage,
+        learnerMessage:
+        ChatMessage,
         result:
         AdaptiveLearningMessageResult
     ) {
@@ -395,16 +535,36 @@ class ChatMessageSender @Inject constructor(
                 append(
                     "Adaptive processing finished. "
                 )
-                append("messageId=")
-                append(learnerMessage.id)
-                append(", recorded=")
-                append(result.recordedFocusCount)
-                append(", skipped=")
-                append(result.skippedObservationCount)
-                append(", failed=")
-                append(result.failedObservationCount)
-                append(", feedback=")
-                append(result.feedback?.type)
+                append(
+                    "messageId="
+                )
+                append(
+                    learnerMessage.id
+                )
+                append(
+                    ", recorded="
+                )
+                append(
+                    result.recordedFocusCount
+                )
+                append(
+                    ", skipped="
+                )
+                append(
+                    result.skippedObservationCount
+                )
+                append(
+                    ", failed="
+                )
+                append(
+                    result.failedObservationCount
+                )
+                append(
+                    ", feedback="
+                )
+                append(
+                    result.feedback?.type
+                )
             }
         )
 
@@ -412,12 +572,24 @@ class ChatMessageSender @Inject constructor(
             Log.d(
                 ADAPTIVE_FEEDBACK_TAG,
                 buildString {
-                    append("type=")
-                    append(feedback.type)
-                    append(", focus=")
-                    append(feedback.focusKey)
-                    append(", message=")
-                    append(feedback.message)
+                    append(
+                        "type="
+                    )
+                    append(
+                        feedback.type
+                    )
+                    append(
+                        ", focus="
+                    )
+                    append(
+                        feedback.focusKey
+                    )
+                    append(
+                        ", message="
+                    )
+                    append(
+                        feedback.message
+                    )
                 }
             )
         }
@@ -465,12 +637,27 @@ class ChatMessageSender @Inject constructor(
  * mission evaluation and adaptive learning.
  */
 private data class ChatLearningProcessingResult(
+    val missionEvaluationSummary:
+    MissionMessageEvaluationSummary? =
+        null,
+
     val adaptiveLearningResult:
     AdaptiveLearningMessageResult =
         AdaptiveLearningMessageResult(),
 
     val adaptiveLearningFeedback:
     AdaptiveLearningFeedback? =
+        null,
+
+    /*
+     * Populated only when the evaluated learner message
+     * completed the entire mission.
+     */
+    val completedMissionTitle: String? =
+        null,
+
+    val completedMissionAnalytics:
+    MissionAnalytics? =
         null
 )
 
@@ -485,5 +672,23 @@ data class ChatMessageSendResult(
 
     val adaptiveLearningFeedback:
     AdaptiveLearningFeedback? =
+        null,
+
+    /*
+     * Both fields are populated together when this message
+     * completed the active mission.
+     */
+    val completedMissionTitle: String? =
+        null,
+
+    val completedMissionAnalytics:
+    MissionAnalytics? =
         null
-)
+) {
+
+    val hasCompletedMissionResult: Boolean
+        get() =
+            !completedMissionTitle.isNullOrBlank() &&
+                    completedMissionAnalytics !=
+                    null
+}

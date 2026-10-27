@@ -27,18 +27,68 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatBottomBar
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatMessageList
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatTopBar
+import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultBottomSheet
+import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultUiState
 import com.julesmeister.deutschcraft.feature.messageactions.presentation.MessageActionBottomSheet
 import com.julesmeister.deutschcraft.feature.messageactions.presentation.MessageActionViewModel
+import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceBottomSheet
+import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceUiState
 
 @Composable
 fun ChatScreen(
-    uiState: ChatUiState,
-    onAction: (ChatUiAction) -> Unit,
-    onBackClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    onAddClick: () -> Unit = {},
+    uiState:
+    ChatUiState,
+
+    missionGuidanceUiState:
+    MissionGuidanceUiState,
+
+    missionResultUiState:
+    MissionResultUiState,
+
+    onAction:
+        (ChatUiAction) -> Unit,
+
+    onBackClick:
+        () -> Unit,
+
+    /*
+     * Active mission guidance callbacks.
+     */
+    onOpenMissionGuidance:
+        () -> Unit,
+
+    onDismissMissionGuidance:
+        () -> Unit,
+
+    onRevealNextMissionHint:
+        () -> Unit,
+
+    onToggleMissionVocabulary:
+        () -> Unit,
+
+    onToggleMissionExamples:
+        () -> Unit,
+
+    /*
+     * Completed mission result callbacks.
+     */
+    onDismissMissionResult:
+        () -> Unit,
+
+    onContinueAfterMissionResult:
+        () -> Unit,
+
+    modifier:
+    Modifier =
+        Modifier,
+
+    onAddClick:
+        () -> Unit =
+        {},
+
     messageActionViewModel:
-    MessageActionViewModel = hiltViewModel()
+    MessageActionViewModel =
+        hiltViewModel()
 ) {
     val snackbarHostState =
         remember {
@@ -54,9 +104,11 @@ fun ChatScreen(
         .collectAsStateWithLifecycle()
 
     /*
-     * The message selected for sentence-level learning
-     * actions such as translation, explanation, and
-     * rephrasing.
+     * Message selected for:
+     *
+     * - translation
+     * - explanation
+     * - rephrasing
      */
     var selectedMessage by
     remember {
@@ -66,24 +118,18 @@ fun ChatScreen(
     }
 
     /*
-     * Incremented when the composer receives focus.
-     *
-     * ChatMessageList uses this key to keep the newest
-     * message visible when the keyboard opens.
+     * Used to keep the newest message visible when the
+     * keyboard opens.
      */
     var scrollRequestKey by
     remember {
-        mutableIntStateOf(0)
+        mutableIntStateOf(
+            0
+        )
     }
 
     /*
-     * Actual measured height of the floating mission offer,
-     * reply suggestions, composer, and navigation-bar
-     * padding.
-     *
-     * The message list reserves this exact amount of bottom
-     * scrolling space so the newest message remains visible
-     * above the floating controls.
+     * Measured height of the floating bottom controls.
      */
     var bottomOverlayHeight by
     remember {
@@ -93,8 +139,8 @@ fun ChatScreen(
     }
 
     /*
-     * Show chat errors through the screen's Snackbar host,
-     * then consume the error event.
+     * Show normal chat errors through Snackbar, then consume
+     * the event.
      */
     LaunchedEffect(
         uiState.errorMessage
@@ -114,21 +160,28 @@ fun ChatScreen(
     }
 
     /*
-     * Display the sentence-action sheet only while a message
-     * is selected.
+     * =======================================================
+     * MESSAGE ACTION SHEET
+     * =======================================================
      */
+
     selectedMessage?.let { message ->
         MessageActionBottomSheet(
             sentence =
                 message.content,
+
             selectedAction =
                 messageActionState.selectedAction,
+
             insight =
                 messageActionState.insight,
+
             isLoading =
                 messageActionState.isLoading,
+
             errorMessage =
                 messageActionState.errorMessage,
+
             onActionClick = { action ->
                 messageActionViewModel
                     .analyzeSentence(
@@ -138,6 +191,7 @@ fun ChatScreen(
                             action
                     )
             },
+
             onDismiss = {
                 selectedMessage =
                     null
@@ -147,38 +201,103 @@ fun ChatScreen(
         )
     }
 
+    /*
+     * =======================================================
+     * MISSION GUIDANCE SHEET
+     * =======================================================
+     *
+     * Only appears when:
+     *
+     * - an active objective exists
+     * - the learner taps the mission area in the top bar
+     */
+    MissionGuidanceBottomSheet(
+        state =
+            missionGuidanceUiState,
+
+        onDismiss =
+            onDismissMissionGuidance,
+
+        onRevealNextHint =
+            onRevealNextMissionHint,
+
+        onToggleVocabulary =
+            onToggleMissionVocabulary,
+
+        onToggleExamples =
+            onToggleMissionExamples
+    )
+
+    /*
+     * =======================================================
+     * MISSION RESULT SHEET
+     * =======================================================
+     *
+     * Appears after final mission analytics have been
+     * calculated and persisted.
+     */
+    MissionResultBottomSheet(
+        state =
+            missionResultUiState,
+
+        onDismiss =
+            onDismissMissionResult,
+
+        onContinue =
+            onContinueAfterMissionResult
+    )
+
     Scaffold(
         modifier =
             modifier.fillMaxSize(),
+
         containerColor =
             MaterialTheme
                 .colorScheme
                 .background,
+
         contentWindowInsets =
             WindowInsets(
-                left = 0,
-                top = 0,
-                right = 0,
-                bottom = 0
+                left =
+                    0,
+                top =
+                    0,
+                right =
+                    0,
+                bottom =
+                    0
             ),
+
         topBar = {
             ChatTopBar(
                 isAssistantTyping =
                     uiState.isAssistantTyping,
+
                 isAssessing =
                     uiState.isAssessing,
+
                 onBackClick =
                     onBackClick,
+
                 activeMissionTitle =
                     uiState.activeMissionTitle,
+
                 currentMissionObjective =
                     uiState.currentMissionObjective,
+
                 currentMissionGuidance =
                     uiState.currentMissionGuidance,
+
                 missionProgressPercentage =
                     uiState.missionProgressPercentage,
+
                 objectiveCompletionEvent =
                     uiState.objectiveCompletionEvent,
+
+                adaptiveLearningFeedbackEvent =
+                    uiState
+                        .adaptiveLearningFeedbackEvent,
+
                 onObjectiveCompletionShown = { eventId ->
                     onAction(
                         ChatUiAction
@@ -187,9 +306,32 @@ fun ChatScreen(
                                     eventId
                             )
                     )
-                }
+                },
+
+                onAdaptiveLearningFeedbackShown = { eventId ->
+                    onAction(
+                        ChatUiAction
+                            .AdaptiveLearningFeedbackShown(
+                                eventId =
+                                    eventId
+                            )
+                    )
+                },
+
+                /*
+                 * The click reaches MissionTopBarPager through:
+                 *
+                 * ChatTopBar
+                 *     ↓
+                 * AnimatedChatTopBarTitle
+                 *     ↓
+                 * MissionTopBarPager
+                 */
+                onMissionGuidanceClick =
+                    onOpenMissionGuidance
             )
         },
+
         snackbarHost = {
             SnackbarHost(
                 hostState =
@@ -198,34 +340,38 @@ fun ChatScreen(
         }
     ) { innerPadding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .background
-                )
-                .padding(
-                    top =
-                        innerPadding
-                            .calculateTopPadding()
-                )
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        color =
+                            MaterialTheme
+                                .colorScheme
+                                .background
+                    )
+                    .padding(
+                        top =
+                            innerPadding
+                                .calculateTopPadding()
+                    )
         ) {
             ChatMessageList(
                 modifier =
                     Modifier.fillMaxSize(),
+
                 uiState =
                     uiState,
+
                 scrollRequestKey =
                     scrollRequestKey,
+
                 bottomOverlayHeight =
                     bottomOverlayHeight,
+
                 onMessageClick = { message ->
                     /*
-                     * Clear previously generated analysis
-                     * before opening the newly selected
-                     * message.
+                     * Clear previous analysis before opening
+                     * another message.
                      */
                     messageActionViewModel.reset()
 
@@ -237,37 +383,39 @@ fun ChatScreen(
             ChatBottomBar(
                 uiState =
                     uiState,
+
                 onAction =
                     onAction,
+
                 onAddClick =
                     onAddClick,
+
                 onInputFocused = {
-                    /*
-                     * Request that the message list keep the
-                     * latest message visible above the opened
-                     * keyboard.
-                     */
                     scrollRequestKey +=
                         1
                 },
-                modifier = Modifier
-                    .align(
-                        Alignment.BottomCenter
-                    )
-                    .onSizeChanged { size ->
-                        val measuredHeight =
-                            with(density) {
-                                size.height.toDp()
-                            }
 
-                        if (
-                            bottomOverlayHeight !=
-                            measuredHeight
-                        ) {
-                            bottomOverlayHeight =
+                modifier =
+                    Modifier
+                        .align(
+                            Alignment.BottomCenter
+                        )
+                        .onSizeChanged { size ->
+                            val measuredHeight =
+                                with(
+                                    density
+                                ) {
+                                    size.height.toDp()
+                                }
+
+                            if (
+                                bottomOverlayHeight !=
                                 measuredHeight
+                            ) {
+                                bottomOverlayHeight =
+                                    measuredHeight
+                            }
                         }
-                    }
             )
         }
     }

@@ -12,6 +12,8 @@ import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
 import com.julesmeister.deutschcraft.core.database.dao.MessageDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionAnalyticsDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionDao
+import com.julesmeister.deutschcraft.core.database.dao.MissionInteractionEvidenceDao
+import com.julesmeister.deutschcraft.core.database.dao.MissionObjectiveHintUsageDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionThreadRecommendationDao
 import com.julesmeister.deutschcraft.core.database.migration.DatabaseMigrations
 import dagger.Module
@@ -27,6 +29,16 @@ import javax.inject.Singleton
 )
 object DatabaseModule {
 
+    /*
+     * Main DeutschCraft Room database.
+     *
+     * DatabaseMigrations.ALL contains the complete migration
+     * chain currently supported by the application.
+     *
+     * Current schema version:
+     *
+     * 12
+     */
     @Provides
     @Singleton
     fun provideDeutschCraftDatabase(
@@ -39,22 +51,31 @@ object DatabaseModule {
             DATABASE_NAME
         )
             /*
-             * DatabaseMigrations.ALL currently contains:
+             * Current migration chain:
              *
              * 5 -> 6
              * 6 -> 7
              * 7 -> 8
              * 8 -> 9
              * 9 -> 10
+             * 10 -> 11
+             * 11 -> 12
              *
-             * Future migrations only need to be added to the
-             * ALL array in DatabaseMigrations.
+             * Future migrations only need to be added to:
+             *
+             * DatabaseMigrations.ALL
              */
             .addMigrations(
                 *DatabaseMigrations.ALL
             )
             .build()
     }
+
+    /*
+     * =======================================================
+     * CONVERSATION AND CHAT
+     * =======================================================
+     */
 
     @Provides
     fun provideConversationDao(
@@ -65,6 +86,12 @@ object DatabaseModule {
             .conversationDao()
     }
 
+    /*
+     * Handles persisted conversation messages.
+     *
+     * Mission analytics also uses this DAO to retrieve learner
+     * messages from a mission's active time window.
+     */
     @Provides
     fun provideMessageDao(
         database:
@@ -73,6 +100,12 @@ object DatabaseModule {
         return database
             .messageDao()
     }
+
+    /*
+     * =======================================================
+     * LEARNER ASSESSMENT
+     * =======================================================
+     */
 
     @Provides
     fun provideLearnerProfileDao(
@@ -92,6 +125,9 @@ object DatabaseModule {
             .assessmentDao()
     }
 
+    /*
+     * Learning activity and streak tracking.
+     */
     @Provides
     fun provideActivityDayDao(
         database:
@@ -101,6 +137,20 @@ object DatabaseModule {
             .activityDayDao()
     }
 
+    /*
+     * =======================================================
+     * MISSION SYSTEM
+     * =======================================================
+     */
+
+    /*
+     * Handles:
+     *
+     * - mission templates
+     * - mission objectives
+     * - active conversation missions
+     * - objective progress
+     */
     @Provides
     fun provideMissionDao(
         database:
@@ -111,8 +161,10 @@ object DatabaseModule {
     }
 
     /*
-     * Generated and persisted featured mission
-     * recommendations.
+     * Handles the persisted thread-list recommendation pool.
+     *
+     * Generated recommendations remain separate from actual
+     * conversation missions until the learner starts one.
      */
     @Provides
     fun provideMissionThreadRecommendationDao(
@@ -124,8 +176,26 @@ object DatabaseModule {
     }
 
     /*
-     * Mission-performance analytics used by mission results
-     * and future CEFR progress calculations.
+     * =======================================================
+     * MISSION LEARNING ANALYTICS
+     * =======================================================
+     */
+
+    /*
+     * Stores finalized mission-performance analytics.
+     *
+     * Includes:
+     *
+     * - overall score
+     * - independence
+     * - grammar
+     * - vocabulary
+     * - comprehension
+     * - interaction
+     * - objective analytics
+     *
+     * These records later feed CEFR mastery and readiness
+     * calculations.
      */
     @Provides
     fun provideMissionAnalyticsDao(
@@ -136,6 +206,65 @@ object DatabaseModule {
             .missionAnalyticsDao()
     }
 
+    /*
+     * Stores coaching hints actually revealed by the learner.
+     *
+     * Assistance levels:
+     *
+     * 0 hints
+     * Independent
+     *
+     * 1 hint
+     * Gentle support
+     *
+     * 2 hints
+     * Contextual/substantial support
+     *
+     * 3 hints
+     * Direct assistance
+     */
+    @Provides
+    fun provideMissionObjectiveHintUsageDao(
+        database:
+        DeutschCraftDatabase
+    ): MissionObjectiveHintUsageDao {
+        return database
+            .missionObjectiveHintUsageDao()
+    }
+
+    /*
+     * Stores semantic interaction evidence for each evaluated
+     * learner message during a mission.
+     *
+     * The existing Qwen mission evaluation request produces:
+     *
+     * - relevantReply
+     * - followUpQuestion
+     * - clarification
+     * - replyExpected
+     * - confidence
+     *
+     * These rows later produce mission-level interaction and
+     * comprehension scores.
+     */
+    @Provides
+    fun provideMissionInteractionEvidenceDao(
+        database:
+        DeutschCraftDatabase
+    ): MissionInteractionEvidenceDao {
+        return database
+            .missionInteractionEvidenceDao()
+    }
+
+    /*
+     * =======================================================
+     * ADAPTIVE LEARNING
+     * =======================================================
+     */
+
+    /*
+     * Persistent adaptive-learning focuses and evidence.
+     */
     @Provides
     fun provideAdaptiveLearningDao(
         database:
@@ -145,6 +274,12 @@ object DatabaseModule {
             .adaptiveLearningDao()
     }
 
+    /*
+     * Reads DetectedMistakeEntity and its assessment evidence.
+     *
+     * Mission analytics also consumes these records to build
+     * real Besser/grammar evidence.
+     */
     @Provides
     fun provideAdaptiveLearningMistakeDao(
         database:

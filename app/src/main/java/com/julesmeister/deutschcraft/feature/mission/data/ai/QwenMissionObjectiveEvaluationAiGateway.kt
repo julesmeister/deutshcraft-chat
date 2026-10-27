@@ -18,15 +18,27 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.floatOrNull
 import retrofit2.HttpException
 
+/*
+ * Uses one Qwen request to evaluate:
+ *
+ * 1. Completion of the currently active mission objective.
+ * 2. Interaction and comprehension signals from the latest
+ *    learner message.
+ *
+ * This avoids a second AI request for mission analytics.
+ */
 @Singleton
 class QwenMissionObjectiveEvaluationAiGateway
 @Inject constructor(
-    private val qwenApi: QwenApi,
-    private val json: Json
+    private val qwenApi:
+    QwenApi,
+    private val json:
+    Json
 ) : MissionObjectiveEvaluationAiGateway {
 
     override suspend fun evaluateMessage(
@@ -48,11 +60,13 @@ class QwenMissionObjectiveEvaluationAiGateway
             return emptyResult()
         }
 
-        if (BuildConfig.QWEN_API_KEY.isBlank()) {
+        if (
+            BuildConfig.QWEN_API_KEY.isBlank()
+        ) {
             Log.w(
                 GATEWAY_TAG,
-                "Mission evaluation skipped because " +
-                        "the Qwen API key is missing."
+                "Mission evaluation skipped because the " +
+                        "Qwen API key is missing."
             )
 
             return emptyResult()
@@ -127,6 +141,16 @@ class QwenMissionObjectiveEvaluationAiGateway
         unfinishedObjectives:
         List<MissionObjective>
     ): MissionObjectiveEvaluationResult {
+        val validObjectiveIds =
+            unfinishedObjectives
+                .map { objective ->
+                    objective.id
+                }
+                .filter(
+                    String::isNotBlank
+                )
+                .toSet()
+
         val initialContent =
             requestCompletion(
                 messages =
@@ -155,7 +179,9 @@ class QwenMissionObjectiveEvaluationAiGateway
         val initialResult =
             decodeEvaluation(
                 responseContent =
-                    initialContent
+                    initialContent,
+                validObjectiveIds =
+                    validObjectiveIds
             )
 
         if (initialResult != null) {
@@ -164,8 +190,8 @@ class QwenMissionObjectiveEvaluationAiGateway
 
         Log.w(
             GATEWAY_TAG,
-            "Qwen returned invalid mission evaluation " +
-                    "JSON. Retrying once."
+            "Qwen returned invalid mission evaluation JSON. " +
+                    "Retrying once."
         )
 
         val repairedContent =
@@ -175,9 +201,7 @@ class QwenMissionObjectiveEvaluationAiGateway
                         malformedResponse =
                             initialContent,
                         validObjectiveIds =
-                            unfinishedObjectives.map { objective ->
-                                objective.id
-                            }
+                            validObjectiveIds.toList()
                     ),
                 temperature =
                     REPAIR_TEMPERATURE
@@ -185,34 +209,41 @@ class QwenMissionObjectiveEvaluationAiGateway
 
         return decodeEvaluation(
             responseContent =
-                repairedContent
-        ) ?: emptyResult()
+                repairedContent,
+            validObjectiveIds =
+                validObjectiveIds
+        )
+            ?: emptyResult()
     }
 
     private suspend fun requestCompletion(
-        messages: List<QwenMessage>,
+        messages:
+        List<QwenMessage>,
         temperature: Double
     ): String {
+        val request =
+            QwenChatCompletionRequest(
+                model =
+                    BuildConfig.QWEN_MODEL,
+                messages =
+                    messages,
+                enableThinking =
+                    false,
+                temperature =
+                    temperature,
+                maxTokens =
+                    MAXIMUM_RESPONSE_TOKENS,
+                responseFormat =
+                    QwenResponseFormat(
+                        type =
+                            JSON_OBJECT_TYPE
+                    )
+            )
+
         val response =
             qwenApi.createChatCompletion(
                 request =
-                    QwenChatCompletionRequest(
-                        model =
-                            BuildConfig.QWEN_MODEL,
-                        messages =
-                            messages,
-                        enableThinking =
-                            false,
-                        temperature =
-                            temperature,
-                        maxTokens =
-                            MAXIMUM_RESPONSE_TOKENS,
-                        responseFormat =
-                            QwenResponseFormat(
-                                type =
-                                    JSON_OBJECT_TYPE
-                            )
-                    )
+                    request
             )
 
         return response
@@ -222,12 +253,12 @@ class QwenMissionObjectiveEvaluationAiGateway
             ?.content
             ?.trim()
             .orEmpty()
-            .takeIf { content ->
-                content.isNotBlank()
-            }
+            .takeIf(
+                String::isNotBlank
+            )
             ?: throw IllegalStateException(
-                "Qwen returned an empty mission " +
-                        "evaluation response."
+                "Qwen returned an empty mission evaluation " +
+                        "response."
             )
     }
 
@@ -244,20 +275,21 @@ class QwenMissionObjectiveEvaluationAiGateway
         List<MissionObjective>
     ): List<QwenMessage> {
         val objectiveJson =
-            unfinishedObjectives.joinToString(
-                separator =
-                    ",\n"
-            ) { objective ->
-                """
-            {
-              "objectiveId": "${escapeJson(objective.id)}",
-              "title": "${escapeJson(objective.title)}",
-              "description": "${escapeJson(objective.description)}",
-              "completionHint": "${escapeJson(objective.completionHint)}",
-              "required": ${objective.isRequired}
-            }
-            """.trimIndent()
-            }
+            unfinishedObjectives
+                .joinToString(
+                    separator =
+                        ",\n"
+                ) { objective ->
+                    """
+                    {
+                      "objectiveId": "${escapeJson(objective.id)}",
+                      "title": "${escapeJson(objective.title)}",
+                      "description": "${escapeJson(objective.description)}",
+                      "completionHint": "${escapeJson(objective.completionHint)}",
+                      "required": ${objective.isRequired}
+                    }
+                    """.trimIndent()
+                }
 
         val conversationText =
             recentConversation
@@ -279,13 +311,15 @@ class QwenMissionObjectiveEvaluationAiGateway
                             }
                         }
 
-                    "$speaker: ${
-                        turn.content
+                    val safeContent =
+                        turn
+                            .content
                             .trim()
                             .take(
                                 MAXIMUM_TURN_LENGTH
                             )
-                    }"
+
+                    "$speaker: $safeContent"
                 }
                 .ifBlank {
                     "No earlier conversation is available."
@@ -293,6 +327,7 @@ class QwenMissionObjectiveEvaluationAiGateway
 
         val safeLearnerMessage =
             learnerMessage
+                .trim()
                 .take(
                     MAXIMUM_MESSAGE_LENGTH
                 )
@@ -306,117 +341,211 @@ class QwenMissionObjectiveEvaluationAiGateway
                     SYSTEM_ROLE,
                 content =
                     """
-                You evaluate the current objective of an
-                ongoing DeutschCraft German conversation.
+                    You evaluate the current objective and the
+                    latest learner interaction in an ongoing
+                    DeutschCraft German conversation.
 
-                Return exactly:
+                    Return exactly one JSON object with this
+                    structure:
 
-                {
-                  "completedObjectives": [
                     {
-                      "objectiveId": "exact objective ID",
-                      "confidence": 0.0,
-                      "reason": "Short reason"
+                      "completedObjectives": [
+                        {
+                          "objectiveId": "exact objective ID",
+                          "confidence": 0.0,
+                          "reason": "Short reason"
+                        }
+                      ],
+                      "interaction": {
+                        "relevantReply": false,
+                        "followUpQuestion": false,
+                        "clarification": false,
+                        "replyExpected": false,
+                        "confidence": 0.0
+                      }
                     }
-                  ]
-                }
 
-                If the objective is not complete:
+                    If the objective is not complete, return:
 
-                {
-                  "completedObjectives": []
-                }
+                    {
+                      "completedObjectives": [],
+                      "interaction": {
+                        "relevantReply": false,
+                        "followUpQuestion": false,
+                        "clarification": false,
+                        "replyExpected": false,
+                        "confidence": 0.0
+                      }
+                    }
 
-                Evaluation rules:
+                    OBJECTIVE EVALUATION RULES
 
-                - Inspect the recent conversation and the
-                  latest learner message together.
-                - The conversation may already have been in
-                  progress before the mission became active.
-                - An objective may be completed by an earlier
-                  learner turn in the recent conversation.
-                - Do not force the learner to repeat an
-                  action that is already clearly present.
-                - Do not require the conversation to restart.
-                - For a greeting objective, inspect whether
-                  the learner already greeted Emil, addressed
-                  Emil socially, introduced themselves, or
-                  initiated friendly social contact.
-                - If greeting already occurred earlier,
-                  complete the greeting objective even when
-                  the latest message discusses something else.
-                - Evaluate learner messages only.
-                - Emil's messages provide context but cannot
-                  themselves complete an objective.
-                - Use completionHint as the internal semantic
-                  completion rule.
-                - Exact keyword matching is not required.
-                - Accept natural paraphrases with the same
-                  communicative meaning.
-                - Minor German grammar mistakes are allowed
-                  when the intended communication is clear.
-                - Topic relevance by itself is insufficient.
-                - The learner must perform the required
-                  communication action.
-                - Do not infer information the learner never
-                  communicated.
-                - Return only IDs supplied in this request.
-                - Confidence must be between 0 and 1.
-                - Use confidence of at least 0.88 only when a
-                  language teacher would reasonably agree the
-                  objective was completed.
-                - Return at most one objective.
-                - Return JSON only.
-                """.trimIndent()
+                    - Inspect the recent conversation and the
+                      latest learner message together.
+                    - The conversation may have started before
+                      the mission became active.
+                    - An objective may have been completed by an
+                      earlier learner turn shown in the recent
+                      conversation.
+                    - Do not require the learner to repeat an
+                      action that already clearly occurred.
+                    - Do not require the conversation to restart.
+                    - Evaluate learner messages only.
+                    - Emil's messages provide context but cannot
+                      complete an objective.
+                    - Use completionHint as the internal semantic
+                      completion rule.
+                    - Exact keyword matching is not required.
+                    - Accept natural paraphrases with the same
+                      communicative meaning.
+                    - Minor German grammar mistakes are allowed
+                      when the intended communication is clear.
+                    - Topic relevance alone is insufficient.
+                    - The learner must perform the required
+                      communication action.
+                    - Do not infer information the learner never
+                      communicated.
+                    - Return only an objective ID supplied in
+                      this request.
+                    - Return at most one completed objective.
+                    - Objective confidence must be between 0 and
+                      1.
+                    - Use objective confidence of 0.78 or above
+                      only when a language teacher would
+                      reasonably agree that the objective was
+                      completed.
+
+                    INTERACTION EVALUATION RULES
+
+                    Evaluate only the latest learner message for
+                    the interaction object.
+
+                    relevantReply:
+
+                    - true when the latest learner message
+                      appropriately responds to the preceding
+                      assistant message or meaningfully
+                      continues the current scenario.
+                    - false when the learner message is
+                      unrelated, nonsensical, empty, or avoids
+                      the conversational context.
+                    - A grammatically imperfect response may
+                      still be relevant when its meaning is
+                      understandable.
+
+                    followUpQuestion:
+
+                    - true only when the learner independently
+                      asks a useful question that meaningfully
+                      advances the current scenario.
+                    - A question mark alone is not sufficient.
+                    - Repeating the assistant's question is not
+                      a useful follow-up question.
+                    - A question directly supplied as an
+                      example by the system cannot be detected
+                      here, so judge only the conversational
+                      usefulness of the learner's message.
+
+                    clarification:
+
+                    - true when the latest learner message
+                      successfully clarifies, corrects, repairs,
+                      disambiguates, or restates something to
+                      resolve uncertainty.
+                    - Ordinary elaboration is not automatically
+                      clarification.
+                    - Saying "I mean...", "No, I mean...",
+                      correcting a misunderstanding, or
+                      explaining an ambiguous statement can
+                      count.
+
+                    replyExpected:
+
+                    - true when the preceding assistant turn
+                      asked a question, requested information,
+                      requested clarification, or otherwise
+                      clearly expected a learner response.
+                    - false when there was no preceding
+                      assistant turn or when no meaningful reply
+                      was expected.
+                    - Do not set replyExpected to false merely
+                      because the learner's answer was poor.
+
+                    interaction confidence:
+
+                    - Confidence applies to the complete
+                      interaction classification.
+                    - Use a value between 0 and 1.
+                    - Use a low value when context is
+                      insufficient or ambiguous.
+
+                    OUTPUT RULES
+
+                    - Return every boolean explicitly.
+                    - Return both top-level properties.
+                    - Do not include additional properties.
+                    - Return valid JSON only.
+                    - Do not use Markdown.
+                    """.trimIndent()
             ),
             QwenMessage(
                 role =
                     USER_ROLE,
                 content =
                     """
-                Learner CEFR level:
-                ${cefrLevel.name}
+                    Learner CEFR level:
+                    ${cefrLevel.name}
 
-                Mission:
-                ${missionTitle.trim()}
+                    Mission:
+                    ${missionTitle.trim()}
 
-                Scenario:
-                ${missionScenario.trim()}
+                    Scenario:
+                    ${missionScenario.trim()}
 
-                Learner role:
-                ${learnerRole.trim()}
+                    Learner role:
+                    ${learnerRole.trim()}
 
-                Emil role:
-                ${assistantRole.trim()}
+                    Emil role:
+                    ${assistantRole.trim()}
 
-                Current objective:
-                [
-                $objectiveJson
-                ]
+                    Current objective:
+                    [
+                    $objectiveJson
+                    ]
 
-                Recent conversation:
-                $conversationText
+                    Recent conversation:
+                    $conversationText
 
-                Latest learner message:
-                "$safeLearnerMessage"
+                    Latest learner message:
+                    "$safeLearnerMessage"
 
-                Determine whether the current objective was
-                completed anywhere in the learner's recent
-                conversation turns.
-                """.trimIndent()
+                    Determine:
+
+                    1. Whether the current objective was
+                       completed anywhere in the learner's
+                       recent conversation turns.
+
+                    2. The interaction and comprehension
+                       signals for the latest learner message.
+                    """.trimIndent()
             )
         )
     }
 
     private fun buildRepairMessages(
         malformedResponse: String,
-        validObjectiveIds: List<String>
+        validObjectiveIds:
+        List<String>
     ): List<QwenMessage> {
         val validIds =
-            validObjectiveIds.joinToString(
-                separator =
-                    ", "
-            )
+            validObjectiveIds
+                .joinToString(
+                    separator =
+                        ", "
+                )
+                .ifBlank {
+                    "No valid objective IDs."
+                }
 
         return listOf(
             QwenMessage(
@@ -436,7 +565,14 @@ class QwenMissionObjectiveEvaluationAiGateway
                           "confidence": 0.0,
                           "reason": "Short reason"
                         }
-                      ]
+                      ],
+                      "interaction": {
+                        "relevantReply": false,
+                        "followUpQuestion": false,
+                        "clarification": false,
+                        "replyExpected": false,
+                        "confidence": 0.0
+                      }
                     }
 
                     Valid objective IDs:
@@ -445,11 +581,19 @@ class QwenMissionObjectiveEvaluationAiGateway
                     Requirements:
 
                     - Return JSON only.
+                    - Return both completedObjectives and
+                      interaction.
+                    - Use no more than one completed objective.
                     - Use only one of the listed IDs.
-                    - Confidence must be between 0 and 1.
                     - Use an empty completedObjectives array
-                      if completion is not clearly supported.
-                    - Do not return Markdown.
+                      when objective completion is unsupported.
+                    - Return all five interaction fields.
+                    - Every interaction flag must be a JSON
+                      boolean.
+                    - Both confidence values must be between
+                      0 and 1.
+                    - Do not add other properties.
+                    - Do not use Markdown.
                     """.trimIndent()
             ),
             QwenMessage(
@@ -464,7 +608,9 @@ class QwenMissionObjectiveEvaluationAiGateway
     }
 
     private fun decodeEvaluation(
-        responseContent: String
+        responseContent: String,
+        validObjectiveIds:
+        Set<String>
     ): MissionObjectiveEvaluationResult? {
         val root =
             decodeRootObject(
@@ -479,26 +625,63 @@ class QwenMissionObjectiveEvaluationAiGateway
             ] as? JsonArray
                 ?: return null
 
+        val interactionObject =
+            root[
+                INTERACTION_KEY
+            ] as? JsonObject
+                ?: return null
+
         val evaluations =
             completedArray
                 .mapNotNull { element ->
                     decodeCompletedObjective(
                         element =
-                            element
+                            element,
+                        validObjectiveIds =
+                            validObjectiveIds
                     )
                 }
                 .distinctBy { evaluation ->
                     evaluation.objectiveId
                 }
+                .sortedByDescending { evaluation ->
+                    evaluation.confidence
+                }
+                .take(
+                    MAXIMUM_COMPLETED_OBJECTIVE_COUNT
+                )
+
+        /*
+         * A non-empty array where no entry survives validation
+         * is considered malformed rather than silently
+         * becoming an empty result.
+         */
+        if (
+            completedArray.isNotEmpty() &&
+            evaluations.isEmpty()
+        ) {
+            return null
+        }
+
+        val interaction =
+            decodeInteractionEvaluation(
+                root =
+                    interactionObject
+            )
+                ?: return null
 
         return MissionObjectiveEvaluationResult(
             completedObjectives =
-                evaluations
+                evaluations,
+            interaction =
+                interaction
         )
     }
 
     private fun decodeCompletedObjective(
-        element: JsonElement
+        element: JsonElement,
+        validObjectiveIds:
+        Set<String>
     ): EvaluatedMissionObjective? {
         val root =
             element as? JsonObject
@@ -511,16 +694,32 @@ class QwenMissionObjectiveEvaluationAiGateway
             )
                 ?: return null
 
+        if (
+            objectiveId !in
+            validObjectiveIds
+        ) {
+            Log.w(
+                GATEWAY_TAG,
+                "Qwen returned an unknown objective ID: " +
+                        objectiveId
+            )
+
+            return null
+        }
+
         val confidence =
             root.floatValue(
                 key =
                     CONFIDENCE_KEY
             )
+                ?.takeIf { value ->
+                    value.isFinite()
+                }
                 ?.coerceIn(
                     minimumValue =
-                        0f,
+                        MINIMUM_CONFIDENCE,
                     maximumValue =
-                        1f
+                        MAXIMUM_CONFIDENCE
                 )
                 ?: return null
 
@@ -528,7 +727,11 @@ class QwenMissionObjectiveEvaluationAiGateway
             root.stringValue(
                 key =
                     REASON_KEY
-            ).orEmpty()
+            )
+                .orEmpty()
+                .take(
+                    MAXIMUM_REASON_LENGTH
+                )
 
         return EvaluatedMissionObjective(
             objectiveId =
@@ -537,6 +740,67 @@ class QwenMissionObjectiveEvaluationAiGateway
                 confidence,
             reason =
                 reason
+        )
+    }
+
+    private fun decodeInteractionEvaluation(
+        root: JsonObject
+    ): MissionInteractionEvaluation? {
+        val relevantReply =
+            root.booleanValue(
+                key =
+                    RELEVANT_REPLY_KEY
+            )
+                ?: return null
+
+        val followUpQuestion =
+            root.booleanValue(
+                key =
+                    FOLLOW_UP_QUESTION_KEY
+            )
+                ?: return null
+
+        val clarification =
+            root.booleanValue(
+                key =
+                    CLARIFICATION_KEY
+            )
+                ?: return null
+
+        val replyExpected =
+            root.booleanValue(
+                key =
+                    REPLY_EXPECTED_KEY
+            )
+                ?: return null
+
+        val confidence =
+            root.floatValue(
+                key =
+                    CONFIDENCE_KEY
+            )
+                ?.takeIf { value ->
+                    value.isFinite()
+                }
+                ?.coerceIn(
+                    minimumValue =
+                        MINIMUM_CONFIDENCE,
+                    maximumValue =
+                        MAXIMUM_CONFIDENCE
+                )
+                ?: return null
+
+        return MissionInteractionEvaluation(
+            relevantReply =
+                relevantReply,
+            followUpQuestion =
+                followUpQuestion,
+            clarification =
+                clarification,
+            replyExpected =
+                replyExpected,
+            confidence =
+                confidence
         )
     }
 
@@ -560,8 +824,8 @@ class QwenMissionObjectiveEvaluationAiGateway
         ) {
             Log.w(
                 GATEWAY_TAG,
-                "Qwen returned invalid mission " +
-                        "evaluation JSON.",
+                "Qwen returned invalid mission evaluation " +
+                        "JSON.",
                 exception
             )
 
@@ -589,9 +853,9 @@ class QwenMissionObjectiveEvaluationAiGateway
                 )
             ?.contentOrNull
             ?.trim()
-            ?.takeIf { value ->
-                value.isNotBlank()
-            }
+            ?.takeIf(
+                String::isNotBlank
+            )
     }
 
     private fun JsonObject.floatValue(
@@ -599,7 +863,17 @@ class QwenMissionObjectiveEvaluationAiGateway
     ): Float? {
         return (
                 this[key] as? JsonPrimitive
-                )?.floatOrNull
+                )
+            ?.floatOrNull
+    }
+
+    private fun JsonObject.booleanValue(
+        key: String
+    ): Boolean? {
+        return (
+                this[key] as? JsonPrimitive
+                )
+            ?.booleanOrNull
     }
 
     private fun removeMarkdownCodeFence(
@@ -660,7 +934,9 @@ class QwenMissionObjectiveEvaluationAiGateway
             MissionObjectiveEvaluationResult {
         return MissionObjectiveEvaluationResult(
             completedObjectives =
-                emptyList()
+                emptyList(),
+            interaction =
+                MissionInteractionEvaluation.EMPTY
         )
     }
 
@@ -680,6 +956,9 @@ class QwenMissionObjectiveEvaluationAiGateway
         const val COMPLETED_OBJECTIVES_KEY =
             "completedObjectives"
 
+        const val INTERACTION_KEY =
+            "interaction"
+
         const val OBJECTIVE_ID_KEY =
             "objectiveId"
 
@@ -689,14 +968,32 @@ class QwenMissionObjectiveEvaluationAiGateway
         const val REASON_KEY =
             "reason"
 
+        const val RELEVANT_REPLY_KEY =
+            "relevantReply"
+
+        const val FOLLOW_UP_QUESTION_KEY =
+            "followUpQuestion"
+
+        const val CLARIFICATION_KEY =
+            "clarification"
+
+        const val REPLY_EXPECTED_KEY =
+            "replyExpected"
+
         const val MAXIMUM_RESPONSE_TOKENS =
-            500
+            650
 
         const val MAXIMUM_MESSAGE_LENGTH =
             2_000
 
         const val MAXIMUM_REPAIR_INPUT_LENGTH =
             6_000
+
+        const val MAXIMUM_REASON_LENGTH =
+            500
+
+        const val MAXIMUM_COMPLETED_OBJECTIVE_COUNT =
+            1
 
         const val EVALUATION_TEMPERATURE =
             0.10
@@ -709,5 +1006,11 @@ class QwenMissionObjectiveEvaluationAiGateway
 
         const val MAXIMUM_TURN_LENGTH =
             600
+
+        const val MINIMUM_CONFIDENCE =
+            0f
+
+        const val MAXIMUM_CONFIDENCE =
+            1f
     }
 }
