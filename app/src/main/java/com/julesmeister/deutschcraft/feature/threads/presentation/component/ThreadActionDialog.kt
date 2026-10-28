@@ -24,18 +24,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.threads.domain.ConversationThread
-import com.julesmeister.deutschcraft.ui.theme.DeutschError
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschSurface
-import com.julesmeister.deutschcraft.ui.theme.DeutschSurfaceHigh
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +41,9 @@ fun ThreadActionDialog(
     onDeleteClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val colors =
+        rememberThreadColors()
+
     BasicAlertDialog(
         onDismissRequest = onDismiss
     ) {
@@ -52,55 +51,43 @@ fun ThreadActionDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .clip(
-                    RoundedCornerShape(28.dp)
-                )
-                .background(DeutschSurfaceHigh)
+                .clip(RoundedCornerShape(28.dp))
+                .background(colors.dialogSurface)
                 .padding(20.dp)
         ) {
             DialogHeader(
                 thread = thread,
+                colors = colors,
                 onDismiss = onDismiss
             )
 
             Text(
-                modifier = Modifier.padding(
-                    top = 20.dp,
-                    bottom = 10.dp
-                ),
+                modifier = Modifier.padding(top = 20.dp, bottom = 10.dp),
                 text = "Was möchtest du tun?",
-                color = DeutschTextSecondary,
-                style =
-                    MaterialTheme.typography
-                        .labelMedium
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.labelMedium
             )
 
             ThreadActionItem(
                 title = "Archivieren",
-                description =
-                    "Aus der Hauptliste ausblenden",
+                description = "Aus der Hauptliste ausblenden",
                 icon = Icons.Outlined.Archive,
                 iconBackground = DeutschLime,
                 iconColor = DeutschTextOnLime,
-                titleColor = DeutschTextPrimary,
+                titleColor = colors.textPrimary,
+                descriptionColor = colors.textSecondary,
                 onClick = onArchiveClick
             )
 
             ThreadActionItem(
-                modifier = Modifier.padding(
-                    top = 8.dp
-                ),
+                modifier = Modifier.padding(top = 8.dp),
                 title = "Dauerhaft löschen",
-                description =
-                    "Unterhaltung und Nachrichten entfernen",
-                icon =
-                    Icons.Outlined.DeleteOutline,
-                iconBackground =
-                    DeutschError.copy(
-                        alpha = 0.16f
-                    ),
-                iconColor = DeutschError,
-                titleColor = DeutschError,
+                description = "Unterhaltung und Nachrichten entfernen",
+                icon = Icons.Outlined.DeleteOutline,
+                iconBackground = colors.errorContainer,
+                iconColor = colors.error,
+                titleColor = colors.error,
+                descriptionColor = colors.textSecondary,
                 onClick = onDeleteClick
             )
         }
@@ -110,30 +97,24 @@ fun ThreadActionDialog(
 @Composable
 private fun DialogHeader(
     thread: ConversationThread,
+    colors: ThreadColors,
     onDismiss: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment =
-            Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(
-                    DeutschLime.copy(
-                        alpha = 0.14f
-                    )
-                ),
+                .background(colors.accentContainer),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = thread.cefrLevel.name,
-                color = DeutschLime,
-                style =
-                    MaterialTheme.typography
-                        .labelLarge,
+                color = colors.accent,
+                style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -145,29 +126,20 @@ private fun DialogHeader(
         ) {
             Text(
                 text = thread.displayTitle,
-                color = DeutschTextPrimary,
-                style =
-                    MaterialTheme.typography
-                        .titleMedium,
-                fontWeight =
-                    FontWeight.SemiBold,
+                color = colors.textPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
-                overflow =
-                    TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis
             )
 
             Text(
-                modifier = Modifier.padding(
-                    top = 3.dp
-                ),
+                modifier = Modifier.padding(top = 3.dp),
                 text = thread.displayPreview,
-                color = DeutschTextSecondary,
-                style =
-                    MaterialTheme.typography
-                        .bodySmall,
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
-                overflow =
-                    TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis
             )
         }
 
@@ -175,16 +147,15 @@ private fun DialogHeader(
             modifier = Modifier
                 .size(38.dp)
                 .clip(CircleShape)
-                .background(DeutschSurface)
+                .background(colors.closeButtonSurface)
                 .clickable(onClick = onDismiss),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 modifier = Modifier.size(19.dp),
-                imageVector =
-                    Icons.Outlined.Close,
+                imageVector = Icons.Outlined.Close,
                 contentDescription = "Schließen",
-                tint = DeutschTextSecondary
+                tint = colors.textSecondary
             )
         }
     }
@@ -195,30 +166,21 @@ private fun ThreadActionItem(
     title: String,
     description: String,
     icon: ImageVector,
-    iconBackground:
-    androidx.compose.ui.graphics.Color,
-    iconColor:
-    androidx.compose.ui.graphics.Color,
-    titleColor:
-    androidx.compose.ui.graphics.Color,
+    iconBackground: Color,
+    iconColor: Color,
+    titleColor: Color,
+    descriptionColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(
-                RoundedCornerShape(20.dp)
-            )
+            .clip(RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
-            .padding(
-                horizontal = 4.dp,
-                vertical = 10.dp
-            ),
-        verticalAlignment =
-            Alignment.CenterVertically,
-        horizontalArrangement =
-            Arrangement.spacedBy(14.dp)
+            .padding(horizontal = 4.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Box(
             modifier = Modifier
@@ -235,28 +197,19 @@ private fun ThreadActionItem(
             )
         }
 
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
                 color = titleColor,
-                style =
-                    MaterialTheme.typography
-                        .titleMedium,
-                fontWeight =
-                    FontWeight.SemiBold
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
             )
 
             Text(
-                modifier = Modifier.padding(
-                    top = 2.dp
-                ),
+                modifier = Modifier.padding(top = 2.dp),
                 text = description,
-                color = DeutschTextSecondary,
-                style =
-                    MaterialTheme.typography
-                        .bodySmall
+                color = descriptionColor,
+                style = MaterialTheme.typography.bodySmall
             )
         }
     }

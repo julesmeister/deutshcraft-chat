@@ -78,6 +78,9 @@ android {
     }
 }
 dependencies {
+    implementation("androidx.compose.runtime:runtime:1.9.4")
+    implementation("androidx.compose.runtime:runtime-saveable:1.9.4")
+    implementation("io.github.kyant0:backdrop:1.0.0")
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("androidx.work:work-runtime-ktx:2.10.4")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
@@ -87,6 +90,7 @@ dependencies {
     implementation(libs.androidx.compose.animation.core)
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.compose.runtime.saveable)
+    implementation(libs.androidx.compose.ui.text)
     implementation(libs.hilt.android)
     implementation(libs.room.ktx)
     ksp(libs.hilt.compiler)

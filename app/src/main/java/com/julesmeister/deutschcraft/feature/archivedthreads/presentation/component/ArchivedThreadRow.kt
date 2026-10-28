@@ -14,11 +14,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,15 +29,17 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.archivedthreads.domain.ArchivedThread
-import com.julesmeister.deutschcraft.ui.theme.DeutschLime
+import com.julesmeister.deutschcraft.feature.archivedthreads.presentation.theme.ArchivedThreadDesignTokens as Tokens
+import com.julesmeister.deutschcraft.feature.threads.presentation.component.ThreadColors
+import com.julesmeister.deutschcraft.feature.threads.presentation.component.rememberThreadColors
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -52,6 +50,8 @@ fun ArchivedThreadRow(
     onSwipeActions: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = rememberThreadColors()
+
     var dragOffset by remember(thread.id) {
         mutableFloatStateOf(0f)
     }
@@ -64,26 +64,20 @@ fun ArchivedThreadRow(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .pointerInput(
-                thread.id,
-                isProcessing
-            ) {
+            .pointerInput(thread.id, isProcessing) {
                 if (!isProcessing) {
                     detectHorizontalDragGestures(
                         onHorizontalDrag = { change, dragAmount ->
                             change.consume()
 
-                            dragOffset = (
-                                    dragOffset + dragAmount
-                                    ).coerceIn(
-                                    minimumValue = -MAX_DRAG_DISTANCE,
-                                    maximumValue = MAX_DRAG_DISTANCE
-                                )
+                            dragOffset = (dragOffset + dragAmount).coerceIn(
+                                minimumValue = -Tokens.MaxDragDistance,
+                                maximumValue = Tokens.MaxDragDistance
+                            )
                         },
                         onDragEnd = {
                             val swipedFarEnough =
-                                kotlin.math.abs(dragOffset) >=
-                                        SWIPE_TRIGGER_DISTANCE
+                                abs(dragOffset) >= Tokens.SwipeTriggerDistance
 
                             dragOffset = 0f
 
@@ -107,88 +101,69 @@ fun ArchivedThreadRow(
                         y = 0
                     )
                 }
-                .background(
-                    color = MaterialTheme.colorScheme.background
-                )
+                .background(MaterialTheme.colorScheme.background)
                 .clickable(
                     enabled = !isProcessing,
                     onClick = onClick
                 )
                 .padding(
-                    horizontal = 20.dp,
-                    vertical = 14.dp
+                    horizontal = Tokens.RowHorizontalPadding,
+                    vertical = Tokens.RowVerticalPadding
                 ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             NiveauIndicator(
-                levelName = thread.cefrLevel.name
+                levelName = thread.cefrLevel.name,
+                colors = colors
             )
 
-            Spacer(
-                modifier = Modifier.width(14.dp)
-            )
+            Spacer(modifier = Modifier.width(Tokens.BadgeTextSpacing))
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement =
-                    Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(Tokens.TextLineSpacing)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment =
-                        Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = thread.title,
                         modifier = Modifier.weight(1f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        style =
-                            MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
-                        color =
-                            MaterialTheme.colorScheme.onSurface
+                        color = colors.textPrimary
                     )
 
-                    Spacer(
-                        modifier = Modifier.width(10.dp)
-                    )
+                    Spacer(modifier = Modifier.width(Tokens.TitleDateSpacing))
 
                     Text(
-                        text = formatThreadDate(
-                            timestamp = thread.updatedAt
-                        ),
-                        style =
-                            MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant
+                        text = formatThreadDate(timestamp = thread.updatedAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.textSecondary
                     )
                 }
 
                 Text(
                     text = thread.previewText
-                        ?.takeIf { preview ->
-                            preview.isNotBlank()
-                        }
+                        ?.takeIf { preview -> preview.isNotBlank() }
                         ?: "No messages yet",
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodyMedium,
-                    color =
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                    color = colors.textSecondary
                 )
             }
 
             if (isProcessing) {
-                Spacer(
-                    modifier = Modifier.width(12.dp)
-                )
+                Spacer(modifier = Modifier.width(Tokens.ProgressSpacing))
 
                 CircularProgressIndicator(
-                    modifier = Modifier.size(21.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary
+                    modifier = Modifier.size(Tokens.ProgressSize),
+                    strokeWidth = Tokens.ProgressStroke,
+                    color = colors.accent
                 )
             }
         }
@@ -198,66 +173,29 @@ fun ArchivedThreadRow(
 @Composable
 private fun NiveauIndicator(
     levelName: String,
+    colors: ThreadColors,
     modifier: Modifier = Modifier
 ) {
-    val normalizedLevel = levelName
-        .trim()
-        .uppercase()
-
-    val levelLetter = normalizedLevel
-        .firstOrNull()
-        ?.toString()
-        ?: "N"
+    val normalizedLevel =
+        levelName
+            .trim()
+            .uppercase()
+            .ifEmpty { Tokens.BadgeFallbackLevel }
 
     Box(
         modifier = modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .background(
-                DeutschLime.copy(
-                    alpha = 0.14f
-                )
-            ),
+            .size(Tokens.BadgeSize)
+            .clip(Tokens.BadgeShape)
+            .background(colors.accentContainer),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = normalizedLevel,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = DeutschLime
-            )
-        }
+        Text(
+            text = normalizedLevel,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = colors.accent
+        )
     }
-}
-
-@Composable
-private fun niveauContainerColor(
-    levelLetter: String
-) = when (levelLetter) {
-    "A" -> MaterialTheme.colorScheme.primaryContainer
-
-    "B" -> MaterialTheme.colorScheme.secondaryContainer
-
-    "C" -> MaterialTheme.colorScheme.tertiaryContainer
-
-    else -> MaterialTheme.colorScheme.surfaceContainerHigh
-}
-
-@Composable
-private fun niveauContentColor(
-    levelLetter: String
-) = when (levelLetter) {
-    "A" -> MaterialTheme.colorScheme.onPrimaryContainer
-
-    "B" -> MaterialTheme.colorScheme.onSecondaryContainer
-
-    "C" -> MaterialTheme.colorScheme.onTertiaryContainer
-
-    else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 private fun formatThreadDate(
@@ -273,9 +211,7 @@ private fun formatThreadDate(
 
     return when (threadDate) {
         today -> "Today"
-
         yesterday -> "Yesterday"
-
         else -> {
             val formatter = DateTimeFormatter
                 .ofLocalizedDate(FormatStyle.MEDIUM)
@@ -285,6 +221,3 @@ private fun formatThreadDate(
         }
     }
 }
-
-private const val MAX_DRAG_DISTANCE = 180f
-private const val SWIPE_TRIGGER_DISTANCE = 90f

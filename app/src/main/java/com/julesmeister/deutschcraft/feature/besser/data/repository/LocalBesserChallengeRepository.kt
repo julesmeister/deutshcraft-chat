@@ -188,30 +188,24 @@ class LocalBesserChallengeRepository @Inject constructor(
         challengeId: String,
         acceptedAt: Long
     ): Boolean {
-        val changedRows =
-            besserChallengeDao.accept(
-                challengeId =
-                    challengeId,
-                acceptedAt =
-                    acceptedAt
-            )
-
-        return changedRows == 1
+        return besserChallengeDao.accept(
+            challengeId =
+                challengeId,
+            acceptedAt =
+                acceptedAt
+        ) == 1
     }
 
     override suspend fun skip(
         challengeId: String,
         skippedAt: Long
     ): Boolean {
-        val changedRows =
-            besserChallengeDao.skip(
-                challengeId =
-                    challengeId,
-                skippedAt =
-                    skippedAt
-            )
-
-        return changedRows == 1
+        return besserChallengeDao.skip(
+            challengeId =
+                challengeId,
+            skippedAt =
+                skippedAt
+        ) == 1
     }
 
     override suspend fun complete(
@@ -226,19 +220,16 @@ class LocalBesserChallengeRepository @Inject constructor(
             "Refined message content cannot be blank."
         }
 
-        val changedRows =
-            besserChallengeDao.complete(
-                challengeId =
-                    challengeId,
-                refinedMessageContent =
-                    refinedMessageContent.trim(),
-                actualAssistanceLevel =
-                    actualAssistanceLevel.name,
-                completedAt =
-                    completedAt
-            )
-
-        return changedRows == 1
+        return besserChallengeDao.complete(
+            challengeId =
+                challengeId,
+            refinedMessageContent =
+                refinedMessageContent.trim(),
+            actualAssistanceLevel =
+                actualAssistanceLevel.name,
+            completedAt =
+                completedAt
+        ) == 1
     }
 
     override suspend fun revealNextHint(

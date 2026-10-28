@@ -2,6 +2,9 @@ package com.julesmeister.deutschcraft.feature.phrasemarking.presentation
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -27,10 +30,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,35 +46,36 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.ExplanationStatus
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhrase
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschSky
-import com.julesmeister.deutschcraft.ui.theme.DeutschSurfaceHigh
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
+import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
+import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnSky
 
 /*
- * Compact note attached flush under its source bubble.
+ * Compact learning note attached flush beneath its source
+ * message bubble.
  *
- *   ╭──────────────────────────────╮
- *   │ source bubble (rounded)      │
- *   ╰──────────────────────────────╯
- *   ┌──────────────────────────────┐  <- flat top, no gap
- *   │ 🧩 drei Jahre · three years ✕│
- *   ╰──────────────────────────────╯  <- rounded only if last
+ * Tap bubble:
+ *     expand/collapse explanation
  *
- * Tap to expand the explanation and example.
+ * Tap X:
+ *     open removal confirmation
  */
 @Composable
 fun MarkedPhraseBubble(
@@ -79,21 +85,50 @@ fun MarkedPhraseBubble(
     modifier: Modifier = Modifier,
     isLast: Boolean = true
 ) {
+    val colorScheme =
+        MaterialTheme.colorScheme
+
     var isExpanded by
     rememberSaveable(phrase.id) {
         mutableStateOf(false)
     }
 
-    val accent =
-        if (isUserMessage) DeutschLime else DeutschSky
+    var showRemoveDialog by
+    rememberSaveable(phrase.id) {
+        mutableStateOf(false)
+    }
 
     /*
-     * Flat top edge always. Bottom corners round only on the
-     * last note so stacked notes merge into one block.
+     * Keep DeutschCraft's sender colors:
+     *
+     * User      -> lime
+     * Assistant -> sky
      */
-    val bottomCorner =
-        if (isLast) BOTTOM_CORNER_RADIUS else 0.dp
+    val accent =
+        if (isUserMessage) {
+            DeutschLime
+        } else {
+            DeutschSky
+        }
 
+    val onAccent =
+        if (isUserMessage) {
+            DeutschTextOnLime
+        } else {
+            DeutschTextOnSky
+        }
+
+    val bottomCorner =
+        if (isLast) {
+            BOTTOM_CORNER_RADIUS
+        } else {
+            0.dp
+        }
+
+    /*
+     * Flat top because the marked phrase visually attaches
+     * directly underneath its source message.
+     */
     val shape =
         RoundedCornerShape(
             topStart = 0.dp,
@@ -102,134 +137,674 @@ fun MarkedPhraseBubble(
             bottomEnd = bottomCorner
         )
 
+    /*
+     * Theme-aware base surface.
+     */
     val containerColor =
         accent
-            .copy(alpha = CONTAINER_TINT_ALPHA)
-            .compositeOver(DeutschSurfaceHigh)
+            .copy(
+                alpha =
+                    CONTAINER_TINT_ALPHA
+            )
+            .compositeOver(
+                colorScheme.surfaceContainerHigh
+            )
 
     val maxWidth =
-        (LocalConfiguration.current.screenWidthDp.dp * 0.72f)
-            .coerceAtMost(380.dp)
+        (
+                LocalConfiguration
+                    .current
+                    .screenWidthDp.dp *
+                        MAXIMUM_WIDTH_FRACTION
+                )
+            .coerceAtMost(
+                MAXIMUM_WIDTH
+            )
 
     val canExpand =
-        phrase.status == ExplanationStatus.READY &&
-                (!phrase.explanation.isNullOrBlank() ||
-                        !phrase.example.isNullOrBlank())
+        phrase.status ==
+                ExplanationStatus.READY &&
+                (
+                        !phrase.explanation.isNullOrBlank() ||
+                                !phrase.example.isNullOrBlank()
+                        )
+
+    /*
+     * =======================================================
+     * Removal confirmation
+     * =======================================================
+     */
+
+    if (showRemoveDialog) {
+        RemoveMarkedPhraseDialog(
+            phrase =
+                phrase.phrase,
+            accent =
+                accent,
+            onAccent =
+                onAccent,
+            onConfirm = {
+                showRemoveDialog =
+                    false
+
+                onRemove()
+            },
+            onDismiss = {
+                showRemoveDialog =
+                    false
+            }
+        )
+    }
+
+    /*
+     * =======================================================
+     * Bubble
+     * =======================================================
+     */
 
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier =
+            modifier.fillMaxWidth(),
         horizontalArrangement =
-            if (isUserMessage) Arrangement.End else Arrangement.Start
+            if (isUserMessage) {
+                Arrangement.End
+            } else {
+                Arrangement.Start
+            }
     ) {
         Column(
             modifier =
                 Modifier
-                    .widthIn(max = maxWidth)
-                    .clip(shape)
-                    .background(containerColor)
+                    .widthIn(
+                        max =
+                            maxWidth
+                    )
+                    .clip(
+                        shape
+                    )
+                    .background(
+                        containerColor
+                    )
                     .clickable(
-                        enabled = canExpand,
+                        enabled =
+                            canExpand,
                         interactionSource =
-                            remember { MutableInteractionSource() },
-                        indication = null
+                            remember {
+                                MutableInteractionSource()
+                            },
+                        indication =
+                            null
                     ) {
-                        isExpanded = !isExpanded
+                        isExpanded =
+                            !isExpanded
                     }
-                    .animateContentSize(tween(220))
+                    .animateContentSize(
+                        animationSpec =
+                            tween(
+                                durationMillis =
+                                    CONTENT_SIZE_ANIMATION_MILLIS
+                            )
+                    )
                     .padding(
-                        start = 12.dp,
-                        end = 4.dp,
-                        top = 6.dp,
-                        bottom = 7.dp
+                        start =
+                            CONTENT_START_PADDING,
+                        end =
+                            CONTENT_END_PADDING,
+                        top =
+                            CONTENT_TOP_PADDING,
+                        bottom =
+                            CONTENT_BOTTOM_PADDING
                     )
         ) {
+
             /*
-             * One line: icon, phrase, and meaning.
+             * ===================================================
+             * Compact row
+             * ===================================================
              */
+
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment =
+                    Alignment.CenterVertically
             ) {
                 Text(
                     text =
                         buildAnnotatedString {
-                            append(phrase.type.icon)
+                            append(
+                                phrase.type.icon
+                            )
+
                             append(" ")
 
                             withStyle(
                                 SpanStyle(
-                                    color = accent,
-                                    fontWeight = FontWeight.SemiBold
+                                    color =
+                                        accent,
+                                    fontWeight =
+                                        FontWeight.SemiBold
                                 )
                             ) {
-                                append(phrase.phrase)
+                                append(
+                                    phrase.phrase
+                                )
                             }
 
                             val secondary =
-                                when (phrase.status) {
-                                    ExplanationStatus.PENDING -> "…"
-                                    ExplanationStatus.FAILED -> "gespeichert"
+                                when (
+                                    phrase.status
+                                ) {
+                                    ExplanationStatus.PENDING ->
+                                        "…"
+
+                                    ExplanationStatus.FAILED ->
+                                        "gespeichert"
+
                                     ExplanationStatus.READY ->
-                                        phrase.meaning.orEmpty()
+                                        phrase
+                                            .meaning
+                                            .orEmpty()
                                 }
 
-                            if (secondary.isNotBlank()) {
+                            if (
+                                secondary.isNotBlank()
+                            ) {
                                 withStyle(
                                     SpanStyle(
-                                        color = DeutschTextSecondary
+                                        color =
+                                            colorScheme
+                                                .onSurfaceVariant
                                     )
                                 ) {
-                                    append("  ·  ")
-                                    append(secondary)
+                                    append(
+                                        "  ·  "
+                                    )
+
+                                    append(
+                                        secondary
+                                    )
                                 }
                             }
                         },
-                    modifier = Modifier.weight(1f, fill = false),
-                    style =
-                        MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 13.sp,
-                            lineHeight = 17.sp
+                    modifier =
+                        Modifier.weight(
+                            weight = 1f,
+                            fill = false
                         ),
-                    color = DeutschTextPrimary,
-                    maxLines = if (isExpanded) 3 else 1,
-                    overflow = TextOverflow.Ellipsis
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodySmall
+                            .copy(
+                                fontSize =
+                                    COMPACT_FONT_SIZE,
+                                lineHeight =
+                                    COMPACT_LINE_HEIGHT
+                            ),
+                    color =
+                        colorScheme.onSurface,
+                    maxLines =
+                        if (isExpanded) {
+                            3
+                        } else {
+                            1
+                        },
+                    overflow =
+                        TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(
+                    modifier =
+                        Modifier.width(
+                            REMOVE_BUTTON_SPACING
+                        )
+                )
 
+                /*
+                 * X no longer removes immediately.
+                 */
                 Box(
                     modifier =
                         Modifier
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .clickable(onClick = onRemove),
-                    contentAlignment = Alignment.Center
+                            .size(
+                                REMOVE_BUTTON_SIZE
+                            )
+                            .clip(
+                                CircleShape
+                            )
+                            .clickable {
+                                showRemoveDialog =
+                                    true
+                            },
+                    contentAlignment =
+                        Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Close,
-                        contentDescription = "Markierung entfernen",
-                        modifier = Modifier.size(12.dp),
-                        tint = DeutschTextSecondary.copy(alpha = 0.7f)
+                        imageVector =
+                            Icons.Outlined.Close,
+                        contentDescription =
+                            "Markierung entfernen",
+                        modifier =
+                            Modifier.size(
+                                REMOVE_ICON_SIZE
+                            ),
+                        tint =
+                            colorScheme
+                                .onSurfaceVariant
+                                .copy(
+                                    alpha =
+                                        REMOVE_ICON_ALPHA
+                                )
                     )
                 }
             }
 
             /*
-             * Details only when expanded.
+             * ===================================================
+             * Expanded explanation
+             * ===================================================
              */
+
             AnimatedVisibility(
-                visible = isExpanded && canExpand,
-                enter = fadeIn(tween(180)) + expandVertically(tween(220)),
-                exit = fadeOut(tween(120)) + shrinkVertically(tween(180))
+                visible =
+                    isExpanded &&
+                            canExpand,
+                enter =
+                    fadeIn(
+                        animationSpec =
+                            tween(
+                                durationMillis =
+                                    DETAILS_FADE_IN_MILLIS
+                            )
+                    ) +
+                            expandVertically(
+                                animationSpec =
+                                    tween(
+                                        durationMillis =
+                                            DETAILS_EXPAND_MILLIS
+                                    )
+                            ),
+                exit =
+                    fadeOut(
+                        animationSpec =
+                            tween(
+                                durationMillis =
+                                    DETAILS_FADE_OUT_MILLIS
+                            )
+                    ) +
+                            shrinkVertically(
+                                animationSpec =
+                                    tween(
+                                        durationMillis =
+                                            DETAILS_SHRINK_MILLIS
+                                    )
+                            )
             ) {
                 ExpandedDetails(
-                    explanation = phrase.explanation,
-                    example = phrase.example,
-                    accent = accent
+                    explanation =
+                        phrase.explanation,
+                    example =
+                        phrase.example,
+                    accent =
+                        accent
                 )
             }
         }
     }
 }
+
+/*
+ * ===========================================================
+ * CUSTOM REMOVE DIALOG
+ * ===========================================================
+ */
+
+@Composable
+private fun RemoveMarkedPhraseDialog(
+    phrase: String,
+    accent: Color,
+    onAccent: Color,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colorScheme =
+        MaterialTheme.colorScheme
+
+    var animationStarted by
+    remember {
+        mutableStateOf(false)
+    }
+
+    /*
+     * Start one frame after composition so the initial scale
+     * is actually visible.
+     */
+    LaunchedEffect(Unit) {
+        animationStarted =
+            true
+    }
+
+    val dialogScale by
+    animateFloatAsState(
+        targetValue =
+            if (animationStarted) {
+                DIALOG_NORMAL_SCALE
+            } else {
+                DIALOG_INITIAL_SCALE
+            },
+        animationSpec =
+            spring(
+                dampingRatio =
+                    Spring.DampingRatioMediumBouncy,
+                stiffness =
+                    Spring.StiffnessMediumLow
+            ),
+        label =
+            "MarkedPhraseDialogScale"
+    )
+
+    val dialogAlpha by
+    animateFloatAsState(
+        targetValue =
+            if (animationStarted) {
+                DIALOG_VISIBLE_ALPHA
+            } else {
+                DIALOG_HIDDEN_ALPHA
+            },
+        animationSpec =
+            tween(
+                durationMillis =
+                    DIALOG_FADE_MILLIS
+            ),
+        label =
+            "MarkedPhraseDialogAlpha"
+    )
+
+    Dialog(
+        onDismissRequest =
+            onDismiss,
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth =
+                    false
+            )
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal =
+                            DIALOG_OUTER_HORIZONTAL_PADDING
+                    )
+                    .graphicsLayer {
+                        scaleX =
+                            dialogScale
+
+                        scaleY =
+                            dialogScale
+
+                        alpha =
+                            dialogAlpha
+                    }
+                    .clip(
+                        DIALOG_SHAPE
+                    )
+                    .background(
+                        colorScheme.surfaceContainerHigh
+                    )
+                    .padding(
+                        DIALOG_CONTENT_PADDING
+                    ),
+            horizontalAlignment =
+                Alignment.CenterHorizontally
+        ) {
+
+            /*
+             * ===================================================
+             * Delete icon
+             * ===================================================
+             */
+
+            Box(
+                modifier =
+                    Modifier
+                        .size(
+                            DIALOG_ICON_CONTAINER_SIZE
+                        )
+                        .clip(
+                            CircleShape
+                        )
+                        .background(
+                            colorScheme
+                                .error
+                                .copy(
+                                    alpha =
+                                        DIALOG_ERROR_CONTAINER_ALPHA
+                                )
+                        ),
+                contentAlignment =
+                    Alignment.Center
+            ) {
+                Icon(
+                    imageVector =
+                        Icons.Outlined.DeleteOutline,
+                    contentDescription =
+                        null,
+                    modifier =
+                        Modifier.size(
+                            DIALOG_ICON_SIZE
+                        ),
+                    tint =
+                        colorScheme.error
+                )
+            }
+
+            Spacer(
+                modifier =
+                    Modifier.height(
+                        DIALOG_HEADER_SPACING
+                    )
+            )
+
+            /*
+             * ===================================================
+             * Heading
+             * ===================================================
+             */
+
+            Text(
+                text =
+                    "Markierung entfernen?",
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleLarge,
+                fontWeight =
+                    FontWeight.Bold,
+                color =
+                    colorScheme.onSurface,
+                textAlign =
+                    TextAlign.Center
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.height(
+                        DIALOG_PHRASE_TOP_SPACING
+                    )
+            )
+
+            /*
+             * ===================================================
+             * Phrase chip
+             * ===================================================
+             *
+             * Uses the same sender accent as the marked phrase:
+             *
+             * User      -> lime
+             * Assistant -> sky
+             */
+
+            Text(
+                text =
+                    phrase,
+                modifier =
+                    Modifier
+                        .widthIn(
+                            max =
+                                DIALOG_PHRASE_MAX_WIDTH
+                        )
+                        .clip(
+                            CircleShape
+                        )
+                        .background(
+                            accent
+                        )
+                        .padding(
+                            horizontal =
+                                DIALOG_PHRASE_HORIZONTAL_PADDING,
+                            vertical =
+                                DIALOG_PHRASE_VERTICAL_PADDING
+                        ),
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelLarge,
+                fontWeight =
+                    FontWeight.SemiBold,
+                color =
+                    onAccent,
+                maxLines =
+                    DIALOG_PHRASE_MAX_LINES,
+                overflow =
+                    TextOverflow.Ellipsis,
+                textAlign =
+                    TextAlign.Center
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.height(
+                        DIALOG_DESCRIPTION_TOP_SPACING
+                    )
+            )
+
+            Text(
+                text =
+                    "Die Erklärung und das Beispiel werden " +
+                            "aus deinen Markierungen gelöscht.",
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
+                color =
+                    colorScheme.onSurfaceVariant,
+                textAlign =
+                    TextAlign.Center
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.height(
+                        DIALOG_ACTIONS_TOP_SPACING
+                    )
+            )
+
+            /*
+             * ===================================================
+             * Remove
+             * ===================================================
+             */
+
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(
+                            DIALOG_ACTION_HEIGHT
+                        )
+                        .clip(
+                            CircleShape
+                        )
+                        .background(
+                            colorScheme.error
+                        )
+                        .clickable(
+                            onClick =
+                                onConfirm
+                        ),
+                contentAlignment =
+                    Alignment.Center
+            ) {
+                Text(
+                    text =
+                        "Entfernen",
+                    style =
+                        MaterialTheme
+                            .typography
+                            .labelLarge,
+                    fontWeight =
+                        FontWeight.Bold,
+                    color =
+                        colorScheme.onError
+                )
+            }
+
+            Spacer(
+                modifier =
+                    Modifier.height(
+                        DIALOG_ACTION_SPACING
+                    )
+            )
+
+            /*
+             * ===================================================
+             * Cancel
+             * ===================================================
+             */
+
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(
+                            DIALOG_ACTION_HEIGHT
+                        )
+                        .clip(
+                            CircleShape
+                        )
+                        .background(
+                            colorScheme.surfaceContainerHighest
+                        )
+                        .clickable(
+                            onClick =
+                                onDismiss
+                        ),
+                contentAlignment =
+                    Alignment.Center
+            ) {
+                Text(
+                    text =
+                        "Abbrechen",
+                    style =
+                        MaterialTheme
+                            .typography
+                            .labelLarge,
+                    fontWeight =
+                        FontWeight.SemiBold,
+                    color =
+                        colorScheme.onSurface
+                )
+            }
+        }
+    }
+}
+
+/*
+ * ===========================================================
+ * EXPANDED DETAILS
+ * ===========================================================
+ */
 
 @Composable
 private fun ExpandedDetails(
@@ -237,56 +812,278 @@ private fun ExpandedDetails(
     example: String?,
     accent: Color
 ) {
+    val colorScheme =
+        MaterialTheme.colorScheme
+
     Column(
-        modifier = Modifier.padding(top = 4.dp, end = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        modifier =
+            Modifier.padding(
+                top =
+                    DETAILS_TOP_PADDING,
+                end =
+                    DETAILS_END_PADDING
+            ),
+        verticalArrangement =
+            Arrangement.spacedBy(
+                DETAILS_SPACING
+            )
     ) {
         explanation
-            ?.takeIf(String::isNotBlank)
+            ?.takeIf(
+                String::isNotBlank
+            )
             ?.let { text ->
                 Text(
-                    text = text,
+                    text =
+                        text,
                     style =
-                        MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp
-                        ),
-                    color = DeutschTextSecondary
+                        MaterialTheme
+                            .typography
+                            .bodySmall
+                            .copy(
+                                fontSize =
+                                    DETAILS_FONT_SIZE,
+                                lineHeight =
+                                    DETAILS_LINE_HEIGHT
+                            ),
+                    color =
+                        colorScheme
+                            .onSurfaceVariant
                 )
             }
 
         example
-            ?.takeIf(String::isNotBlank)
+            ?.takeIf(
+                String::isNotBlank
+            )
             ?.let { text ->
                 Row(
-                    modifier = Modifier.height(IntrinsicSize.Min)
+                    modifier =
+                        Modifier.height(
+                            IntrinsicSize.Min
+                        )
                 ) {
                     Box(
                         modifier =
                             Modifier
-                                .width(2.dp)
+                                .width(
+                                    EXAMPLE_ACCENT_WIDTH
+                                )
                                 .fillMaxHeight()
-                                .clip(RoundedCornerShape(50))
-                                .background(accent.copy(alpha = 0.5f))
+                                .clip(
+                                    RoundedCornerShape(
+                                        EXAMPLE_ACCENT_RADIUS_PERCENT
+                                    )
+                                )
+                                .background(
+                                    accent.copy(
+                                        alpha =
+                                            EXAMPLE_ACCENT_ALPHA
+                                    )
+                                )
                     )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(
+                        modifier =
+                            Modifier.width(
+                                EXAMPLE_TEXT_SPACING
+                            )
+                    )
 
                     Text(
-                        text = "„$text“",
+                        text =
+                            "„$text“",
                         style =
-                            MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 12.sp,
-                                lineHeight = 16.sp
-                            ),
-                        fontStyle = FontStyle.Italic,
-                        color = DeutschTextPrimary.copy(alpha = 0.82f)
+                            MaterialTheme
+                                .typography
+                                .bodySmall
+                                .copy(
+                                    fontSize =
+                                        DETAILS_FONT_SIZE,
+                                    lineHeight =
+                                        DETAILS_LINE_HEIGHT
+                                ),
+                        fontStyle =
+                            FontStyle.Italic,
+                        color =
+                            colorScheme
+                                .onSurface
+                                .copy(
+                                    alpha =
+                                        EXAMPLE_TEXT_ALPHA
+                                )
                     )
                 }
             }
     }
 }
 
-private val BOTTOM_CORNER_RADIUS = 14.dp
+/*
+ * ===========================================================
+ * BUBBLE
+ * ===========================================================
+ */
 
-private const val CONTAINER_TINT_ALPHA = 0.06f
+private val BOTTOM_CORNER_RADIUS =
+    14.dp
+
+private const val MAXIMUM_WIDTH_FRACTION =
+    0.72f
+
+private val MAXIMUM_WIDTH =
+    380.dp
+
+private const val CONTAINER_TINT_ALPHA =
+    0.06f
+
+private val CONTENT_START_PADDING =
+    12.dp
+
+private val CONTENT_END_PADDING =
+    4.dp
+
+private val CONTENT_TOP_PADDING =
+    6.dp
+
+private val CONTENT_BOTTOM_PADDING =
+    7.dp
+
+private const val CONTENT_SIZE_ANIMATION_MILLIS =
+    220
+
+private val COMPACT_FONT_SIZE =
+    13.sp
+
+private val COMPACT_LINE_HEIGHT =
+    17.sp
+
+private val REMOVE_BUTTON_SPACING =
+    4.dp
+
+private val REMOVE_BUTTON_SIZE =
+    20.dp
+
+private val REMOVE_ICON_SIZE =
+    12.dp
+
+private const val REMOVE_ICON_ALPHA =
+    0.70f
+
+/*
+ * ===========================================================
+ * DETAILS
+ * ===========================================================
+ */
+
+private val DETAILS_TOP_PADDING =
+    4.dp
+
+private val DETAILS_END_PADDING =
+    8.dp
+
+private val DETAILS_SPACING =
+    4.dp
+
+private val DETAILS_FONT_SIZE =
+    12.sp
+
+private val DETAILS_LINE_HEIGHT =
+    16.sp
+
+private val EXAMPLE_ACCENT_WIDTH =
+    2.dp
+
+private const val EXAMPLE_ACCENT_RADIUS_PERCENT =
+    50
+
+private const val EXAMPLE_ACCENT_ALPHA =
+    0.50f
+
+private val EXAMPLE_TEXT_SPACING =
+    8.dp
+
+private const val EXAMPLE_TEXT_ALPHA =
+    0.82f
+
+private const val DETAILS_FADE_IN_MILLIS =
+    180
+
+private const val DETAILS_EXPAND_MILLIS =
+    220
+
+private const val DETAILS_FADE_OUT_MILLIS =
+    120
+
+private const val DETAILS_SHRINK_MILLIS =
+    180
+
+/*
+ * ===========================================================
+ * REMOVE DIALOG
+ * ===========================================================
+ */
+
+private val DIALOG_SHAPE =
+    RoundedCornerShape(
+        32.dp
+    )
+
+private val DIALOG_OUTER_HORIZONTAL_PADDING =
+    28.dp
+
+private val DIALOG_CONTENT_PADDING =
+    24.dp
+
+private val DIALOG_ICON_CONTAINER_SIZE =
+    64.dp
+
+private val DIALOG_ICON_SIZE =
+    30.dp
+
+private val DIALOG_HEADER_SPACING =
+    20.dp
+
+private val DIALOG_PHRASE_TOP_SPACING =
+    12.dp
+
+private val DIALOG_PHRASE_MAX_WIDTH =
+    260.dp
+
+private val DIALOG_PHRASE_HORIZONTAL_PADDING =
+    16.dp
+
+private val DIALOG_PHRASE_VERTICAL_PADDING =
+    7.dp
+
+private const val DIALOG_PHRASE_MAX_LINES =
+    1
+
+private val DIALOG_DESCRIPTION_TOP_SPACING =
+    12.dp
+
+private val DIALOG_ACTIONS_TOP_SPACING =
+    24.dp
+
+private val DIALOG_ACTION_HEIGHT =
+    50.dp
+
+private val DIALOG_ACTION_SPACING =
+    8.dp
+
+private const val DIALOG_ERROR_CONTAINER_ALPHA =
+    0.14f
+
+private const val DIALOG_INITIAL_SCALE =
+    0.88f
+
+private const val DIALOG_NORMAL_SCALE =
+    1f
+
+private const val DIALOG_HIDDEN_ALPHA =
+    0f
+
+private const val DIALOG_VISIBLE_ALPHA =
+    1f
+
+private const val DIALOG_FADE_MILLIS =
+    160

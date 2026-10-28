@@ -17,5 +17,23 @@ enum class AssistanceLevel(
 
     MODELED(
         evidenceWeight = 0.3f
-    )
+    );
+
+    companion object {
+
+        fun fromStorage(
+            value: String?
+        ): AssistanceLevel? {
+            if (value.isNullOrBlank()) {
+                return null
+            }
+
+            return entries.firstOrNull { level ->
+                level.name.equals(
+                    other = value,
+                    ignoreCase = true
+                )
+            }
+        }
+    }
 }

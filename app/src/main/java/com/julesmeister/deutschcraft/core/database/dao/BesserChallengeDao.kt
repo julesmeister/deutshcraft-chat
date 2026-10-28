@@ -6,7 +6,7 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import com.julesmeister.deutschcraft.core.database.entity.besser.BesserChallengeEntity
 import com.julesmeister.deutschcraft.core.database.entity.besser.BesserChallengeHintEntity
-import com.julesmeister.deutschcraft.core.database.entity.besser.BesserChallengeWithHints
+import com.julesmeister.deutschcraft.core.database.model.BesserChallengeWithHints
 import kotlinx.coroutines.flow.Flow
 
 @Dao

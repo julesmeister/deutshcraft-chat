@@ -38,143 +38,82 @@ import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 internal fun CefrLevelReadinessBento(
     progress: ProgressSummary,
     showEnglish: Boolean,
+    colors: ProgressColors,
     modifier: Modifier = Modifier
 ) {
     val model =
         progress.toCefrBentoUiModel(
-            showEnglish =
-                showEnglish
+            showEnglish = showEnglish
         )
 
     BoxWithConstraints(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .height(
-                    CefrBentoTotalHeight
-                )
+        modifier = modifier
+            .fillMaxWidth()
+            .height(CefrBentoTotalHeight)
     ) {
         val currentTileWidth =
-            (
-                    maxWidth -
-                            CefrBentoGap
-                    ) *
-                    CefrCurrentLevelWidthFraction
+            (maxWidth - CefrBentoGap) * CefrCurrentLevelWidthFraction
 
         val notchWidth =
-            currentTileWidth +
-                    CefrBentoGap
+            currentTileWidth + CefrBentoGap
 
         val notchHeight =
-            CefrBentoTopHeight +
-                    CefrBentoGap
+            CefrBentoTopHeight + CefrBentoGap
 
         val readinessShape =
             LShape(
-                notchWidth =
-                    notchWidth,
-                notchHeight =
-                    notchHeight,
-                outerRadius =
-                    CefrBentoOuterRadius,
-                innerRadius =
-                    CefrBentoInnerRadius
+                notchWidth = notchWidth,
+                notchHeight = notchHeight,
+                outerRadius = CefrBentoOuterRadius,
+                innerRadius = CefrBentoInnerRadius
             )
 
         /*
-         * ===================================================
-         * CONTINUOUS LIME READINESS SURFACE
-         * ===================================================
+         * Lime readiness surface. Dark text on lime reads well
+         * in both themes, so this stays the same.
          */
         Box(
-            modifier =
-                Modifier
-                    .matchParentSize()
-                    .clip(
-                        readinessShape
-                    )
-                    .background(
-                        DeutschLime
-                    )
+            modifier = Modifier
+                .matchParentSize()
+                .clip(readinessShape)
+                .background(DeutschLime)
         )
 
         /*
-         * ===================================================
-         * LIGHT CURRENT-LEVEL TILE
-         * ===================================================
-         *
-         * Intentionally inverted:
-         *
-         * light background
-         * dark primary text
-         * softer dark secondary text
+         * Current-level tile. Inverted relative to the page:
+         * light in dark mode, dark in light mode.
          */
         CurrentLevelTile(
-            model =
-                model,
-            showEnglish =
-                showEnglish,
-            modifier =
-                Modifier
-                    .align(
-                        Alignment.TopStart
-                    )
-                    .size(
-                        width =
-                            currentTileWidth,
-                        height =
-                            CefrBentoTopHeight
-                    )
+            model = model,
+            showEnglish = showEnglish,
+            colors = colors,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .size(
+                    width = currentTileWidth,
+                    height = CefrBentoTopHeight
+                )
         )
 
-        /*
-         * ===================================================
-         * READINESS HEADER
-         * ===================================================
-         */
         ReadinessHeader(
-            model =
-                model,
-            showEnglish =
-                showEnglish,
-            modifier =
-                Modifier
-                    .align(
-                        Alignment.TopStart
-                    )
-                    .offset(
-                        x =
-                            notchWidth
-                    )
-                    .size(
-                        width =
-                            maxWidth -
-                                    notchWidth,
-                        height =
-                            CefrBentoTopHeight
-                    )
+            model = model,
+            showEnglish = showEnglish,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .offset(x = notchWidth)
+                .size(
+                    width = maxWidth - notchWidth,
+                    height = CefrBentoTopHeight
+                )
         )
 
-        /*
-         * ===================================================
-         * READINESS PROGRESS
-         * ===================================================
-         */
         ReadinessProgressRow(
-            model =
-                model,
-            showEnglish =
-                showEnglish,
-            modifier =
-                Modifier
-                    .align(
-                        Alignment.BottomStart
-                    )
-                    .fillMaxWidth()
-                    .height(
-                        CefrBentoTotalHeight -
-                                notchHeight
-                    )
+            model = model,
+            showEnglish = showEnglish,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .height(CefrBentoTotalHeight - notchHeight)
         )
     }
 }
@@ -189,69 +128,41 @@ internal fun CefrLevelReadinessBento(
 private fun CurrentLevelTile(
     model: CefrBentoUiModel,
     showEnglish: Boolean,
+    colors: ProgressColors,
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier =
-            modifier
-                .clip(
-                    RoundedCornerShape(
-                        CefrBentoOuterRadius
-                    )
-                )
-                .background(
-                    CefrCurrentLevelBackground
-                )
-                .padding(
-                    CefrBentoTilePadding
-                ),
-        verticalArrangement =
-            Arrangement.SpaceBetween
+        modifier = modifier
+            .clip(RoundedCornerShape(CefrBentoOuterRadius))
+            .background(colors.currentLevelBackground)
+            .padding(CefrBentoTilePadding),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text =
-                if (showEnglish) {
-                    "CURRENT\nLEVEL"
-                } else {
-                    "AKTUELLES\nNIVEAU"
-                },
-            style =
-                MaterialTheme
-                    .typography
-                    .labelSmall,
-            fontWeight =
-                FontWeight.SemiBold,
-            color =
-                CefrCurrentLevelTextSecondary
+            text = if (showEnglish) {
+                "CURRENT\nLEVEL"
+            } else {
+                "AKTUELLES\nNIVEAU"
+            },
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.currentLevelTextSecondary
         )
 
         Column {
             Text(
-                text =
-                    model.currentLevelCode,
-                style =
-                    MaterialTheme
-                        .typography
-                        .displaySmall,
-                fontWeight =
-                    FontWeight.Bold,
-                color =
-                    CefrCurrentLevelTextPrimary
+                text = model.currentLevelCode,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = colors.currentLevelTextPrimary
             )
 
             Text(
-                text =
-                    model.currentLevelName,
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodySmall,
-                color =
-                    CefrCurrentLevelTextSecondary,
-                maxLines =
-                    1,
-                overflow =
-                    TextOverflow.Ellipsis
+                text = model.currentLevelName,
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.currentLevelTextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -259,7 +170,7 @@ private fun CurrentLevelTile(
 
 /*
  * ===========================================================
- * READINESS HEADER
+ * READINESS HEADER (on lime, theme independent)
  * ===========================================================
  */
 
@@ -270,72 +181,36 @@ private fun ReadinessHeader(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier =
-            modifier.padding(
-                CefrBentoTilePadding
-            ),
-        verticalArrangement =
-            Arrangement.SpaceBetween
+        modifier = modifier.padding(CefrBentoTilePadding),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text =
-                if (showEnglish) {
-                    "READINESS"
-                } else {
-                    "BEREITSCHAFT"
-                },
-            style =
-                MaterialTheme
-                    .typography
-                    .labelSmall,
-            fontWeight =
-                FontWeight.SemiBold,
-            color =
-                CefrOnLimeSecondary
+            text = if (showEnglish) "READINESS" else "BEREITSCHAFT",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = CefrOnLimeSecondary
         )
 
         Column(
-            modifier =
-                Modifier.fillMaxWidth(),
-            horizontalAlignment =
-                Alignment.End
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.End
         ) {
             Text(
-                text =
-                    "${model.readinessPercentage}%",
-                style =
-                    MaterialTheme
-                        .typography
-                        .displayMedium,
-                fontWeight =
-                    FontWeight.Bold,
-                color =
-                    CefrOnLimePrimary
+                text = "${model.readinessPercentage}%",
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.Bold,
+                color = CefrOnLimePrimary
             )
 
             Text(
-                text =
-                    model.nextLevelCode
-                        ?.let { level ->
-                            if (showEnglish) {
-                                "for $level"
-                            } else {
-                                "für $level"
-                            }
-                        }
-                        ?: if (showEnglish) {
-                            "Highest level"
-                        } else {
-                            "Höchstes Niveau"
-                        },
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleSmall,
-                fontWeight =
-                    FontWeight.SemiBold,
-                color =
-                    CefrOnLimeSecondary
+                text = model.nextLevelCode
+                    ?.let { level ->
+                        if (showEnglish) "for $level" else "für $level"
+                    }
+                    ?: if (showEnglish) "Highest level" else "Höchstes Niveau",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = CefrOnLimeSecondary
             )
         }
     }
@@ -343,7 +218,7 @@ private fun ReadinessHeader(
 
 /*
  * ===========================================================
- * READINESS PROGRESS
+ * READINESS PROGRESS (on lime, theme independent)
  * ===========================================================
  */
 
@@ -354,109 +229,56 @@ private fun ReadinessProgressRow(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier =
-            modifier.padding(
-                horizontal =
-                    CefrBentoTilePadding,
-                vertical =
-                    CefrProgressRowVerticalPadding
-            ),
-        verticalArrangement =
-            Arrangement.Center
+        modifier = modifier.padding(
+            horizontal = CefrBentoTilePadding,
+            vertical = CefrProgressRowVerticalPadding
+        ),
+        verticalArrangement = Arrangement.Center
     ) {
         Row(
-            modifier =
-                Modifier.fillMaxWidth(),
-            horizontalArrangement =
-                Arrangement.SpaceBetween,
-            verticalAlignment =
-                Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text =
-                    model.nextLevelCode
-                        ?.let { level ->
-                            if (showEnglish) {
-                                "Progress to $level"
-                            } else {
-                                "Fortschritt zu $level"
-                            }
-                        }
-                        ?: if (showEnglish) {
-                            "Progress"
-                        } else {
-                            "Fortschritt"
-                        },
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelMedium,
-                color =
-                    CefrOnLimeSecondary
+                text = model.nextLevelCode
+                    ?.let { level ->
+                        if (showEnglish) "Progress to $level" else "Fortschritt zu $level"
+                    }
+                    ?: if (showEnglish) "Progress" else "Fortschritt",
+                style = MaterialTheme.typography.labelMedium,
+                color = CefrOnLimeSecondary
             )
 
             Text(
-                text =
-                    "${model.readinessPercentage}%",
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelMedium,
-                fontWeight =
-                    FontWeight.Bold,
-                color =
-                    CefrOnLimePrimary
+                text = "${model.readinessPercentage}%",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = CefrOnLimePrimary
             )
         }
 
         LinearProgressIndicator(
-            progress = {
-                model.readinessPercentage /
-                        100f
-            },
-            modifier =
-                Modifier
-                    .padding(
-                        top =
-                            CefrProgressBarTopPadding
-                    )
-                    .fillMaxWidth()
-                    .height(
-                        CefrProgressBarHeight
-                    )
-                    .clip(
-                        RoundedCornerShape(50)
-                    ),
-            color =
-                CefrOnLimePrimary,
-            trackColor =
-                CefrOnLimeTrack,
-            strokeCap =
-                StrokeCap.Round,
-            gapSize =
-                0.dp,
-            drawStopIndicator =
-                {}
+            progress = { model.readinessPercentage / 100f },
+            modifier = Modifier
+                .padding(top = CefrProgressBarTopPadding)
+                .fillMaxWidth()
+                .height(CefrProgressBarHeight)
+                .clip(RoundedCornerShape(50)),
+            color = CefrOnLimePrimary,
+            trackColor = CefrOnLimeTrack,
+            strokeCap = StrokeCap.Round,
+            gapSize = 0.dp,
+            drawStopIndicator = {}
         )
 
         Text(
-            text =
-                model.readinessMessage,
-            modifier =
-                Modifier.padding(
-                    top =
-                        CefrReadinessMessageTopPadding
-                ),
-            style =
-                MaterialTheme
-                    .typography
-                    .bodySmall,
-            color =
-                CefrOnLimeSecondary,
-            maxLines =
-                1,
-            overflow =
-                TextOverflow.Ellipsis
+            text = model.readinessMessage,
+            modifier = Modifier.padding(top = CefrReadinessMessageTopPadding),
+            style = MaterialTheme.typography.bodySmall,
+            color = CefrOnLimeSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -479,171 +301,31 @@ private class LShape(
         layoutDirection: LayoutDirection,
         density: Density
     ): Outline {
-        val w =
-            size.width
+        val w = size.width
+        val h = size.height
+        val nw = with(density) { notchWidth.toPx() }
+        val nh = with(density) { notchHeight.toPx() }
+        val r = with(density) { outerRadius.toPx() }
+        val ir = with(density) { innerRadius.toPx() }
 
-        val h =
-            size.height
+        val path = Path().apply {
+            moveTo(nw + r, 0f)
+            lineTo(w - r, 0f)
+            arcTo(Rect(w - 2 * r, 0f, w, 2 * r), 270f, 90f, false)
+            lineTo(w, h - r)
+            arcTo(Rect(w - 2 * r, h - 2 * r, w, h), 0f, 90f, false)
+            lineTo(r, h)
+            arcTo(Rect(0f, h - 2 * r, 2 * r, h), 90f, 90f, false)
+            lineTo(0f, nh + r)
+            arcTo(Rect(0f, nh, 2 * r, nh + 2 * r), 180f, 90f, false)
+            lineTo(nw - ir, nh)
+            arcTo(Rect(nw - 2 * ir, nh - 2 * ir, nw, nh), 90f, -90f, false)
+            lineTo(nw, r)
+            arcTo(Rect(nw, 0f, nw + 2 * r, 2 * r), 180f, 90f, false)
+            close()
+        }
 
-        val nw =
-            with(density) {
-                notchWidth.toPx()
-            }
-
-        val nh =
-            with(density) {
-                notchHeight.toPx()
-            }
-
-        val r =
-            with(density) {
-                outerRadius.toPx()
-            }
-
-        val ir =
-            with(density) {
-                innerRadius.toPx()
-            }
-
-        val path =
-            Path().apply {
-                moveTo(
-                    nw + r,
-                    0f
-                )
-
-                lineTo(
-                    w - r,
-                    0f
-                )
-
-                arcTo(
-                    rect =
-                        Rect(
-                            w - 2 * r,
-                            0f,
-                            w,
-                            2 * r
-                        ),
-                    startAngleDegrees =
-                        270f,
-                    sweepAngleDegrees =
-                        90f,
-                    forceMoveTo =
-                        false
-                )
-
-                lineTo(
-                    w,
-                    h - r
-                )
-
-                arcTo(
-                    rect =
-                        Rect(
-                            w - 2 * r,
-                            h - 2 * r,
-                            w,
-                            h
-                        ),
-                    startAngleDegrees =
-                        0f,
-                    sweepAngleDegrees =
-                        90f,
-                    forceMoveTo =
-                        false
-                )
-
-                lineTo(
-                    r,
-                    h
-                )
-
-                arcTo(
-                    rect =
-                        Rect(
-                            0f,
-                            h - 2 * r,
-                            2 * r,
-                            h
-                        ),
-                    startAngleDegrees =
-                        90f,
-                    sweepAngleDegrees =
-                        90f,
-                    forceMoveTo =
-                        false
-                )
-
-                lineTo(
-                    0f,
-                    nh + r
-                )
-
-                arcTo(
-                    rect =
-                        Rect(
-                            0f,
-                            nh,
-                            2 * r,
-                            nh + 2 * r
-                        ),
-                    startAngleDegrees =
-                        180f,
-                    sweepAngleDegrees =
-                        90f,
-                    forceMoveTo =
-                        false
-                )
-
-                lineTo(
-                    nw - ir,
-                    nh
-                )
-
-                arcTo(
-                    rect =
-                        Rect(
-                            nw - 2 * ir,
-                            nh - 2 * ir,
-                            nw,
-                            nh
-                        ),
-                    startAngleDegrees =
-                        90f,
-                    sweepAngleDegrees =
-                        -90f,
-                    forceMoveTo =
-                        false
-                )
-
-                lineTo(
-                    nw,
-                    r
-                )
-
-                arcTo(
-                    rect =
-                        Rect(
-                            nw,
-                            0f,
-                            nw + 2 * r,
-                            2 * r
-                        ),
-                    startAngleDegrees =
-                        180f,
-                    sweepAngleDegrees =
-                        90f,
-                    forceMoveTo =
-                        false
-                )
-
-                close()
-            }
-
-        return Outline.Generic(
-            path
-        )
+        return Outline.Generic(path)
     }
 }
 
@@ -665,136 +347,57 @@ private fun ProgressSummary.toCefrBentoUiModel(
     showEnglish: Boolean
 ): CefrBentoUiModel {
     val safeReadinessPercentage =
-        readinessPercentage.coerceIn(
-            minimumValue =
-                0,
-            maximumValue =
-                100
-        )
+        readinessPercentage.coerceIn(0, 100)
 
     val nextLevel =
-        if (isHighestLevel) {
-            null
-        } else {
-            nextLevelName
-        }
+        if (isHighestLevel) null else nextLevelName
 
     val levelCode =
         currentLevel.name.uppercase()
 
     val currentLevelDisplayName =
         when (levelCode) {
-            "A1" ->
-                if (showEnglish) {
-                    "Beginner"
-                } else {
-                    "Anfänger"
-                }
-
-            "A2" ->
-                if (showEnglish) {
-                    "Elementary"
-                } else {
-                    "Grundkenntnisse"
-                }
-
-            "B1" ->
-                if (showEnglish) {
-                    "Intermediate"
-                } else {
-                    "Mittelstufe"
-                }
-
-            "B2" ->
-                if (showEnglish) {
-                    "Upper intermediate"
-                } else {
-                    "Gute Mittelstufe"
-                }
-
-            "C1" ->
-                if (showEnglish) {
-                    "Advanced"
-                } else {
-                    "Fortgeschritten"
-                }
-
-            "C2" ->
-                if (showEnglish) {
-                    "Proficient"
-                } else {
-                    "Nahezu muttersprachlich"
-                }
-
-            else ->
-                currentLevel.name
+            "A1" -> if (showEnglish) "Beginner" else "Anfänger"
+            "A2" -> if (showEnglish) "Elementary" else "Grundkenntnisse"
+            "B1" -> if (showEnglish) "Intermediate" else "Mittelstufe"
+            "B2" -> if (showEnglish) "Upper intermediate" else "Gute Mittelstufe"
+            "C1" -> if (showEnglish) "Advanced" else "Fortgeschritten"
+            "C2" -> if (showEnglish) "Proficient" else "Nahezu muttersprachlich"
+            else -> currentLevel.name
         }
 
     val readinessMessage =
         when {
-            isHighestLevel -> {
-                if (showEnglish) {
-                    "Highest CEFR level reached"
-                } else {
-                    "Höchstes CEFR-Niveau erreicht"
-                }
-            }
+            isHighestLevel ->
+                if (showEnglish) "Highest CEFR level reached"
+                else "Höchstes CEFR-Niveau erreicht"
 
-            safeReadinessPercentage < 25 -> {
-                if (showEnglish) {
-                    "First steps toward $nextLevelName"
-                } else {
-                    "Erste Schritte Richtung $nextLevelName"
-                }
-            }
+            safeReadinessPercentage < 25 ->
+                if (showEnglish) "First steps toward $nextLevelName"
+                else "Erste Schritte Richtung $nextLevelName"
 
-            safeReadinessPercentage < 50 -> {
-                if (showEnglish) {
-                    "On the way to $nextLevelName"
-                } else {
-                    "Auf dem Weg zu $nextLevelName"
-                }
-            }
+            safeReadinessPercentage < 50 ->
+                if (showEnglish) "On the way to $nextLevelName"
+                else "Auf dem Weg zu $nextLevelName"
 
-            safeReadinessPercentage < 75 -> {
-                if (showEnglish) {
-                    "Good progress toward $nextLevelName"
-                } else {
-                    "Gute Fortschritte zu $nextLevelName"
-                }
-            }
+            safeReadinessPercentage < 75 ->
+                if (showEnglish) "Good progress toward $nextLevelName"
+                else "Gute Fortschritte zu $nextLevelName"
 
-            safeReadinessPercentage < 90 -> {
-                if (showEnglish) {
-                    "Almost ready for $nextLevelName"
-                } else {
-                    "Fast bereit für $nextLevelName"
-                }
-            }
+            safeReadinessPercentage < 90 ->
+                if (showEnglish) "Almost ready for $nextLevelName"
+                else "Fast bereit für $nextLevelName"
 
-            else -> {
-                if (showEnglish) {
-                    "Very close to $nextLevelName"
-                } else {
-                    "Sehr nah an $nextLevelName"
-                }
-            }
+            else ->
+                if (showEnglish) "Very close to $nextLevelName"
+                else "Sehr nah an $nextLevelName"
         }
 
     return CefrBentoUiModel(
-        currentLevelCode =
-            levelCode,
-        currentLevelName =
-            currentLevelDisplayName,
-        nextLevelCode =
-            nextLevel,
-        readinessPercentage =
-            if (isHighestLevel) {
-                100
-            } else {
-                safeReadinessPercentage
-            },
-        readinessMessage =
-            readinessMessage
+        currentLevelCode = levelCode,
+        currentLevelName = currentLevelDisplayName,
+        nextLevelCode = nextLevel,
+        readinessPercentage = if (isHighestLevel) 100 else safeReadinessPercentage,
+        readinessMessage = readinessMessage
     )
 }

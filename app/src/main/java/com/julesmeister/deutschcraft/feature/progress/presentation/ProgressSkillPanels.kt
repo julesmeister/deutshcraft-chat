@@ -27,96 +27,49 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.progress.domain.model.ProgressSkillSummary
 import com.julesmeister.deutschcraft.feature.progress.domain.model.ProgressSummary
-import com.julesmeister.deutschcraft.ui.theme.DeutschLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @Composable
 internal fun SkillBreakdownPanel(
     progress: ProgressSummary,
+    colors: ProgressColors,
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier =
-            modifier.fillMaxWidth(),
-        shape =
-            RoundedCornerShape(
-                PANEL_RADIUS
-            ),
-        color =
-            MaterialTheme
-                .colorScheme
-                .surfaceContainer,
-        tonalElevation =
-            0.dp,
-        shadowElevation =
-            0.dp
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(PANEL_RADIUS),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
     ) {
-        Column(
-            modifier =
-                Modifier.padding(
-                    PANEL_PADDING
-                )
-        ) {
-            Row(
-                verticalAlignment =
-                    Alignment.CenterVertically
-            ) {
+        Column(modifier = Modifier.padding(PANEL_PADDING)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector =
-                        Icons.Outlined.Insights,
-                    contentDescription =
-                        null,
-                    tint =
-                        DeutschLime
+                    imageVector = Icons.Outlined.Insights,
+                    contentDescription = null,
+                    tint = colors.accent
                 )
 
                 Text(
-                    text =
-                        "Fähigkeiten",
-                    modifier =
-                        Modifier.padding(
-                            start =
-                                PANEL_TITLE_SPACING
-                        ),
-                    style =
-                        MaterialTheme
-                            .typography
-                            .titleMedium,
-                    fontWeight =
-                        FontWeight.SemiBold,
-                    color =
-                        DeutschTextPrimary
+                    text = "Fähigkeiten",
+                    modifier = Modifier.padding(start = PANEL_TITLE_SPACING),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary
                 )
             }
 
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        SKILL_LIST_TOP_SPACING
-                    )
-            )
+            Spacer(modifier = Modifier.height(SKILL_LIST_TOP_SPACING))
 
-            progress
-                .skillSummaries
-                .forEachIndexed { index, skill ->
-                    SkillProgressRow(
-                        skill =
-                            skill
-                    )
+            progress.skillSummaries.forEachIndexed { index, skill ->
+                SkillProgressRow(
+                    skill = skill,
+                    colors = colors
+                )
 
-                    if (
-                        index <
-                        progress.skillSummaries.lastIndex
-                    ) {
-                        Spacer(
-                            modifier =
-                                Modifier.height(
-                                    SKILL_ROW_SPACING
-                                )
-                        )
-                    }
+                if (index < progress.skillSummaries.lastIndex) {
+                    Spacer(modifier = Modifier.height(SKILL_ROW_SPACING))
                 }
+            }
         }
     }
 }
@@ -124,92 +77,51 @@ internal fun SkillBreakdownPanel(
 @Composable
 private fun SkillProgressRow(
     skill: ProgressSkillSummary,
+    colors: ProgressColors,
     modifier: Modifier = Modifier
 ) {
     val safeScore =
-        skill.score.coerceIn(
-            minimumValue =
-                0,
-            maximumValue =
-                100
-        )
+        skill.score.coerceIn(0, 100)
 
-    val animatedScore by
-    animateFloatAsState(
-        targetValue =
-            safeScore / 100f,
-        animationSpec =
-            tween(
-                durationMillis =
-                    SKILL_PROGRESS_ANIMATION_MILLIS,
-                easing =
-                    FastOutSlowInEasing
-            ),
-        label =
-            "SkillProgress_${skill.label}"
+    val animatedScore by animateFloatAsState(
+        targetValue = safeScore / 100f,
+        animationSpec = tween(
+            durationMillis = SKILL_PROGRESS_ANIMATION_MILLIS,
+            easing = FastOutSlowInEasing
+        ),
+        label = "SkillProgress_${skill.label}"
     )
 
-    Column(
-        modifier =
-            modifier.fillMaxWidth()
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
         Row(
-            modifier =
-                Modifier.fillMaxWidth(),
-            verticalAlignment =
-                Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text =
-                    skill.label,
-                modifier =
-                    Modifier.weight(1f),
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-                fontWeight =
-                    FontWeight.Medium,
-                color =
-                    DeutschTextPrimary
+                text = skill.label,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = colors.textPrimary
             )
 
             Text(
-                text =
-                    "$safeScore%",
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelLarge,
-                fontWeight =
-                    FontWeight.Bold,
-                color =
-                    DeutschTextPrimary
+                text = "$safeScore%",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = colors.textPrimary
             )
         }
 
         LinearProgressIndicator(
-            progress = {
-                animatedScore
-            },
+            progress = { animatedScore },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(
-                    top =
-                        SKILL_PROGRESS_TOP_PADDING
-                )
-                .height(
-                    SKILL_PROGRESS_HEIGHT
-                )
-                .clip(
-                    CircleShape
-                ),
-            color =
-                DeutschLime,
-            trackColor =
-                MaterialTheme
-                    .colorScheme
-                    .surfaceContainerHighest
+                .padding(top = SKILL_PROGRESS_TOP_PADDING)
+                .height(SKILL_PROGRESS_HEIGHT)
+                .clip(CircleShape),
+            color = colors.accent,
+            trackColor = colors.progressTrack
         )
     }
 }
@@ -217,104 +129,48 @@ private fun SkillProgressRow(
 @Composable
 internal fun ConfidencePanel(
     progress: ProgressSummary,
+    colors: ProgressColors,
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier =
-            modifier.fillMaxWidth(),
-        shape =
-            RoundedCornerShape(
-                PANEL_RADIUS
-            ),
-        color =
-            MaterialTheme
-                .colorScheme
-                .surfaceContainer,
-        tonalElevation =
-            0.dp,
-        shadowElevation =
-            0.dp
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(PANEL_RADIUS),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
     ) {
-        Column(
-            modifier =
-                Modifier.padding(
-                    PANEL_PADDING
-                )
-        ) {
+        Column(modifier = Modifier.padding(PANEL_PADDING)) {
             Text(
-                text =
-                    "Evidenzqualität",
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelLarge,
-                color =
-                    DeutschTextSecondary
+                text = "Evidenzqualität",
+                style = MaterialTheme.typography.labelLarge,
+                color = colors.textSecondary
             )
 
             Text(
-                text =
-                    progress.confidence.displayName,
-                modifier =
-                    Modifier.padding(
-                        top =
-                            CONFIDENCE_NAME_TOP_PADDING
-                    ),
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-                fontWeight =
-                    FontWeight.SemiBold,
-                color =
-                    DeutschTextPrimary
+                text = progress.confidence.displayName,
+                modifier = Modifier.padding(top = CONFIDENCE_NAME_TOP_PADDING),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textPrimary
             )
 
             Text(
-                text =
-                    progress.confidence.description,
-                modifier =
-                    Modifier.padding(
-                        top =
-                            CONFIDENCE_DESCRIPTION_TOP_PADDING
-                    ),
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-                color =
-                    DeutschTextSecondary
+                text = progress.confidence.description,
+                modifier = Modifier.padding(top = CONFIDENCE_DESCRIPTION_TOP_PADDING),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textSecondary
             )
         }
     }
 }
 
-private val PANEL_RADIUS =
-    28.dp
-
-private val PANEL_PADDING =
-    20.dp
-
-private val PANEL_TITLE_SPACING =
-    10.dp
-
-private val SKILL_LIST_TOP_SPACING =
-    20.dp
-
-private val SKILL_ROW_SPACING =
-    18.dp
-
-private val SKILL_PROGRESS_TOP_PADDING =
-    8.dp
-
-private val SKILL_PROGRESS_HEIGHT =
-    8.dp
-
-private val CONFIDENCE_NAME_TOP_PADDING =
-    4.dp
-
-private val CONFIDENCE_DESCRIPTION_TOP_PADDING =
-    8.dp
-
-private const val SKILL_PROGRESS_ANIMATION_MILLIS =
-    850
+private val PANEL_RADIUS = 28.dp
+private val PANEL_PADDING = 20.dp
+private val PANEL_TITLE_SPACING = 10.dp
+private val SKILL_LIST_TOP_SPACING = 20.dp
+private val SKILL_ROW_SPACING = 18.dp
+private val SKILL_PROGRESS_TOP_PADDING = 8.dp
+private val SKILL_PROGRESS_HEIGHT = 8.dp
+private val CONFIDENCE_NAME_TOP_PADDING = 4.dp
+private val CONFIDENCE_DESCRIPTION_TOP_PADDING = 8.dp
+private const val SKILL_PROGRESS_ANIMATION_MILLIS = 850

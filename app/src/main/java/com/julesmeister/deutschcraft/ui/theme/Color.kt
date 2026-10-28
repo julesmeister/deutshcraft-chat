@@ -155,3 +155,9 @@ val DeutschAssistantBubble =
 
 val DeutschUserBubble =
     Color(0xFF374631)
+
+/*
+ * Deep ink used for strong accents on light surfaces.
+ */
+val DeutschInk =
+    Color(0xFF16181A)

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material3.Icon
@@ -19,11 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.threads.presentation.theme.ThreadDesignTokens as Tokens
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @Composable
 fun ArchivedThreadsRow(
@@ -31,31 +28,29 @@ fun ArchivedThreadsRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = rememberThreadColors()
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(
-                horizontal = 16.dp,
-                vertical = 12.dp
+                horizontal = Tokens.ArchivedRowHorizontalPadding,
+                vertical = Tokens.ArchivedRowVerticalPadding
             ),
-        verticalAlignment =
-            Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
+                .size(Tokens.ArchivedIconCircleSize)
+                .clip(Tokens.CircleShapeToken)
                 .background(DeutschLime),
-            contentAlignment =
-                Alignment.Center
+            contentAlignment = Alignment.Center
         ) {
             Icon(
-                modifier = Modifier.size(23.dp),
-                imageVector =
-                    Icons.Outlined.Archive,
-                contentDescription =
-                    "Archivierte Chats",
+                modifier = Modifier.size(Tokens.ArchivedIconSize),
+                imageVector = Icons.Outlined.Archive,
+                contentDescription = "Archivierte Chats",
                 tint = DeutschTextOnLime
             )
         }
@@ -63,29 +58,20 @@ fun ArchivedThreadsRow(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 12.dp)
+                .padding(start = Tokens.ArchivedTextStartPadding)
         ) {
             Text(
                 text = "Archivierte Chats",
-                color = DeutschTextPrimary,
-                style =
-                    MaterialTheme.typography
-                        .titleMedium,
-                fontWeight =
-                    FontWeight.SemiBold
+                color = colors.textPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
             )
 
             Text(
-                modifier = Modifier.padding(
-                    top = 2.dp
-                ),
-                text = archivedCountText(
-                    count = count
-                ),
-                color = DeutschTextSecondary,
-                style =
-                    MaterialTheme.typography
-                        .bodySmall
+                modifier = Modifier.padding(top = Tokens.ArchivedCountTopPadding),
+                text = archivedCountText(count = count),
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.bodySmall
             )
         }
     }

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
@@ -30,70 +29,54 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.threads.presentation.theme.ThreadDesignTokens as Tokens
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @Composable
 fun ArchivePullIndicator(
     progress: Float,
     modifier: Modifier = Modifier
 ) {
+    val colors = rememberThreadColors()
+
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = spring(
-            dampingRatio =
-                Spring.DampingRatioLowBouncy,
-            stiffness =
-                Spring.StiffnessMediumLow
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow
         ),
         label = "archive-pull-progress"
     )
 
-    val thresholdReached =
-        animatedProgress >= 0.98f
-
-    val blobScaleX =
-        0.7f + animatedProgress * 0.45f
-
-    val blobScaleY =
-        0.7f + animatedProgress * 0.25f
-
-    val iconScale =
-        0.72f + animatedProgress * 0.38f
-
-    val iconRotation =
-        -20f + animatedProgress * 20f
+    val thresholdReached = animatedProgress >= Tokens.PullThreshold
+    val blobScaleX = Tokens.PullBlobBaseScaleX + animatedProgress * Tokens.PullBlobGrowthX
+    val blobScaleY = Tokens.PullBlobBaseScaleY + animatedProgress * Tokens.PullBlobGrowthY
+    val blobAlpha = Tokens.PullBlobBaseAlpha + animatedProgress * Tokens.PullBlobGrowthAlpha
+    val iconScale = Tokens.PullIconBaseScale + animatedProgress * Tokens.PullIconGrowthScale
+    val iconRotation = Tokens.PullIconBaseRotation + animatedProgress * Tokens.PullIconGrowthRotation
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(58.dp)
-            .padding(horizontal = 20.dp),
-        verticalAlignment =
-            Alignment.CenterVertically,
-        horizontalArrangement =
-            Arrangement.Center
+            .height(Tokens.PullHeight)
+            .padding(horizontal = Tokens.PullHorizontalPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
         Box(
-            modifier = Modifier.size(44.dp),
+            modifier = Modifier.size(Tokens.PullIconBoxSize),
             contentAlignment = Alignment.Center
         ) {
-            /*
-             * Elastic lime blob behind the icon.
-             */
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(Tokens.PullBlobSize)
                     .graphicsLayer {
                         scaleX = blobScaleX
                         scaleY = blobScaleY
-                        alpha =
-                            0.2f +
-                                    animatedProgress * 0.8f
+                        alpha = blobAlpha
                     }
-                    .clip(CircleShape)
+                    .clip(Tokens.CircleShapeToken)
                     .background(DeutschLime)
             )
 
@@ -101,32 +84,23 @@ fun ArchivePullIndicator(
                 targetState = thresholdReached,
                 transitionSpec = {
                     fadeIn(
-                        animationSpec = spring(
-                            dampingRatio =
-                                Spring
-                                    .DampingRatioLowBouncy
-                        )
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy)
                     ) togetherWith fadeOut()
                 },
                 label = "archive-pull-icon"
             ) { reached ->
                 Icon(
                     modifier = Modifier
-                        .size(20.dp)
+                        .size(Tokens.PullIconSize)
                         .graphicsLayer {
                             scaleX = iconScale
                             scaleY = iconScale
-                            rotationZ = if (reached) {
-                                0f
-                            } else {
-                                iconRotation
-                            }
+                            rotationZ = if (reached) 0f else iconRotation
                         },
                     imageVector = if (reached) {
                         Icons.Outlined.Archive
                     } else {
-                        Icons.Outlined
-                            .KeyboardArrowDown
+                        Icons.Outlined.KeyboardArrowDown
                     },
                     contentDescription = null,
                     tint = DeutschTextOnLime
@@ -135,18 +109,10 @@ fun ArchivePullIndicator(
         }
 
         AnimatedContent(
-            modifier = Modifier.padding(
-                start = 10.dp
-            ),
+            modifier = Modifier.padding(start = Tokens.PullTextStartPadding),
             targetState = thresholdReached,
             transitionSpec = {
-                (
-                        fadeIn() togetherWith fadeOut()
-                        ).using(
-                        SizeTransform(
-                            clip = false
-                        )
-                    )
+                (fadeIn() togetherWith fadeOut()).using(SizeTransform(clip = false))
             },
             label = "archive-pull-text"
         ) { reached ->
@@ -156,19 +122,9 @@ fun ArchivePullIndicator(
                 } else {
                     "Nach unten ziehen für Archiv"
                 },
-                color = if (reached) {
-                    DeutschLime
-                } else {
-                    DeutschTextSecondary
-                },
-                style =
-                    MaterialTheme.typography
-                        .labelLarge,
-                fontWeight = if (reached) {
-                    FontWeight.SemiBold
-                } else {
-                    FontWeight.Normal
-                }
+                color = if (reached) colors.accent else colors.textSecondary,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (reached) FontWeight.SemiBold else FontWeight.Normal
             )
         }
     }

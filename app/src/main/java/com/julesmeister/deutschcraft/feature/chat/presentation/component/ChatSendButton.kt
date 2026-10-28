@@ -18,28 +18,71 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
+import com.julesmeister.deutschcraft.ui.theme.DeutschInk
+import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
 
 /*
- * Three visual states:
+ * Theme-aware send button colors.
  *
- * Empty input:
- * Transparent circle with a dim, tilted icon.
- *
- * Ready:
- * Theme-aware primary circle with dark icon.
- *
- * Sending:
- * Theme-aware primary circle with dark progress indicator.
+ * Dark mode:  lime circle, ink arrow
+ * Light mode: ink circle, lime arrow
  */
+@Immutable
+private data class SendButtonColors(
+    val activeContainer: Color,
+    val activeContent: Color,
+    val inactiveContent: Color
+)
+
+@Composable
+private fun rememberSendButtonColors(): SendButtonColors {
+    val colorScheme =
+        MaterialTheme.colorScheme
+
+    return remember(colorScheme) {
+        val isDark =
+            colorScheme.background.luminance() <
+                    ChatDesignTokens.DarkLuminanceThreshold
+
+        if (isDark) {
+            SendButtonColors(
+                activeContainer =
+                    colorScheme.primary,
+                activeContent =
+                    DeutschTextOnLime,
+                inactiveContent =
+                    colorScheme.onSurface.copy(
+                        alpha =
+                            ChatDesignTokens.SendDisabledIconAlpha
+                    )
+            )
+        } else {
+            SendButtonColors(
+                activeContainer =
+                    DeutschInk,
+                activeContent =
+                    DeutschLime,
+                inactiveContent =
+                    colorScheme.onSurface.copy(
+                        alpha =
+                            ChatDesignTokens.SendLightDisabledIconAlpha
+                    )
+            )
+        }
+    }
+}
+
 @Composable
 internal fun ChatSendButton(
     enabled: Boolean,
@@ -47,8 +90,8 @@ internal fun ChatSendButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colorScheme =
-        MaterialTheme.colorScheme
+    val colors =
+        rememberSendButtonColors()
 
     val interactionSource =
         remember {
@@ -58,9 +101,6 @@ internal fun ChatSendButton(
     val isPressed by
     interactionSource.collectIsPressedAsState()
 
-    /*
-     * The button stays active-looking while sending.
-     */
     val isActive =
         enabled ||
                 isSending
@@ -69,12 +109,12 @@ internal fun ChatSendButton(
     animateColorAsState(
         targetValue =
             if (isActive) {
-                colorScheme.primary
+                colors.activeContainer
             } else {
                 Color.Transparent
             },
         animationSpec =
-            colorAnimation(),
+            sendColorAnimation(),
         label =
             "SendButtonColor"
     )
@@ -83,21 +123,12 @@ internal fun ChatSendButton(
     animateColorAsState(
         targetValue =
             if (isActive) {
-                /*
-                 * Intentional fixed dark color because the
-                 * icon is displayed on a lime surface.
-                 */
-                DeutschTextOnLime
+                colors.activeContent
             } else {
-                colorScheme
-                    .onSurface
-                    .copy(
-                        alpha =
-                            DISABLED_ICON_ALPHA
-                    )
+                colors.inactiveContent
             },
         animationSpec =
-            colorAnimation(),
+            sendColorAnimation(),
         label =
             "SendIconColor"
     )
@@ -110,16 +141,16 @@ internal fun ChatSendButton(
                 enabled &&
                 !isSending
             ) {
-                PRESSED_BUTTON_SCALE
+                ChatDesignTokens.SendPressedScale
             } else {
-                NORMAL_BUTTON_SCALE
+                ChatDesignTokens.SendNormalScale
             },
         animationSpec =
             spring(
                 dampingRatio =
-                    BUTTON_SPRING_DAMPING_RATIO,
+                    ChatDesignTokens.SendButtonSpringDampingRatio,
                 stiffness =
-                    BUTTON_SPRING_STIFFNESS
+                    ChatDesignTokens.SendButtonSpringStiffness
             ),
         label =
             "SendButtonScale"
@@ -129,16 +160,16 @@ internal fun ChatSendButton(
     animateFloatAsState(
         targetValue =
             if (isActive) {
-                ACTIVE_ICON_ROTATION
+                ChatDesignTokens.SendActiveIconRotation
             } else {
-                INACTIVE_ICON_ROTATION
+                ChatDesignTokens.SendInactiveIconRotation
             },
         animationSpec =
             spring(
                 dampingRatio =
-                    ICON_SPRING_DAMPING_RATIO,
+                    ChatDesignTokens.SendIconSpringDampingRatio,
                 stiffness =
-                    ICON_SPRING_STIFFNESS
+                    ChatDesignTokens.SendIconSpringStiffness
             ),
         label =
             "SendIconRotation"
@@ -148,16 +179,16 @@ internal fun ChatSendButton(
     animateFloatAsState(
         targetValue =
             if (isActive) {
-                ACTIVE_ICON_SCALE
+                ChatDesignTokens.SendActiveIconScale
             } else {
-                INACTIVE_ICON_SCALE
+                ChatDesignTokens.SendInactiveIconScale
             },
         animationSpec =
             spring(
                 dampingRatio =
-                    ICON_SPRING_DAMPING_RATIO,
+                    ChatDesignTokens.SendIconSpringDampingRatio,
                 stiffness =
-                    ICON_SPRING_STIFFNESS
+                    ChatDesignTokens.SendIconSpringStiffness
             ),
         label =
             "SendIconScale"
@@ -167,7 +198,7 @@ internal fun ChatSendButton(
         modifier =
             modifier
                 .size(
-                    SEND_BUTTON_SIZE
+                    ChatDesignTokens.SendButtonSize
                 )
                 .graphicsLayer {
                     scaleX =
@@ -202,26 +233,23 @@ internal fun ChatSendButton(
             CircularProgressIndicator(
                 modifier =
                     Modifier.size(
-                        SEND_PROGRESS_SIZE
+                        ChatDesignTokens.SendProgressSize
                     ),
                 color =
-                    DeutschTextOnLime,
+                    colors.activeContent,
                 strokeWidth =
-                    SEND_PROGRESS_STROKE
+                    ChatDesignTokens.SendProgressStroke
             )
         } else {
             Icon(
                 imageVector =
-                    Icons
-                        .AutoMirrored
-                        .Filled
-                        .Send,
+                    Icons.AutoMirrored.Filled.Send,
                 contentDescription =
                     "Nachricht senden",
                 modifier =
                     Modifier
                         .size(
-                            SEND_ICON_SIZE
+                            ChatDesignTokens.SendIconSize
                         )
                         .graphicsLayer {
                             rotationZ =
@@ -240,58 +268,10 @@ internal fun ChatSendButton(
     }
 }
 
-private fun <T> colorAnimation() =
+private fun <T> sendColorAnimation() =
     tween<T>(
         durationMillis =
-            COLOR_ANIMATION_DURATION_MILLIS,
+            ChatDesignTokens.SendColorAnimationMillis,
         easing =
             FastOutSlowInEasing
     )
-
-private val SEND_BUTTON_SIZE =
-    42.dp
-
-private val SEND_ICON_SIZE =
-    20.dp
-
-private val SEND_PROGRESS_SIZE =
-    18.dp
-
-private val SEND_PROGRESS_STROKE =
-    2.dp
-
-private const val NORMAL_BUTTON_SCALE =
-    1f
-
-private const val PRESSED_BUTTON_SCALE =
-    0.88f
-
-private const val ACTIVE_ICON_ROTATION =
-    0f
-
-private const val INACTIVE_ICON_ROTATION =
-    -35f
-
-private const val ACTIVE_ICON_SCALE =
-    1f
-
-private const val INACTIVE_ICON_SCALE =
-    0.85f
-
-private const val DISABLED_ICON_ALPHA =
-    0.38f
-
-private const val BUTTON_SPRING_DAMPING_RATIO =
-    0.7f
-
-private const val BUTTON_SPRING_STIFFNESS =
-    650f
-
-private const val ICON_SPRING_DAMPING_RATIO =
-    0.6f
-
-private const val ICON_SPRING_STIFFNESS =
-    400f
-
-private const val COLOR_ANIMATION_DURATION_MILLIS =
-    220

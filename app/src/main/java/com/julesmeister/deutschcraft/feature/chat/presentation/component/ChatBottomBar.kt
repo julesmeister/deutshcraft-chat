@@ -1,20 +1,12 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -23,151 +15,150 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiAction
-import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiState
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.rememberChatGlassColors
+import com.kyant.backdrop.Backdrop
 
 /*
- * onAddClick remains available for future learning-tool or
- * attachment support even though no add button is displayed.
+ * Floating chat controls.
+ *
+ * ChatScreen draws edge-to-edge, so this container applies
+ * its own navigation-bar and IME padding.
+ *
+ * The fade behind the controls is intentionally light so the
+ * liquid-glass composer has visible content to refract.
  */
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ChatBottomBar(
-    uiState: ChatUiState,
-    onAction: (ChatUiAction) -> Unit,
-    onAddClick: () -> Unit,
-    onInputFocused: () -> Unit = {},
-    modifier: Modifier = Modifier
+    backdrop: Backdrop,
+    text: String,
+    onTextChange: (String) -> Unit,
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    isSending: Boolean = false,
+    suggestionContent: (@Composable () -> Unit)? = null,
+    refinementInstruction: String? = null,
+    onCancelRefinement: () -> Unit = {},
+    onInputFocused: () -> Unit = {}
 ) {
+    val glassColors =
+        rememberChatGlassColors()
+
     val background =
         MaterialTheme.colorScheme.background
+
+    val isRefinementMode =
+        !refinementInstruction.isNullOrBlank()
+
+    val textState =
+        rememberChatBottomBarTextState(
+            text =
+                text,
+            onTextChange =
+                onTextChange
+        )
 
     Column(
         modifier =
             modifier
                 .fillMaxWidth()
-                /*
-                 * Soft fade so messages dissolve behind the
-                 * floating controls instead of being cut off.
-                 * Applied before the paddings so it also covers
-                 * the navigation-bar area.
-                 */
                 .background(
-                    Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        0.35f to background.copy(alpha = 0.85f),
-                        1f to background
-                    )
+                    brush =
+                        Brush.verticalGradient(
+                            colorStops =
+                                arrayOf(
+                                    0f to
+                                            Color.Transparent,
+
+                                    ChatDesignTokens.BottomBarFadeMidStop to
+                                            background.copy(
+                                                alpha =
+                                                    ChatDesignTokens
+                                                        .BottomBarFadeMidAlpha
+                                            ),
+
+                                    1f to
+                                            background.copy(
+                                                alpha =
+                                                    ChatDesignTokens
+                                                        .BottomBarFadeEndAlpha
+                                            )
+                                )
+                        )
                 )
                 .navigationBarsPadding()
                 .imePadding()
                 .padding(
-                    start = BOTTOM_BAR_HORIZONTAL_PADDING,
-                    end = BOTTOM_BAR_HORIZONTAL_PADDING,
-                    top = BOTTOM_BAR_TOP_PADDING,
-                    bottom = BOTTOM_BAR_BOTTOM_PADDING
+                    start =
+                        ChatDesignTokens
+                            .BottomBarHorizontalPadding,
+                    end =
+                        ChatDesignTokens
+                            .BottomBarHorizontalPadding,
+                    top =
+                        ChatDesignTokens
+                            .BottomBarTopPadding,
+                    bottom =
+                        ChatDesignTokens
+                            .BottomBarBottomPadding
                 )
-                /*
-                 * Offer and suggestion spacing changes animate
-                 * instead of making the composer jump.
-                 */
                 .animateContentSize(
                     animationSpec =
                         tween(
-                            durationMillis = LAYOUT_ANIMATION_MILLIS,
-                            easing = FastOutSlowInEasing
+                            durationMillis =
+                                ChatDesignTokens
+                                    .LayoutAnimationMillis,
+                            easing =
+                                FastOutSlowInEasing
                         )
-                )
+                ),
+        verticalArrangement =
+            Arrangement.spacedBy(
+                ChatDesignTokens
+                    .SuggestionComposerSpacing
+            )
     ) {
-        AnimatedVisibility(
-            visible = uiState.missionOffer != null,
-            enter =
-                fadeIn(tween(OFFER_ENTER_DURATION_MILLIS)) +
-                        slideInVertically(
-                            initialOffsetY = { it / 3 },
-                            animationSpec =
-                                tween(
-                                    durationMillis = OFFER_ENTER_DURATION_MILLIS,
-                                    easing = FastOutSlowInEasing
-                                )
-                        ) +
-                        scaleIn(initialScale = OFFER_ENTER_SCALE),
-            exit =
-                fadeOut(tween(OFFER_EXIT_DURATION_MILLIS)) +
-                        slideOutVertically(
-                            targetOffsetY = { it / 4 },
-                            animationSpec = tween(OFFER_EXIT_DURATION_MILLIS)
-                        ) +
-                        scaleOut(targetScale = OFFER_EXIT_SCALE)
-        ) {
-            uiState.missionOffer?.let { offer ->
-                Column {
-                    MissionOfferCard(
-                        opportunity = offer,
-                        isStarting = uiState.isStartingMission,
-                        onStartClick = {
-                            onAction(ChatUiAction.StartOfferedMission)
-                        },
-                        onDismissClick = {
-                            onAction(ChatUiAction.DismissMissionOffer)
-                        }
-                    )
-
-                    /*
-                     * Spacing lives inside the animated block so it
-                     * appears and disappears with the card.
-                     */
-                    Spacer(modifier = Modifier.height(OFFER_CONTENT_SPACING))
-                }
-            }
-        }
-
-        FloatingReplySuggestions(
-            suggestions = uiState.suggestions,
-            enabled =
-                !uiState.isInitializing &&
-                        !uiState.isSending &&
-                        !uiState.isStartingMission,
-            onSuggestionClick = { suggestionId ->
-                onAction(
-                    ChatUiAction.SuggestionSelected(
-                        suggestionId = suggestionId
-                    )
-                )
-
-                onInputFocused()
-            }
+        ChatBottomBarSuggestionSlot(
+            visible =
+                !isRefinementMode,
+            content =
+                suggestionContent
         )
 
-        if (uiState.suggestions.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(SUGGESTION_COMPOSER_SPACING))
-        }
+        ChatBottomBarRefinementSlot(
+            instruction =
+                refinementInstruction,
+            enabled =
+                enabled &&
+                        !isSending,
+            glassColors =
+                glassColors,
+            onCancel =
+                onCancelRefinement
+        )
 
-        ChatComposer(
-            value = uiState.messageInput,
-            enabled = !uiState.isInitializing && !uiState.isStartingMission,
-            isSending = uiState.isSending,
-            onValueChange = { value ->
-                onAction(ChatUiAction.MessageInputChanged(value = value))
-            },
-            onSendClick = {
-                onAction(ChatUiAction.SendMessage)
-            },
-            onInputFocused = onInputFocused,
-            modifier = Modifier.fillMaxWidth()
+        ChatGlassInputField(
+            backdrop =
+                backdrop,
+            value =
+                textState.value,
+            enabled =
+                enabled,
+            isSending =
+                isSending,
+            isRefinementMode =
+                isRefinementMode,
+            glassColors =
+                glassColors,
+            onValueChange =
+                textState.onValueChange,
+            onSendClick =
+                onSend,
+            onInputFocused =
+                onInputFocused,
+            modifier =
+                Modifier.fillMaxWidth()
         )
     }
 }
-
-private val BOTTOM_BAR_HORIZONTAL_PADDING = 12.dp
-private val BOTTOM_BAR_TOP_PADDING = 14.dp
-private val BOTTOM_BAR_BOTTOM_PADDING = 10.dp
-private val OFFER_CONTENT_SPACING = 10.dp
-private val SUGGESTION_COMPOSER_SPACING = 8.dp
-
-private const val LAYOUT_ANIMATION_MILLIS = 240
-private const val OFFER_ENTER_DURATION_MILLIS = 340
-private const val OFFER_EXIT_DURATION_MILLIS = 220
-private const val OFFER_ENTER_SCALE = 0.96f
-private const val OFFER_EXIT_SCALE = 0.98f

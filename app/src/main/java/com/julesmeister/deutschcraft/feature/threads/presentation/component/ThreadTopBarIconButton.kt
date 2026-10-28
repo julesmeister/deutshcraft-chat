@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.threads.presentation.theme.ThreadDesignTokens as Tokens
 
 @Composable
 internal fun ThreadTopBarIconButton(
@@ -27,99 +26,62 @@ internal fun ThreadTopBarIconButton(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    var isPressed by
-    remember {
-        mutableStateOf(false)
-    }
+    val colors = rememberThreadColors()
+    val colorScheme = MaterialTheme.colorScheme
 
-    val animatedScale by
-    animateFloatAsState(
-        targetValue =
-            if (isPressed) {
-                PRESSED_ICON_SCALE
-            } else {
-                NORMAL_ICON_SCALE
-            },
-        animationSpec =
-            tween(
-                durationMillis =
-                    ICON_PRESS_ANIMATION_DURATION_MILLIS,
-                easing =
-                    FastOutSlowInEasing
-            ),
-        label =
-            "ThreadTopBarIconPressScale"
+    var isPressed by remember { mutableStateOf(false) }
+
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isPressed) {
+            Tokens.TopBarIconPressedScale
+        } else {
+            Tokens.TopBarIconNormalScale
+        },
+        animationSpec = tween(
+            durationMillis = Tokens.TopBarIconPressAnimationMillis,
+            easing = FastOutSlowInEasing
+        ),
+        label = "ThreadTopBarIconPressScale"
     )
+
+    val restingBackground =
+        if (colors.isDark) {
+            colorScheme.surfaceContainer.copy(alpha = Tokens.TopBarIconDarkRestingAlpha)
+        } else {
+            colorScheme.surfaceContainerHigh
+        }
+
+    val pressedBackground =
+        if (colors.isDark) {
+            colorScheme.surfaceContainerHigh
+        } else {
+            colorScheme.surfaceContainerHighest
+        }
 
     Box(
         modifier = modifier
-            .size(
-                TOP_BAR_ICON_BUTTON_SIZE
-            )
+            .size(Tokens.TopBarIconButtonSize)
             .graphicsLayer {
-                scaleX =
-                    animatedScale
-
-                scaleY =
-                    animatedScale
+                scaleX = animatedScale
+                scaleY = animatedScale
             }
-            .clip(
-                CircleShape
-            )
-            .background(
-                color =
-                    if (isPressed) {
-                        MaterialTheme
-                            .colorScheme
-                            .surfaceContainerHigh
-                    } else {
-                        MaterialTheme
-                            .colorScheme
-                            .surfaceContainer
-                            .copy(
-                                alpha =
-                                    NORMAL_BUTTON_ALPHA
-                            )
-                    }
-            )
-            .pointerInput(
-                onClick
-            ) {
+            .clip(Tokens.CircleShapeToken)
+            .background(if (isPressed) pressedBackground else restingBackground)
+            .pointerInput(onClick) {
                 detectTapGestures(
                     onPress = {
-                        isPressed =
-                            true
-
+                        isPressed = true
                         try {
                             tryAwaitRelease()
                         } finally {
-                            isPressed =
-                                false
+                            isPressed = false
                         }
                     },
-                    onTap = {
-                        onClick()
-                    }
+                    onTap = { onClick() }
                 )
             },
-        contentAlignment =
-            Alignment.Center
+        contentAlignment = Alignment.Center
     ) {
         content()
     }
 }
-
-private val TOP_BAR_ICON_BUTTON_SIZE =
-    40.dp
-
-private const val NORMAL_ICON_SCALE =
-    1f
-
-private const val PRESSED_ICON_SCALE =
-    0.9f
-
-private const val NORMAL_BUTTON_ALPHA =
-    0.68f
-
-private const val ICON_PRESS_ANIMATION_DURATION_MILLIS =
-    130

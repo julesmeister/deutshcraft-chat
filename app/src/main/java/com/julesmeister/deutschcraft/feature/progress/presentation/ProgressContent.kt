@@ -11,8 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import com.julesmeister.deutschcraft.feature.progress.domain.model.ProgressSummary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @Composable
 internal fun ProgressContent(
@@ -30,121 +28,63 @@ internal fun ProgressContent(
 
     modifier: Modifier = Modifier
 ) {
+    val colors =
+        rememberProgressColors()
+
     LazyColumn(
-        modifier =
-            modifier,
-        contentPadding =
-            PaddingValues(
-                start =
-                    ProgressContentHorizontalPadding,
-                top =
-                    ProgressContentTopPadding,
-                end =
-                    ProgressContentHorizontalPadding,
-                bottom =
-                    ProgressContentBottomPadding
-            ),
-        verticalArrangement =
-            Arrangement.spacedBy(
-                ProgressContentItemSpacing
-            )
+        modifier = modifier,
+        contentPadding = PaddingValues(
+            start = ProgressContentHorizontalPadding,
+            top = ProgressContentTopPadding,
+            end = ProgressContentHorizontalPadding,
+            bottom = ProgressContentBottomPadding
+        ),
+        verticalArrangement = Arrangement.spacedBy(
+            ProgressContentItemSpacing
+        )
     ) {
-        /*
-         * ===================================================
-         * Introduction
-         * ===================================================
-         */
-        item(
-            key =
-                PROGRESS_INTRODUCTION_KEY
-        ) {
+        item(key = PROGRESS_INTRODUCTION_KEY) {
             ProgressIntroduction(
-                showEnglish =
-                    showEnglish
+                showEnglish = showEnglish,
+                colors = colors
             )
         }
 
-        /*
-         * ===================================================
-         * CEFR level + readiness Bento
-         * ===================================================
-         */
-        item(
-            key =
-                CEFR_LEVEL_READINESS_BENTO_KEY
-        ) {
+        item(key = CEFR_LEVEL_READINESS_BENTO_KEY) {
             CefrLevelReadinessBento(
-                progress =
-                    progress,
-                showEnglish =
-                    showEnglish
+                progress = progress,
+                showEnglish = showEnglish,
+                colors = colors
             )
         }
 
-        /*
-         * ===================================================
-         * Progress statistics
-         * ===================================================
-         *
-         * This panel can receive showEnglish next when its
-         * labels are made bilingual.
-         */
-        item(
-            key =
-                PROGRESS_STATISTICS_KEY
-        ) {
+        item(key = PROGRESS_STATISTICS_KEY) {
             ProgressStatistics(
-                progress =
-                    progress
+                showEnglish = showEnglish,
+                progress = progress
             )
         }
 
-        /*
-         * ===================================================
-         * Completed missions
-         * ===================================================
-         */
-        item(
-            key =
-                COMPLETED_MISSIONS_KEY
-        ) {
+        item(key = COMPLETED_MISSIONS_KEY) {
             CompletedMissionsPanel(
-                completedMissionCount =
-                    completedMissionCount,
-                recentMissions =
-                    recentCompletedMissions,
-                showEnglish =
-                    showEnglish
+                completedMissionCount = completedMissionCount,
+                recentMissions = recentCompletedMissions,
+                showEnglish = showEnglish,
+                colors = colors
             )
         }
 
-        /*
-         * ===================================================
-         * Skill breakdown
-         * ===================================================
-         */
-        item(
-            key =
-                SKILL_BREAKDOWN_KEY
-        ) {
+        item(key = SKILL_BREAKDOWN_KEY) {
             SkillBreakdownPanel(
-                progress =
-                    progress
+                progress = progress,
+                colors = colors
             )
         }
 
-        /*
-         * ===================================================
-         * Confidence
-         * ===================================================
-         */
-        item(
-            key =
-                CONFIDENCE_KEY
-        ) {
+        item(key = CONFIDENCE_KEY) {
             ConfidencePanel(
-                progress =
-                    progress
+                progress = progress,
+                colors = colors
             )
         }
     }
@@ -152,70 +92,44 @@ internal fun ProgressContent(
 
 @Composable
 private fun ProgressIntroduction(
-    showEnglish: Boolean
+    showEnglish: Boolean,
+    colors: ProgressColors
 ) {
     Column {
         Text(
-            text =
-                if (showEnglish) {
-                    "CEFR development"
-                } else {
-                    "CEFR-Entwicklung"
-                },
-            style =
-                MaterialTheme
-                    .typography
-                    .headlineSmall,
-            fontWeight =
-                FontWeight.Bold,
-            color =
-                DeutschTextPrimary
+            text = if (showEnglish) {
+                "CEFR development"
+            } else {
+                "CEFR-Entwicklung"
+            },
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = colors.textPrimary
         )
 
         Text(
-            text =
-                if (showEnglish) {
-                    "Your assessment develops with every " +
-                            "analyzed German message."
-                } else {
-                    "Deine Einschätzung entwickelt sich mit " +
-                            "jeder analysierten deutschen Nachricht."
-                },
-            modifier =
-                Modifier.padding(
-                    top =
-                        ProgressIntroductionDescriptionTopPadding
-                ),
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
-            color =
-                DeutschTextSecondary
+            text = if (showEnglish) {
+                "Your assessment develops with every " +
+                        "analyzed German message."
+            } else {
+                "Deine Einschätzung entwickelt sich mit " +
+                        "jeder analysierten deutschen Nachricht."
+            },
+            modifier = Modifier.padding(
+                top = ProgressIntroductionDescriptionTopPadding
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textSecondary
         )
     }
 }
 
 /*
  * Keep LazyColumn keys local.
- *
- * These aren't shared UI dimensions or styling values, so
- * they don't belong in ProgressUiConstants.kt.
  */
-private const val PROGRESS_INTRODUCTION_KEY =
-    "progress_introduction"
-
-private const val CEFR_LEVEL_READINESS_BENTO_KEY =
-    "cefr_level_readiness_bento"
-
-private const val PROGRESS_STATISTICS_KEY =
-    "progress_statistics"
-
-private const val COMPLETED_MISSIONS_KEY =
-    "completed_missions"
-
-private const val SKILL_BREAKDOWN_KEY =
-    "skill_breakdown"
-
-private const val CONFIDENCE_KEY =
-    "confidence"
+private const val PROGRESS_INTRODUCTION_KEY = "progress_introduction"
+private const val CEFR_LEVEL_READINESS_BENTO_KEY = "cefr_level_readiness_bento"
+private const val PROGRESS_STATISTICS_KEY = "progress_statistics"
+private const val COMPLETED_MISSIONS_KEY = "completed_missions"
+private const val SKILL_BREAKDOWN_KEY = "skill_breakdown"
+private const val CONFIDENCE_KEY = "confidence"

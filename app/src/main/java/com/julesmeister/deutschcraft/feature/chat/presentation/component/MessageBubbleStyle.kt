@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschSky
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnSky
@@ -28,16 +29,30 @@ internal fun rememberMessageBubbleColors(
         MaterialTheme.colorScheme
 
     /*
-     * The newest messages remain vibrant.
+     * =======================================================
+     * Bubble background
+     * =======================================================
      *
-     * Older messages use semantic containers so they adapt to
-     * both DeutschCraft themes.
+     * Latest user:
+     *     DeutschCraft lime
+     *
+     * Older user:
+     *     semantic primary container
+     *
+     * Latest assistant:
+     *     DeutschCraft sky
+     *
+     * Older assistant:
+     *     semantic secondary container
+     *
+     * This keeps the newest conversation turn visually vivid
+     * while older messages settle into the current theme.
      */
     val targetBackground =
         when {
             isUserMessage &&
                     isLatestUserMessage -> {
-                colorScheme.primary
+                DeutschLime
             }
 
             isUserMessage -> {
@@ -52,6 +67,12 @@ internal fun rememberMessageBubbleColors(
                 colorScheme.secondaryContainer
             }
         }
+
+    /*
+     * =======================================================
+     * Bubble content
+     * =======================================================
+     */
 
     val targetContent =
         when {
@@ -73,6 +94,11 @@ internal fun rememberMessageBubbleColors(
             }
         }
 
+    /*
+     * Smoothly transition a bubble from "latest" styling into
+     * its older semantic-container styling after a newer
+     * message becomes the current conversation turn.
+     */
     val backgroundColor by
     animateColorAsState(
         targetValue =
@@ -109,10 +135,40 @@ internal fun rememberMessageBubbleColors(
     )
 }
 
+/*
+ * ===========================================================
+ * Bubble geometry
+ * ===========================================================
+ *
+ * The attachment corner is always the tail-side corner.
+ *
+ * User:
+ *
+ *     normal:
+ *         bottom-right = small tail
+ *
+ *     attached phrase:
+ *         bottom-right = completely flat
+ *
+ * Assistant:
+ *
+ *     normal:
+ *         bottom-left = small tail
+ *
+ *     attached phrase:
+ *         bottom-left = completely flat
+ */
 internal fun messageBubbleShape(
     isUserMessage: Boolean,
     hasAttachedPhrase: Boolean = false
 ): RoundedCornerShape {
+    val tailSideCorner =
+        if (hasAttachedPhrase) {
+            ATTACHMENT_CORNER
+        } else {
+            SOURCE_BUBBLE_TAIL_CORNER
+        }
+
     return if (isUserMessage) {
         RoundedCornerShape(
             topStart =
@@ -120,13 +176,9 @@ internal fun messageBubbleShape(
             topEnd =
                 SOURCE_BUBBLE_CORNER,
             bottomStart =
-                if (hasAttachedPhrase) {
-                    ATTACHMENT_CORNER
-                } else {
-                    SOURCE_BUBBLE_CORNER
-                },
+                SOURCE_BUBBLE_CORNER,
             bottomEnd =
-                SOURCE_BUBBLE_TAIL_CORNER
+                tailSideCorner
         )
     } else {
         RoundedCornerShape(
@@ -135,13 +187,9 @@ internal fun messageBubbleShape(
             topEnd =
                 SOURCE_BUBBLE_CORNER,
             bottomStart =
-                SOURCE_BUBBLE_TAIL_CORNER,
+                tailSideCorner,
             bottomEnd =
-                if (hasAttachedPhrase) {
-                    ATTACHMENT_CORNER
-                } else {
-                    SOURCE_BUBBLE_CORNER
-                }
+                SOURCE_BUBBLE_CORNER
         )
     }
 }

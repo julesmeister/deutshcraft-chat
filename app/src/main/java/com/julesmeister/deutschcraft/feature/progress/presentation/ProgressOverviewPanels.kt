@@ -30,25 +30,30 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.progress.domain.model.ProgressSummary
 import com.julesmeister.deutschcraft.ui.theme.DeutschBlack
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
+
+/*
+ * ===========================================================
+ * CURRENT LEVEL
+ * ===========================================================
+ */
 
 @Composable
 internal fun CurrentNiveauPanel(
     progress: ProgressSummary,
+    showEnglish: Boolean,
     modifier: Modifier = Modifier
 ) {
     val safeOverallScore =
         progress.overallScore.coerceIn(
-            minimumValue =
-                0,
-            maximumValue =
-                100
+            minimumValue = 0,
+            maximumValue = 100
         )
 
     val animatedOverallScore by
@@ -66,6 +71,13 @@ internal fun CurrentNiveauPanel(
             "CurrentLevelOverallScore"
     )
 
+    /*
+     * The hero intentionally remains DeutschCraft lime in
+     * both themes.
+     *
+     * DeutschBlack is therefore the correct foreground rather
+     * than MaterialTheme.onSurface.
+     */
     Surface(
         modifier =
             modifier.fillMaxWidth(),
@@ -91,20 +103,20 @@ internal fun CurrentNiveauPanel(
                 Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier
-                    .size(
-                        LEVEL_BADGE_SIZE
-                    )
-                    .clip(
-                        CircleShape
-                    )
-                    .background(
-                        color =
+                modifier =
+                    Modifier
+                        .size(
+                            LEVEL_BADGE_SIZE
+                        )
+                        .clip(
+                            CircleShape
+                        )
+                        .background(
                             DeutschBlack.copy(
                                 alpha =
                                     LEVEL_BADGE_ALPHA
                             )
-                    ),
+                        ),
                 contentAlignment =
                     Alignment.Center
             ) {
@@ -135,7 +147,11 @@ internal fun CurrentNiveauPanel(
             ) {
                 Text(
                     text =
-                        "Aktuelles Niveau",
+                        if (showEnglish) {
+                            "Current level"
+                        } else {
+                            "Aktuelles Niveau"
+                        },
                     style =
                         MaterialTheme
                             .typography
@@ -169,7 +185,11 @@ internal fun CurrentNiveauPanel(
 
                 Text(
                     text =
-                        "$safeOverallScore% Gesamtbewertung",
+                        if (showEnglish) {
+                            "$safeOverallScore% overall score"
+                        } else {
+                            "$safeOverallScore% Gesamtbewertung"
+                        },
                     modifier =
                         Modifier.padding(
                             top =
@@ -192,18 +212,19 @@ internal fun CurrentNiveauPanel(
                     progress = {
                         animatedOverallScore
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            top =
-                                HERO_PROGRESS_TOP_PADDING
-                        )
-                        .height(
-                            HERO_PROGRESS_HEIGHT
-                        )
-                        .clip(
-                            CircleShape
-                        ),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                top =
+                                    HERO_PROGRESS_TOP_PADDING
+                            )
+                            .height(
+                                HERO_PROGRESS_HEIGHT
+                            )
+                            .clip(
+                                CircleShape
+                            ),
                     color =
                         DeutschBlack,
                     trackColor =
@@ -217,24 +238,72 @@ internal fun CurrentNiveauPanel(
     }
 }
 
+/*
+ * ===========================================================
+ * READINESS
+ * ===========================================================
+ */
+
 @Composable
 internal fun ReadinessPanel(
     progress: ProgressSummary,
+    showEnglish: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val colors =
+        rememberProgressPanelColors()
+
     val destinationLabel =
-        if (progress.isHighestLevel) {
-            "C2 festigen"
-        } else {
-            "Bereitschaft für ${progress.nextLevelName}"
+        when {
+            progress.isHighestLevel &&
+                    showEnglish -> {
+                "Strengthen C2"
+            }
+
+            progress.isHighestLevel -> {
+                "C2 festigen"
+            }
+
+            showEnglish -> {
+                "Readiness for ${progress.nextLevelName}"
+            }
+
+            else -> {
+                "Bereitschaft für ${progress.nextLevelName}"
+            }
+        }
+
+    val description =
+        when {
+            progress.isHighestLevel &&
+                    showEnglish -> {
+                "You've reached the highest CEFR level. " +
+                        "Your score now reflects how strongly " +
+                        "your C2 skills are consolidated."
+            }
+
+            progress.isHighestLevel -> {
+                "Du hast das höchste CEFR-Niveau erreicht. " +
+                        "Deine Bewertung zeigt jetzt die Festigung " +
+                        "deiner C2-Fähigkeiten."
+            }
+
+            showEnglish -> {
+                "This score shows how close your current " +
+                        "language profile is to the next level."
+            }
+
+            else -> {
+                "Diese Bewertung zeigt, wie nah dein " +
+                        "aktuelles Sprachprofil am nächsten " +
+                        "Niveau liegt."
+            }
         }
 
     val safeReadiness =
         progress.normalizedReadiness.coerceIn(
-            minimumValue =
-                0f,
-            maximumValue =
-                1f
+            minimumValue = 0f,
+            maximumValue = 1f
         )
 
     val animatedReadiness by
@@ -263,6 +332,8 @@ internal fun ReadinessPanel(
             MaterialTheme
                 .colorScheme
                 .surfaceContainer,
+        contentColor =
+            colors.primaryText,
         tonalElevation =
             0.dp,
         shadowElevation =
@@ -286,18 +357,19 @@ internal fun ReadinessPanel(
                     contentDescription =
                         null,
                     tint =
-                        DeutschLime
+                        colors.accent
                 )
 
                 Text(
                     text =
                         destinationLabel,
-                    modifier = Modifier
-                        .padding(
-                            start =
-                                READINESS_TITLE_SPACING
-                        )
-                        .weight(1f),
+                    modifier =
+                        Modifier
+                            .padding(
+                                start =
+                                    READINESS_TITLE_SPACING
+                            )
+                            .weight(1f),
                     style =
                         MaterialTheme
                             .typography
@@ -305,7 +377,7 @@ internal fun ReadinessPanel(
                     fontWeight =
                         FontWeight.SemiBold,
                     color =
-                        DeutschTextPrimary
+                        colors.primaryText
                 )
 
                 Text(
@@ -325,7 +397,7 @@ internal fun ReadinessPanel(
                     fontWeight =
                         FontWeight.Bold,
                     color =
-                        DeutschLime
+                        colors.accent
                 )
             }
 
@@ -333,20 +405,21 @@ internal fun ReadinessPanel(
                 progress = {
                     animatedReadiness
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        top =
-                            READINESS_PROGRESS_TOP_PADDING
-                    )
-                    .height(
-                        READINESS_PROGRESS_HEIGHT
-                    )
-                    .clip(
-                        CircleShape
-                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            top =
+                                READINESS_PROGRESS_TOP_PADDING
+                        )
+                        .height(
+                            READINESS_PROGRESS_HEIGHT
+                        )
+                        .clip(
+                            CircleShape
+                        ),
                 color =
-                    DeutschLime,
+                    colors.progressColor,
                 trackColor =
                     MaterialTheme
                         .colorScheme
@@ -355,16 +428,7 @@ internal fun ReadinessPanel(
 
             Text(
                 text =
-                    if (progress.isHighestLevel) {
-                        "Du hast das höchste CEFR-Niveau " +
-                                "erreicht. Deine Bewertung zeigt " +
-                                "jetzt die Festigung deiner " +
-                                "C2-Fähigkeiten."
-                    } else {
-                        "Diese Bewertung zeigt, wie nah dein " +
-                                "aktuelles Sprachprofil am nächsten " +
-                                "Niveau liegt."
-                    },
+                    description,
                 modifier =
                     Modifier.padding(
                         top =
@@ -375,15 +439,22 @@ internal fun ReadinessPanel(
                         .typography
                         .bodySmall,
                 color =
-                    DeutschTextSecondary
+                    colors.secondaryText
             )
         }
     }
 }
 
+/*
+ * ===========================================================
+ * STATISTICS
+ * ===========================================================
+ */
+
 @Composable
 internal fun ProgressStatistics(
     progress: ProgressSummary,
+    showEnglish: Boolean,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -400,15 +471,15 @@ internal fun ProgressStatistics(
                     .assessedMessageCount
                     .toString(),
             label =
-                "Bewertete\nNachrichten",
+                if (showEnglish) {
+                    "Assessed\nmessages"
+                } else {
+                    "Bewertete\nNachrichten"
+                },
             icon = {
-                Icon(
-                    imageVector =
-                        Icons.Outlined.ChatBubbleOutline,
-                    contentDescription =
-                        null,
-                    tint =
-                        DeutschLime
+                ProgressStatisticIcon(
+                    type =
+                        ProgressStatisticIconType.Messages
                 )
             },
             modifier =
@@ -421,15 +492,15 @@ internal fun ProgressStatistics(
                     .activeDayCount
                     .toString(),
             label =
-                "Aktive\nTage",
+                if (showEnglish) {
+                    "Active\ndays"
+                } else {
+                    "Aktive\nTage"
+                },
             icon = {
-                Icon(
-                    imageVector =
-                        Icons.Outlined.CalendarMonth,
-                    contentDescription =
-                        null,
-                    tint =
-                        DeutschLime
+                ProgressStatisticIcon(
+                    type =
+                        ProgressStatisticIconType.Days
                 )
             },
             modifier =
@@ -445,6 +516,9 @@ private fun ProgressStatisticItem(
     icon: @Composable () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors =
+        rememberProgressPanelColors()
+
     Surface(
         modifier =
             modifier,
@@ -456,6 +530,8 @@ private fun ProgressStatisticItem(
             MaterialTheme
                 .colorScheme
                 .surfaceContainer,
+        contentColor =
+            colors.primaryText,
         tonalElevation =
             0.dp,
         shadowElevation =
@@ -484,7 +560,7 @@ private fun ProgressStatisticItem(
                 fontWeight =
                     FontWeight.Bold,
                 color =
-                    DeutschTextPrimary
+                    colors.primaryText
             )
 
             Text(
@@ -500,11 +576,110 @@ private fun ProgressStatisticItem(
                         .typography
                         .bodySmall,
                 color =
-                    DeutschTextSecondary
+                    colors.secondaryText
             )
         }
     }
 }
+
+@Composable
+private fun ProgressStatisticIcon(
+    type: ProgressStatisticIconType
+) {
+    val colors =
+        rememberProgressPanelColors()
+
+    Icon(
+        imageVector =
+            when (type) {
+                ProgressStatisticIconType.Messages ->
+                    Icons.Outlined.ChatBubbleOutline
+
+                ProgressStatisticIconType.Days ->
+                    Icons.Outlined.CalendarMonth
+            },
+        contentDescription =
+            null,
+        tint =
+            colors.accent
+    )
+}
+
+private enum class ProgressStatisticIconType {
+    Messages,
+    Days
+}
+
+/*
+ * ===========================================================
+ * LIGHT / DARK COLOR ROLES
+ * ===========================================================
+ *
+ * Raw DeutschLime works beautifully against DeutschCraft's
+ * dark surfaces, but it becomes too bright for text/icons on
+ * white and other light surfaces.
+ *
+ * Therefore:
+ *
+ * Dark theme:
+ *     Accent = DeutschLime
+ *
+ * Light theme:
+ *     Accent = darker olive-lime
+ *
+ * The lime hero is deliberately excluded because its
+ * background is always DeutschLime and uses DeutschBlack
+ * foreground content.
+ */
+
+private data class ProgressPanelColors(
+    val primaryText: Color,
+    val secondaryText: Color,
+    val accent: Color,
+    val progressColor: Color
+)
+
+@Composable
+private fun rememberProgressPanelColors(): ProgressPanelColors {
+    val colorScheme =
+        MaterialTheme.colorScheme
+
+    val isDark =
+        colorScheme
+            .background
+            .luminance() <
+                PROGRESS_DARK_LUMINANCE_THRESHOLD
+
+    return if (isDark) {
+        ProgressPanelColors(
+            primaryText =
+                colorScheme.onSurface,
+            secondaryText =
+                colorScheme.onSurfaceVariant,
+            accent =
+                DeutschLime,
+            progressColor =
+                DeutschLime
+        )
+    } else {
+        ProgressPanelColors(
+            primaryText =
+                colorScheme.onSurface,
+            secondaryText =
+                colorScheme.onSurfaceVariant,
+            accent =
+                PROGRESS_LIGHT_LIME,
+            progressColor =
+                PROGRESS_LIGHT_LIME
+        )
+    }
+}
+
+/*
+ * ===========================================================
+ * HERO
+ * ===========================================================
+ */
 
 private val HERO_PANEL_RADIUS =
     28.dp
@@ -530,6 +705,27 @@ private val HERO_PROGRESS_TOP_PADDING =
 private val HERO_PROGRESS_HEIGHT =
     6.dp
 
+private const val LEVEL_BADGE_ALPHA =
+    0.92f
+
+private const val HERO_SECONDARY_TEXT_ALPHA =
+    0.72f
+
+private const val HERO_SCORE_TEXT_ALPHA =
+    0.78f
+
+private const val HERO_PROGRESS_TRACK_ALPHA =
+    0.18f
+
+private const val HERO_PROGRESS_ANIMATION_MILLIS =
+    900
+
+/*
+ * ===========================================================
+ * READINESS
+ * ===========================================================
+ */
+
 private val SUPPORTING_PANEL_RADIUS =
     28.dp
 
@@ -548,6 +744,15 @@ private val READINESS_PROGRESS_HEIGHT =
 private val READINESS_DESCRIPTION_TOP_PADDING =
     12.dp
 
+private const val READINESS_ANIMATION_MILLIS =
+    850
+
+/*
+ * ===========================================================
+ * STATISTICS
+ * ===========================================================
+ */
+
 private val STATISTIC_ITEM_SPACING =
     12.dp
 
@@ -563,20 +768,14 @@ private val STATISTIC_VALUE_TOP_PADDING =
 private val STATISTIC_LABEL_TOP_PADDING =
     4.dp
 
-private const val LEVEL_BADGE_ALPHA =
-    0.92f
+/*
+ * ===========================================================
+ * THEME
+ * ===========================================================
+ */
 
-private const val HERO_SECONDARY_TEXT_ALPHA =
-    0.72f
+private const val PROGRESS_DARK_LUMINANCE_THRESHOLD =
+    0.5f
 
-private const val HERO_SCORE_TEXT_ALPHA =
-    0.78f
-
-private const val HERO_PROGRESS_TRACK_ALPHA =
-    0.18f
-
-private const val HERO_PROGRESS_ANIMATION_MILLIS =
-    900
-
-private const val READINESS_ANIMATION_MILLIS =
-    850
+private val PROGRESS_LIGHT_LIME =
+    Color(0xFF5A7A00)

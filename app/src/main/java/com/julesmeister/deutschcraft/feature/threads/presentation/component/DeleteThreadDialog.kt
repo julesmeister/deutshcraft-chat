@@ -1,15 +1,10 @@
 package com.julesmeister.deutschcraft.feature.threads.presentation.component
 
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.unit.dp
-import com.julesmeister.deutschcraft.ui.theme.DeutschError
-import com.julesmeister.deutschcraft.ui.theme.DeutschSurfaceHigh
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
+import com.julesmeister.deutschcraft.feature.threads.presentation.theme.ThreadDesignTokens as Tokens
 
 @Composable
 fun DeleteThreadDialog(
@@ -17,12 +12,14 @@ fun DeleteThreadDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val colors = rememberThreadColors()
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DeutschSurfaceHigh,
-        titleContentColor = DeutschTextPrimary,
-        textContentColor = DeutschTextSecondary,
-        shape = RoundedCornerShape(26.dp),
+        containerColor = colors.dialogSurface,
+        titleContentColor = colors.textPrimary,
+        textContentColor = colors.textSecondary,
+        shape = Tokens.DeleteDialogShape,
         title = {
             Text(
                 text = "Unterhaltung löschen?"
@@ -30,10 +27,8 @@ fun DeleteThreadDialog(
         },
         text = {
             Text(
-                text =
-                    "\"$title\" und die zugehörigen " +
-                            "Nachrichten werden dauerhaft " +
-                            "gelöscht."
+                text = "\"$title\" und die zugehörigen " +
+                        "Nachrichten werden dauerhaft gelöscht."
             )
         },
         confirmButton = {
@@ -42,7 +37,7 @@ fun DeleteThreadDialog(
             ) {
                 Text(
                     text = "Löschen",
-                    color = DeutschError
+                    color = colors.error
                 )
             }
         },
@@ -52,7 +47,7 @@ fun DeleteThreadDialog(
             ) {
                 Text(
                     text = "Abbrechen",
-                    color = DeutschTextSecondary
+                    color = colors.textSecondary
                 )
             }
         }

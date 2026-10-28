@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +33,7 @@ import com.julesmeister.deutschcraft.feature.besser.presentation.BesserChallenge
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiState
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens as ChatTokens
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhrase
 import com.julesmeister.deutschcraft.feature.phrasemarking.presentation.MarkedPhraseBubble
 import java.time.Instant
@@ -59,6 +59,7 @@ fun ChatMessageList(
      * messageId -> learner-marked phrases attached to the
      * corresponding conversation message.
      */
+
     markedPhrases: Map<String, List<MarkedPhrase>> =
         emptyMap(),
 
@@ -76,6 +77,7 @@ fun ChatMessageList(
      * There can currently be at most one active challenge per
      * message.
      */
+
     besserChallenges: Map<String, BesserChallengeUiModel> =
         emptyMap(),
 
@@ -253,10 +255,10 @@ fun ChatMessageList(
         contentPadding =
             PaddingValues(
                 top =
-                    MESSAGE_LIST_TOP_PADDING,
+                    ChatTokens.MessageListTopPadding,
                 bottom =
                     bottomOverlayHeight +
-                            MESSAGE_LIST_BOTTOM_BREATHING_ROOM
+                            ChatTokens.MessageListBottomBreathingRoom
             )
     ) {
         items(
@@ -300,10 +302,8 @@ fun ChatMessageList(
                         ].orEmpty()
 
                     /*
-                     * New contextual Besser Challenge.
-                     *
-                     * The challenge belongs to this exact
-                     * message through message.id.
+                     * Contextual Besser challenge attached to
+                     * this exact learner message.
                      */
                     val attachedChallenge =
                         besserChallenges[
@@ -311,12 +311,8 @@ fun ChatMessageList(
                         ]
 
                     /*
-                     * Besser growth challenges should only be
-                     * displayed underneath learner messages.
-                     *
-                     * Even if malformed state accidentally
-                     * associates one with an assistant message,
-                     * the UI will refuse to render it there.
+                     * Growth challenges are learner-side
+                     * attachments only.
                      */
                     val visibleChallenge =
                         attachedChallenge
@@ -325,39 +321,30 @@ fun ChatMessageList(
                             }
 
                     /*
-                     * MessageBubble currently receives a
-                     * hasAttachedPhrase flag to flatten the
-                     * attachment-side corner.
-                     *
-                     * A Besser Challenge needs the exact same
-                     * geometric attachment behavior.
-                     *
-                     * We therefore interpret this parameter as
-                     * "has attached content" for now without
-                     * requiring an immediate MessageBubble API
-                     * rename.
+                     * MessageBubble's historical
+                     * hasAttachedPhrase argument now represents
+                     * any visual content attached underneath
+                     * the message.
                      */
                     val hasAttachedContent =
-                        visibleChallenge !=
-                                null ||
-                                attachedPhrases
-                                    .isNotEmpty()
+                        visibleChallenge != null ||
+                                attachedPhrases.isNotEmpty()
 
                     Column(
                         modifier =
                             Modifier
                                 .padding(
                                     start =
-                                        MESSAGE_HORIZONTAL_PADDING,
+                                        ChatTokens.MessageHorizontalPadding,
                                     end =
-                                        MESSAGE_HORIZONTAL_PADDING,
+                                        ChatTokens.MessageHorizontalPadding,
                                     top =
                                         if (
                                             entry.isFirstInGroup
                                         ) {
-                                            GROUP_START_SPACING
+                                            ChatTokens.MessageGroupStartSpacing
                                         } else {
-                                            GROUPED_MESSAGE_SPACING
+                                            ChatTokens.MessageGroupedSpacing
                                         }
                                 )
                                 .animateContentSize()
@@ -365,54 +352,33 @@ fun ChatMessageList(
                         AnimatedMessageItem(
                             message =
                                 message,
-
                             correction =
                                 message.correction,
-
                             isLatestUserMessage =
                                 message.id ==
                                         latestUserMessageId,
-
                             isLatestAssistantMessage =
                                 message.id ==
                                         latestAssistantMessageId,
-
                             hasAlreadyBeenSeen =
                                 seenMessageIds[
                                     message.id
                                 ] == true,
-
-                            /*
-                             * Despite the historical parameter
-                             * name, this now means:
-                             *
-                             * Does this message have something
-                             * visually attached beneath it?
-                             *
-                             * That includes:
-                             *
-                             * - Besser Challenges
-                             * - Marked Phrase notes
-                             */
                             hasAttachedPhrase =
                                 hasAttachedContent,
-
                             onAnimationStarted = {
                                 seenMessageIds[
                                     message.id
                                 ] =
                                     true
                             },
-
                             onClick = {
                                 onMessageClick(
                                     message
                                 )
                             },
-
                             onMessageCopied =
                                 onMessageCopied,
-
                             modifier =
                                 Modifier
                         )
@@ -422,21 +388,12 @@ fun ChatMessageList(
                          * BESSER CHALLENGE
                          * ===================================================
                          *
-                         * Challenges stay visually closest to the source
-                         * learner message because the challenge asks the
-                         * learner to refine that exact communicative turn.
-                         *
-                         * Order:
-                         *
-                         * User message
-                         *     ↓
-                         * Besser Challenge
-                         *     ↓
-                         * Marked Phrase notes
+                         * Rendered before phrase notes because
+                         * the challenge directly modifies the
+                         * communicative turn above it.
                          */
                         if (
-                            visibleChallenge !=
-                            null
+                            visibleChallenge != null
                         ) {
                             BesserChallengeBubble(
                                 challenge =
@@ -465,9 +422,6 @@ fun ChatMessageList(
                          * ===================================================
                          * MARKED PHRASES
                          * ===================================================
-                         *
-                         * Phrase notes remain attached to their original
-                         * message.
                          */
                         attachedPhrases.forEachIndexed { index, phrase ->
                             MarkedPhraseBubble(
@@ -493,17 +447,17 @@ fun ChatMessageList(
         if (hasTypingIndicator) {
             item(
                 key =
-                    TYPING_INDICATOR_KEY
+                    ChatTokens.TypingIndicatorKey
             ) {
                 TypingIndicator(
                     modifier =
                         Modifier.padding(
                             start =
-                                MESSAGE_HORIZONTAL_PADDING,
+                                ChatTokens.MessageHorizontalPadding,
                             end =
-                                MESSAGE_HORIZONTAL_PADDING,
+                                ChatTokens.MessageHorizontalPadding,
                             top =
-                                GROUP_START_SPACING
+                                ChatTokens.MessageGroupStartSpacing
                         )
                 )
             }
@@ -511,12 +465,12 @@ fun ChatMessageList(
 
         item(
             key =
-                BOTTOM_ANCHOR_KEY
+                ChatTokens.BottomAnchorKey
         ) {
             Spacer(
                 modifier =
                     Modifier.height(
-                        BOTTOM_ANCHOR_HEIGHT
+                        ChatTokens.BottomAnchorHeight
                     )
             )
         }
@@ -563,12 +517,10 @@ private fun buildChatListEntries(
     val entries =
         mutableListOf<ChatListEntry>()
 
-    var previousDate:
-            LocalDate? =
+    var previousDate: LocalDate? =
         null
 
-    var previousMessage:
-            ChatMessage? =
+    var previousMessage: ChatMessage? =
         null
 
     messages.forEach { message ->
@@ -612,7 +564,7 @@ private fun buildChatListEntries(
                     message.sender ||
                     message.timestamp -
                     previous.timestamp >
-                    GROUP_TIME_WINDOW_MILLIS
+                    ChatTokens.MessageGroupTimeWindowMillis
 
         entries.add(
             ChatListEntry.Message(
@@ -689,9 +641,9 @@ private fun ChatDateSeparator(
                 .fillMaxWidth()
                 .padding(
                     top =
-                        DATE_SEPARATOR_TOP_PADDING,
+                        ChatTokens.DateSeparatorTopPadding,
                     bottom =
-                        DATE_SEPARATOR_BOTTOM_PADDING
+                        ChatTokens.DateSeparatorBottomPadding
                 ),
         contentAlignment =
             Alignment.Center
@@ -702,10 +654,7 @@ private fun ChatDateSeparator(
             modifier =
                 Modifier
                     .clip(
-                        RoundedCornerShape(
-                            percent =
-                                FULL_CORNER_PERCENT
-                        )
+                        ChatTokens.DateSeparatorShape
                     )
                     .background(
                         MaterialTheme
@@ -713,14 +662,14 @@ private fun ChatDateSeparator(
                             .surfaceContainerHigh
                             .copy(
                                 alpha =
-                                    DATE_SEPARATOR_BACKGROUND_ALPHA
+                                    ChatTokens.DateSeparatorBackgroundAlpha
                             )
                     )
                     .padding(
                         horizontal =
-                            DATE_SEPARATOR_HORIZONTAL_PADDING,
+                            ChatTokens.DateSeparatorHorizontalPadding,
                         vertical =
-                            DATE_SEPARATOR_VERTICAL_PADDING
+                            ChatTokens.DateSeparatorVerticalPadding
                     ),
             style =
                 MaterialTheme
@@ -755,57 +704,3 @@ private fun ChatMessageListEmptyState(
         ChatEmptyState()
     }
 }
-
-/*
- * ===========================================================
- * LIST BEHAVIOR
- * ===========================================================
- */
-
-private const val GROUP_TIME_WINDOW_MILLIS =
-    5 * 60 * 1_000L
-
-private const val TYPING_INDICATOR_KEY =
-    "typing-indicator"
-
-private const val BOTTOM_ANCHOR_KEY =
-    "bottom-anchor"
-
-/*
- * ===========================================================
- * DIMENSIONS
- * ===========================================================
- */
-
-private val MESSAGE_LIST_TOP_PADDING =
-    4.dp
-
-private val MESSAGE_LIST_BOTTOM_BREATHING_ROOM =
-    8.dp
-
-private val MESSAGE_HORIZONTAL_PADDING =
-    12.dp
-
-private val GROUP_START_SPACING =
-    12.dp
-
-private val GROUPED_MESSAGE_SPACING =
-    2.dp
-
-private val DATE_SEPARATOR_TOP_PADDING =
-    16.dp
-
-private val DATE_SEPARATOR_BOTTOM_PADDING =
-    4.dp
-
-private val DATE_SEPARATOR_HORIZONTAL_PADDING =
-    12.dp
-
-private val DATE_SEPARATOR_VERTICAL_PADDING =
-    4.dp
-
-private const val FULL_CORNER_PERCENT =
-    50
-
-private const val DATE_SEPARATOR_BACKGROUND_ALPHA =
-    0.85f

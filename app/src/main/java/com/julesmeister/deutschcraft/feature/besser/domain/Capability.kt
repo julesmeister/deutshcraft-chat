@@ -1,7 +1,5 @@
 package com.julesmeister.deutschcraft.feature.besser.domain
 
-import com.julesmeister.deutschcraft.feature.besser.domain.CapabilityCategory
-
 data class Capability(
     val id: String,
     val name: String,
