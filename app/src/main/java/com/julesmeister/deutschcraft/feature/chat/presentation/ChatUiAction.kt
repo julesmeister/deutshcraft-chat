@@ -16,14 +16,18 @@ sealed interface ChatUiAction {
     ) : ChatUiAction
 
     /*
-     * Accepts the currently displayed AI-generated mission.
+     * Leaves Besser refinement mode without skipping the
+     * underlying challenge.
+     *
+     * The accepted challenge remains available and can be
+     * reopened with Verbessern.
      */
+    data object CancelBesserRefinement :
+        ChatUiAction
+
     data object StartOfferedMission :
         ChatUiAction
 
-    /*
-     * Removes the current mission offer.
-     */
     data object DismissMissionOffer :
         ChatUiAction
 
@@ -31,10 +35,6 @@ sealed interface ChatUiAction {
         val eventId: String
     ) : ChatUiAction
 
-    /*
-     * Consumes an adaptive-learning feedback event after
-     * the top bar has displayed it.
-     */
     data class AdaptiveLearningFeedbackShown(
         val eventId: String
     ) : ChatUiAction

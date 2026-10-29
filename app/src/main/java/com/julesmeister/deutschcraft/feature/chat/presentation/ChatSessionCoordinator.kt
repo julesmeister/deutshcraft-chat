@@ -49,9 +49,6 @@ class ChatSessionCoordinator
      * Non-null while the current screen is showing an
      * in-memory greeting for a conversation that does not yet
      * exist in Room.
-     *
-     * The value is cleared when Room emits the real persisted
-     * greeting after the first learner message is sent.
      */
     private var provisionalGreetingMessageId:
             String? =
@@ -133,6 +130,10 @@ class ChatSessionCoordinator
                     onError =
                         ::showError
                 )
+            }
+
+            ChatUiAction.CancelBesserRefinement -> {
+                cancelBesserRefinement()
             }
 
             ChatUiAction.StartOfferedMission -> {
@@ -224,14 +225,6 @@ class ChatSessionCoordinator
                             .conversationId
                 )
 
-            /*
-             * Place the provisional greeting into presentation
-             * state before starting Room observation.
-             *
-             * Existing conversations receive an empty
-             * provisionalMessages list and are populated by the
-             * Room observer normally.
-             */
             _uiState.update { state ->
                 state.copy(
                     messages =
@@ -283,16 +276,6 @@ class ChatSessionCoordinator
                     append(
                         initializationResult
                             .isProvisional
-                    )
-
-                    append(
-                        ", provisionalMessageCount="
-                    )
-
-                    append(
-                        initializationResult
-                            .provisionalMessages
-                            .size
                     )
                 }
             )
@@ -381,14 +364,6 @@ class ChatSessionCoordinator
         val currentProvisionalGreetingId =
             provisionalGreetingMessageId
 
-        /*
-         * Room emits an empty message list immediately for a
-         * provisional conversation because the conversation has
-         * not been committed yet.
-         *
-         * Preserve the presentation-only greeting while Room is
-         * empty.
-         */
         if (
             currentProvisionalGreetingId !=
             null &&
@@ -397,14 +372,6 @@ class ChatSessionCoordinator
             return
         }
 
-        /*
-         * The first non-empty Room emission means the first send
-         * has committed the conversation.
-         *
-         * ConversationFactory has inserted the persisted greeting.
-         * Replace the provisional greeting with Room's complete
-         * message list.
-         */
         if (
             currentProvisionalGreetingId !=
             null &&
@@ -459,6 +426,179 @@ class ChatSessionCoordinator
                     challenges
             )
         }
+    }
+
+    /*
+     * =======================================================
+     * BESSER REFINEMENT
+     * =======================================================
+     */
+
+    fun startBesserRefinement(
+        challengeId: String
+    ): Boolean {
+        val currentState =
+            _uiState.value
+
+        /*
+         * Do not replace a refinement currently being
+         * submitted.
+         */
+        if (
+            currentState
+                .isSubmittingBesserRefinement
+        ) {
+            return false
+        }
+
+        val challenge =
+            currentState
+                .besserChallenges
+                .values
+                .firstOrNull { challenge ->
+                    challenge.id ==
+                            challengeId
+                }
+                ?: return false
+
+        val sourceMessage =
+            currentState
+                .messages
+                .firstOrNull { message ->
+                    message.id ==
+                            challenge.messageId
+                }
+                ?: return false
+
+        val sourceText =
+            sourceMessage
+                .content
+                .trim()
+
+        if (sourceText.isBlank()) {
+            return false
+        }
+
+        val refinement =
+            BesserRefinementUiState(
+                challengeId =
+                    challenge.id,
+
+                sourceMessageId =
+                    challenge.messageId,
+
+                originalMessageContent =
+                    sourceText,
+
+                instruction =
+                    challenge.instruction,
+
+                capabilityId =
+                    challenge.capabilityId,
+
+                revealedHintCount =
+                    challenge.revealedHintCount
+            )
+
+        _uiState.update { state ->
+            state.besserRefinementStarted(
+                refinement =
+                    refinement,
+
+                input =
+                    TextFieldValue(
+                        text =
+                            sourceText,
+
+                        selection =
+                            TextRange(
+                                sourceText.length
+                            )
+                    )
+            )
+        }
+
+        Log.i(
+            COORDINATOR_TAG,
+            buildString {
+                append(
+                    "Started Besser refinement. "
+                )
+
+                append(
+                    "challengeId="
+                )
+
+                append(
+                    challenge.id
+                )
+
+                append(
+                    ", messageId="
+                )
+
+                append(
+                    challenge.messageId
+                )
+
+                append(
+                    ", capabilityId="
+                )
+
+                append(
+                    challenge.capabilityId
+                )
+            }
+        )
+
+        return true
+    }
+
+    private fun cancelBesserRefinement() {
+        val currentState =
+            _uiState.value
+
+        if (
+            currentState
+                .isSubmittingBesserRefinement
+        ) {
+            return
+        }
+
+        val refinement =
+            currentState
+                .activeBesserRefinement
+                ?: return
+
+        _uiState.update { state ->
+            state.besserRefinementCancelled()
+        }
+
+        Log.d(
+            COORDINATOR_TAG,
+            buildString {
+                append(
+                    "Cancelled Besser refinement. "
+                )
+
+                append(
+                    "challengeId="
+                )
+
+                append(
+                    refinement.challengeId
+                )
+            }
+        )
+    }
+
+    fun showBesserError(
+        message: String
+    ) {
+        showError(
+            message =
+                message
+        )
     }
 
     /*
@@ -566,98 +706,6 @@ class ChatSessionCoordinator
                 )
             }
         }
-    }
-
-    /*
-     * =======================================================
-     * BESSER REFINEMENT
-     * =======================================================
-     */
-
-    fun startBesserRefinement(
-        challengeId: String
-    ): Boolean {
-        val currentState =
-            _uiState.value
-
-        val challenge =
-            currentState
-                .besserChallenges
-                .values
-                .firstOrNull { challenge ->
-                    challenge.id ==
-                            challengeId
-                }
-                ?: return false
-
-        val sourceMessage =
-            currentState
-                .messages
-                .firstOrNull { message ->
-                    message.id ==
-                            challenge.messageId
-                }
-                ?: return false
-
-        val sourceText =
-            sourceMessage
-                .content
-                .trim()
-
-        if (sourceText.isBlank()) {
-            return false
-        }
-
-        _uiState.update { state ->
-            state.copy(
-                messageInput =
-                    TextFieldValue(
-                        text =
-                            sourceText,
-
-                        selection =
-                            TextRange(
-                                sourceText.length
-                            )
-                    )
-            )
-        }
-
-        Log.i(
-            COORDINATOR_TAG,
-            buildString {
-                append(
-                    "Started Besser refinement. "
-                )
-
-                append(
-                    "challengeId="
-                )
-
-                append(
-                    challengeId
-                )
-
-                append(
-                    ", messageId="
-                )
-
-                append(
-                    challenge.messageId
-                )
-            }
-        )
-
-        return true
-    }
-
-    fun showBesserError(
-        message: String
-    ) {
-        showError(
-            message =
-                message
-        )
     }
 
     /*

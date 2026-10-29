@@ -2,6 +2,8 @@ package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import android.util.Log
 import androidx.compose.ui.text.input.TextFieldValue
+import com.julesmeister.deutschcraft.feature.besser.domain.AssistanceLevel
+import com.julesmeister.deutschcraft.feature.besser.domain.usecase.CompleteBesserChallengeUseCase
 import com.julesmeister.deutschcraft.feature.learninganalytics.domain.MissionAnalytics
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -10,29 +12,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/*
- * Controls the message composer and coordinates one complete
- * message-send operation.
- *
- * Responsibilities:
- *
- * - Update message input
- * - Apply selected suggestions
- * - Prevent duplicate sends
- * - Clear outdated suggestions
- * - Pass the active mission to ChatMessageSender
- * - Update ChatUiState after sending
- * - Forward completed mission analytics to the coordinator
- * - Request a new mission opportunity only when the send
- *   started without an active mission
- */
 class ChatSessionMessageController
 @Inject constructor(
     private val messageSender:
     ChatMessageSender,
 
     private val suggestionHandler:
-    ChatSuggestionHandler
+    ChatSuggestionHandler,
+
+    private val completeBesserChallengeUseCase:
+    CompleteBesserChallengeUseCase
 ) {
 
     fun updateInput(
@@ -40,8 +29,12 @@ class ChatSessionMessageController
         uiState:
         MutableStateFlow<ChatUiState>
     ) {
+        val currentState =
+            uiState.value
+
         if (
-            uiState.value.isInitializing
+            currentState.isInitializing ||
+            currentState.isSubmittingBesserRefinement
         ) {
             return
         }
@@ -62,16 +55,30 @@ class ChatSessionMessageController
         val currentState =
             uiState.value
 
+        /*
+         * Reply suggestions belong to ordinary conversation,
+         * never to an active Besser refinement.
+         */
+        if (
+            currentState.isBesserRefinementMode
+        ) {
+            return
+        }
+
         val updatedInput =
             suggestionHandler
                 .createInputFromSuggestion(
                     suggestions =
                         currentState.suggestions,
+
                     suggestionId =
                         suggestionId,
+
                     isEnabled =
                         !currentState.isInitializing &&
-                                !currentState.isSending
+                                !currentState.isSending &&
+                                !currentState
+                                    .isSubmittingBesserRefinement
                 )
                 ?: return
 
@@ -83,15 +90,6 @@ class ChatSessionMessageController
         }
     }
 
-    /*
-     * Starts one message-send operation.
-     *
-     * onMissionCompleted is invoked only when:
-     *
-     * - the send started with an active mission
-     * - the learner completed its final required objective
-     * - final MissionAnalytics were calculated and persisted
-     */
     fun send(
         scope: CoroutineScope,
         runtime: ChatSessionRuntime,
@@ -133,6 +131,7 @@ class ChatSessionMessageController
             messageText.isBlank() ||
             currentState.isInitializing ||
             currentState.isSending ||
+            currentState.isSubmittingBesserRefinement ||
             runtime.sendingJob?.isActive ==
             true
         ) {
@@ -140,10 +139,49 @@ class ChatSessionMessageController
         }
 
         /*
-         * Remove suggestions belonging to the previous
-         * assistant response as soon as the learner sends
-         * another message.
+         * ===================================================
+         * BESSER REFINEMENT SEND
+         * ===================================================
+         *
+         * This branch occurs BEFORE the normal chat pipeline.
+         *
+         * Therefore a refinement does not:
+         *
+         * - create a new learner message
+         * - generate an Emil reply
+         * - run ordinary assessment
+         * - evaluate a mission objective
+         * - generate reply suggestions
+         * - generate another Besser challenge
          */
+        val activeRefinement =
+            currentState
+                .activeBesserRefinement
+
+        if (activeRefinement != null) {
+            submitBesserRefinement(
+                scope =
+                    scope,
+
+                refinement =
+                    activeRefinement,
+
+                refinedMessageContent =
+                    messageText,
+
+                uiState =
+                    uiState
+            )
+
+            return
+        }
+
+        /*
+         * ===================================================
+         * NORMAL CHAT SEND
+         * ===================================================
+         */
+
         messageSender.clearSuggestions(
             conversationId =
                 conversationId
@@ -158,21 +196,224 @@ class ChatSessionMessageController
                 sendMessage(
                     conversationId =
                         conversationId,
+
                     messageText =
                         messageText,
+
                     scope =
                         scope,
+
                     runtime =
                         runtime,
+
                     uiState =
                         uiState,
+
                     onMissionOpportunityCheckRequested =
                         onMissionOpportunityCheckRequested,
+
                     onMissionCompleted =
                         onMissionCompleted
                 )
             }
     }
+
+    /*
+     * =======================================================
+     * BESSER REFINEMENT SUBMISSION
+     * =======================================================
+     */
+
+    private fun submitBesserRefinement(
+        scope: CoroutineScope,
+        refinement: BesserRefinementUiState,
+        refinedMessageContent: String,
+        uiState:
+        MutableStateFlow<ChatUiState>
+    ) {
+        val normalizedRefinement =
+            refinedMessageContent.trim()
+
+        if (
+            normalizedRefinement.isBlank() ||
+            uiState
+                .value
+                .isSubmittingBesserRefinement
+        ) {
+            return
+        }
+
+        uiState.update { state ->
+            state
+                .besserRefinementSubmissionStarted()
+        }
+
+        scope.launch {
+            try {
+                /*
+                 * Read the latest UI challenge so hints revealed
+                 * after refinement started are included in the
+                 * assistance calculation.
+                 */
+                val currentChallenge =
+                    uiState
+                        .value
+                        .besserChallenges
+                        .values
+                        .firstOrNull { challenge ->
+                            challenge.id ==
+                                    refinement.challengeId
+                        }
+
+                val revealedHintCount =
+                    currentChallenge
+                        ?.revealedHintCount
+                        ?: refinement
+                            .revealedHintCount
+
+                val assistanceLevel =
+                    determineBesserAssistanceLevel(
+                        revealedHintCount =
+                            revealedHintCount
+                    )
+
+                val result =
+                    completeBesserChallengeUseCase(
+                        challengeId =
+                            refinement.challengeId,
+
+                        refinedMessageContent =
+                            normalizedRefinement,
+
+                        actualAssistanceLevel =
+                            assistanceLevel
+                    )
+
+                result
+                    .onSuccess {
+                        uiState.update { state ->
+                            state
+                                .besserRefinementSubmissionSucceeded()
+                        }
+
+                        Log.i(
+                            CONTROLLER_TAG,
+                            buildString {
+                                append(
+                                    "Besser refinement completed. "
+                                )
+
+                                append(
+                                    "challengeId="
+                                )
+
+                                append(
+                                    refinement.challengeId
+                                )
+
+                                append(
+                                    ", capabilityId="
+                                )
+
+                                append(
+                                    refinement.capabilityId
+                                )
+
+                                append(
+                                    ", assistance="
+                                )
+
+                                append(
+                                    assistanceLevel.name
+                                )
+
+                                append(
+                                    ", revealedHintCount="
+                                )
+
+                                append(
+                                    revealedHintCount
+                                )
+                            }
+                        )
+                    }
+                    .onFailure { throwable: Throwable ->
+                        Log.w(
+                            CONTROLLER_TAG,
+                            "Besser refinement was rejected.",
+                            throwable
+                        )
+
+                        uiState.update { state ->
+                            state.besserRefinementSubmissionFailed(
+                                message =
+                                    throwable.message
+                                        ?: BESSER_REFINEMENT_ERROR
+                            )
+                        }
+                    }
+            } catch (
+                cancellationException:
+                CancellationException
+            ) {
+                throw cancellationException
+            } catch (throwable: Throwable) {
+                Log.e(
+                    CONTROLLER_TAG,
+                    "Besser refinement submission failed.",
+                    throwable
+                )
+
+                uiState.update { state ->
+                    state.besserRefinementSubmissionFailed(
+                        message =
+                            throwable.message
+                                ?: BESSER_REFINEMENT_ERROR
+                    )
+                }
+            }
+        }
+    }
+
+    /*
+     * Besser itself is already an explicit prompt, so a
+     * successful Besser rewrite is never considered fully
+     * INDEPENDENT evidence.
+     *
+     * No additional hint:
+     *     PROMPTED
+     *
+     * One revealed hint:
+     *     SCAFFOLDED
+     *
+     * Two or more revealed hints:
+     *     MODELED
+     */
+    private fun determineBesserAssistanceLevel(
+        revealedHintCount: Int
+    ): AssistanceLevel {
+        return when {
+            revealedHintCount <=
+                    0 -> {
+                AssistanceLevel.PROMPTED
+            }
+
+            revealedHintCount ==
+                    1 -> {
+                AssistanceLevel.SCAFFOLDED
+            }
+
+            else -> {
+                AssistanceLevel.MODELED
+            }
+        }
+    }
+
+    /*
+     * =======================================================
+     * NORMAL MESSAGE SEND
+     * =======================================================
+     */
 
     private suspend fun sendMessage(
         conversationId: String,
@@ -193,37 +434,17 @@ class ChatSessionMessageController
         ) -> Unit
     ) {
         try {
-            /*
-             * Capture the active mission before sending.
-             *
-             * When the final objective completes, the Room
-             * mission observer may clear runtime.activeMission
-             * before this method finishes.
-             *
-             * The snapshot lets post-send logic know whether
-             * this send originally belonged to a mission.
-             */
             val activeMissionAtSendStart =
                 runtime.activeMission
 
-            /*
-             * ChatMessageSender performs the complete send and
-             * post-send learning pipeline:
-             *
-             * - Persist learner message
-             * - Generate and persist assistant response
-             * - Evaluate the mission objective
-             * - Persist interaction evidence
-             * - Complete the objective when appropriate
-             * - Finalize mission analytics when appropriate
-             * - Run adaptive learning
-             */
             val result =
                 messageSender.send(
                     conversationId =
                         conversationId,
+
                     messageText =
                         messageText,
+
                     activeMission =
                         activeMissionAtSendStart
                 )
@@ -232,17 +453,12 @@ class ChatSessionMessageController
                 state.sendingSucceeded(
                     suggestions =
                         result.suggestions,
+
                     warning =
                         result.warning
                 )
             }
 
-            /*
-             * Forward finalized mission analytics to the
-             * coordinator.
-             *
-             * Both values must exist together.
-             */
             val completedMissionTitle =
                 result.completedMissionTitle
 
@@ -265,37 +481,36 @@ class ChatSessionMessageController
                         append(
                             "Completed mission forwarded to "
                         )
+
                         append(
                             "presentation. missionId="
                         )
+
                         append(
-                            completedMissionAnalytics.missionId
+                            completedMissionAnalytics
+                                .missionId
                         )
+
                         append(
                             ", title="
                         )
+
                         append(
                             completedMissionTitle
                         )
+
                         append(
                             ", overall="
                         )
+
                         append(
-                            completedMissionAnalytics.overallScore
+                            completedMissionAnalytics
+                                .overallScore
                         )
                     }
                 )
             }
 
-            /*
-             * Check for a new mission opportunity only if the
-             * learner was not already performing a mission
-             * when the send began.
-             *
-             * Do not inspect runtime.activeMission here.
-             * Room may already have cleared a mission that
-             * completed during this send.
-             */
             if (
                 activeMissionAtSendStart ==
                 null
@@ -312,37 +527,48 @@ class ChatSessionMessageController
                     append(
                         "Message send completed. "
                     )
+
                     append(
                         "conversationId="
                     )
+
                     append(
                         conversationId
                     )
+
                     append(
                         ", missionActiveAtStart="
                     )
+
                     append(
                         activeMissionAtSendStart !=
                                 null
                     )
+
                     append(
                         ", missionCompleted="
                     )
+
                     append(
                         completedMissionAnalytics !=
                                 null
                     )
+
                     append(
                         ", suggestionCount="
                     )
+
                     append(
                         result.suggestions.size
                     )
+
                     append(
                         ", hasWarning="
                     )
+
                     append(
-                        !result.warning.isNullOrBlank()
+                        !result.warning
+                            .isNullOrBlank()
                     )
                 }
             )
@@ -350,10 +576,6 @@ class ChatSessionMessageController
             cancellationException:
             CancellationException
         ) {
-            /*
-             * Coroutine cancellation is not a normal send
-             * failure and must propagate.
-             */
             throw cancellationException
         } catch (throwable: Throwable) {
             Log.e(
@@ -380,6 +602,7 @@ class ChatSessionMessageController
     }
 
     private companion object {
+
         const val CONTROLLER_TAG =
             "ChatSessionMessage"
 
@@ -389,5 +612,8 @@ class ChatSessionMessageController
         const val SEND_ERROR =
             "The assistant could not respond. " +
                     "Your message was saved locally."
+
+        const val BESSER_REFINEMENT_ERROR =
+            "Die Verbesserung konnte nicht gespeichert werden."
     }
 }

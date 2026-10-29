@@ -18,27 +18,34 @@ data class ChatUiState(
 
     /*
      * =======================================================
-     * Besser
+     * BESSER
      * =======================================================
-     *
-     * Active Besser challenges keyed by their owning learner
-     * message ID.
-     *
-     * This deliberately mirrors the marked-phrase attachment
-     * approach:
-     *
-     *     message.id -> Besser challenge
-     *
-     * ChatMessageList can therefore attach the challenge
-     * directly underneath the correct learner bubble.
      */
+
     val besserChallenges:
     Map<String, BesserChallengeUiModel> =
         emptyMap(),
 
     /*
-     * Temporary generated mission offer.
+     * Non-null while the learner is actively rewriting a
+     * sentence for an accepted Besser challenge.
+     *
+     * Refinement submission is intentionally different from
+     * ordinary chat sending.
      */
+    val activeBesserRefinement:
+    BesserRefinementUiState? =
+        null,
+
+    val isSubmittingBesserRefinement: Boolean =
+        false,
+
+    /*
+     * =======================================================
+     * MISSION OFFER
+     * =======================================================
+     */
+
     val missionOffer: MissionOpportunity? =
         null,
 
@@ -50,7 +57,7 @@ data class ChatUiState(
 
     /*
      * =======================================================
-     * Active mission
+     * ACTIVE MISSION
      * =======================================================
      */
 
@@ -69,23 +76,17 @@ data class ChatUiState(
     val missionProgressPercentage: Int =
         0,
 
-    /*
-     * One-time mission-objective completion feedback.
-     */
     val objectiveCompletionEvent:
     MissionObjectiveCompletionEvent? =
         null,
 
-    /*
-     * One-time adaptive-learning feedback.
-     */
     val adaptiveLearningFeedbackEvent:
     AdaptiveLearningFeedbackEvent? =
         null,
 
     /*
      * =======================================================
-     * Runtime presentation state
+     * RUNTIME PRESENTATION STATE
      * =======================================================
      */
 
@@ -106,4 +107,15 @@ data class ChatUiState(
 
     val currentStreak: Int =
         0
-)
+) {
+
+    val isBesserRefinementMode: Boolean
+        get() =
+            activeBesserRefinement !=
+                    null
+
+    val besserRefinementInstruction: String?
+        get() =
+            activeBesserRefinement
+                ?.instruction
+}

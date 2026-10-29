@@ -74,18 +74,6 @@ fun ChatScreen(
 
     onRemoveMarkedPhrase: (String) -> Unit,
 
-    /*
-     * =======================================================
-     * BESSER
-     * =======================================================
-     *
-     * The challenge map itself is intentionally NOT passed
-     * separately.
-     *
-     * ChatUiState.besserChallenges is the single source of
-     * truth.
-     */
-
     onBesserImprove: (String) -> Unit =
         {},
 
@@ -113,9 +101,6 @@ fun ChatScreen(
     val density =
         LocalDensity.current
 
-    /*
-     * Records the conversation so the composer can refract it.
-     */
     val glassBackdrop =
         rememberLayerBackdrop()
 
@@ -145,11 +130,6 @@ fun ChatScreen(
         )
     }
 
-    /*
-     * Every successful copy increments this key.
-     *
-     * A new key restarts the brief top-bar confirmation.
-     */
     var copyConfirmationKey by
     remember {
         mutableIntStateOf(
@@ -231,24 +211,30 @@ fun ChatScreen(
                 sheetSentence,
 
             selectedAction =
-                messageActionState.selectedAction,
+                messageActionState
+                    .selectedAction,
 
             insight =
-                messageActionState.insight,
+                messageActionState
+                    .insight,
 
             isLoading =
-                messageActionState.isLoading,
+                messageActionState
+                    .isLoading,
 
             errorMessage =
-                messageActionState.errorMessage,
+                messageActionState
+                    .errorMessage,
 
             onActionClick = { action ->
-                messageActionViewModel.analyzeSentence(
-                    sentence =
-                        sheetSentence,
-                    action =
-                        action
-                )
+                messageActionViewModel
+                    .analyzeSentence(
+                        sentence =
+                            sheetSentence,
+
+                        action =
+                            action
+                    )
             },
 
             onDismiss = {
@@ -259,7 +245,8 @@ fun ChatScreen(
             },
 
             isCorrectedVersion =
-                message.isShowingBesserVersion(),
+                message
+                    .isShowingBesserVersion(),
 
             markedPhrases =
                 markedPhrases[
@@ -359,19 +346,24 @@ fun ChatScreen(
                     onBackClick,
 
                 activeMissionTitle =
-                    uiState.activeMissionTitle,
+                    uiState
+                        .activeMissionTitle,
 
                 currentMissionObjective =
-                    uiState.currentMissionObjective,
+                    uiState
+                        .currentMissionObjective,
 
                 currentMissionGuidance =
-                    uiState.currentMissionGuidance,
+                    uiState
+                        .currentMissionGuidance,
 
                 missionProgressPercentage =
-                    uiState.missionProgressPercentage,
+                    uiState
+                        .missionProgressPercentage,
 
                 objectiveCompletionEvent =
-                    uiState.objectiveCompletionEvent,
+                    uiState
+                        .objectiveCompletionEvent,
 
                 adaptiveLearningFeedbackEvent =
                     uiState
@@ -384,10 +376,11 @@ fun ChatScreen(
                         eventId ->
 
                     onAction(
-                        ChatUiAction.ObjectiveCompletionShown(
-                            eventId =
-                                eventId
-                        )
+                        ChatUiAction
+                            .ObjectiveCompletionShown(
+                                eventId =
+                                    eventId
+                            )
                     )
                 },
 
@@ -430,16 +423,10 @@ fun ChatScreen(
                                 .calculateTopPadding()
                     )
         ) {
-
             /*
-             * =================================================
+             * ===============================================
              * CONVERSATION
-             * =================================================
-             *
-             * ChatMessageList reads Besser challenges directly
-             * from:
-             *
-             * uiState.besserChallenges
+             * ===============================================
              */
 
             ChatMessageList(
@@ -489,17 +476,20 @@ fun ChatScreen(
             )
 
             /*
-             * =================================================
+             * ===============================================
              * FLOATING COMPOSER
-             * =================================================
+             * ===============================================
              */
 
             val hasSuggestionContent =
-                uiState.missionOffer !=
-                        null ||
-                        uiState
-                            .suggestions
-                            .isNotEmpty()
+                !uiState.isBesserRefinementMode &&
+                        (
+                                uiState.missionOffer !=
+                                        null ||
+                                        uiState
+                                            .suggestions
+                                            .isNotEmpty()
+                                )
 
             ChatBottomBar(
                 backdrop =
@@ -510,17 +500,19 @@ fun ChatScreen(
 
                 onTextChange = { value ->
                     onAction(
-                        ChatUiAction.MessageInputChanged(
-                            value =
-                                TextFieldValue(
-                                    text =
-                                        value,
-                                    selection =
-                                        TextRange(
-                                            value.length
-                                        )
-                                )
-                        )
+                        ChatUiAction
+                            .MessageInputChanged(
+                                value =
+                                    TextFieldValue(
+                                        text =
+                                            value,
+
+                                        selection =
+                                            TextRange(
+                                                value.length
+                                            )
+                                    )
+                            )
                     )
                 },
 
@@ -535,7 +527,26 @@ fun ChatScreen(
                             !uiState.isStartingMission,
 
                 isSending =
-                    uiState.isSending,
+                    uiState.isSending ||
+                            uiState
+                                .isSubmittingBesserRefinement,
+
+                /*
+                 * ===========================================
+                 * BESSER REFINEMENT
+                 * ===========================================
+                 */
+
+                refinementInstruction =
+                    uiState
+                        .besserRefinementInstruction,
+
+                onCancelRefinement = {
+                    onAction(
+                        ChatUiAction
+                            .CancelBesserRefinement
+                    )
+                },
 
                 onInputFocused = {
                     scrollRequestKey +=
@@ -543,9 +554,7 @@ fun ChatScreen(
                 },
 
                 suggestionContent =
-                    if (
-                        hasSuggestionContent
-                    ) {
+                    if (hasSuggestionContent) {
                         {
                             uiState
                                 .missionOffer
@@ -576,12 +585,18 @@ fun ChatScreen(
 
                             FloatingReplySuggestions(
                                 suggestions =
-                                    uiState.suggestions,
+                                    uiState
+                                        .suggestions,
 
                                 enabled =
-                                    !uiState.isInitializing &&
-                                            !uiState.isSending &&
-                                            !uiState.isStartingMission,
+                                    !uiState
+                                        .isInitializing &&
+                                            !uiState
+                                                .isSending &&
+                                            !uiState
+                                                .isStartingMission &&
+                                            !uiState
+                                                .isSubmittingBesserRefinement,
 
                                 onSuggestionClick = {
                                         suggestionId ->
@@ -631,6 +646,7 @@ fun ChatScreen(
 
 private fun ChatMessage.preferredStudySentence():
         String {
+
     return if (
         isShowingBesserVersion()
     ) {
@@ -642,6 +658,7 @@ private fun ChatMessage.preferredStudySentence():
 
 private fun ChatMessage.isShowingBesserVersion():
         Boolean {
+
     return sender ==
             MessageSender.USER &&
             !correction.isNullOrBlank()
