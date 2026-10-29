@@ -18,14 +18,19 @@ import kotlinx.coroutines.coroutineScope
 class SendChatMessageUseCase @Inject constructor(
     private val chatRepository:
     ChatRepository,
+
     private val activityTracker:
     ActivityTracker,
+
     private val assessChatMessage:
     AssessChatMessageUseCase,
+
     private val correctLearnerMessage:
     CorrectLearnerMessageUseCase,
+
     private val scheduleIdlePrompt:
     ScheduleIdlePromptUseCase,
+
     private val clock:
     Clock
 ) {
@@ -42,11 +47,39 @@ class SendChatMessageUseCase @Inject constructor(
                 messageText.trim()
 
             require(
+                conversationId.isNotBlank()
+            ) {
+                "Conversation ID cannot be blank."
+            }
+
+            require(
                 cleanMessage.isNotBlank()
             ) {
                 "The message must not be blank."
             }
 
+            /*
+             * =================================================
+             * COMMIT PROVISIONAL CONVERSATION
+             * =================================================
+             *
+             * Opening New Conversation no longer creates a Room
+             * conversation.
+             *
+             * The first real learner send is the commit point.
+             */
+            ensureConversationExists(
+                conversationId =
+                    conversationId
+            )
+
+            /*
+             * ConversationFactory inserts its opening assistant
+             * greeting as sequence 1.
+             *
+             * Therefore the first learner message receives
+             * sequence 2.
+             */
             val userMessage =
                 createUserMessage(
                     conversationId =
@@ -56,30 +89,15 @@ class SendChatMessageUseCase @Inject constructor(
                 )
 
             /*
-             * Save the original learner message first.
-             *
-             * Room remains the source of truth, so the
-             * message becomes visible immediately.
+             * Save the learner message.
              */
             chatRepository.saveMessage(
                 message =
                     userMessage
             )
 
-            /*
-             * Record the latest learner activity and replace
-             * the existing idle reminder.
-             */
             scheduleIdlePrompt()
 
-            /*
-             * Correction and assistant generation are
-             * independent requests and can run concurrently.
-             *
-             * The active mission is passed into assistant
-             * generation so Emil can temporarily adopt the
-             * scenario role and guide the current objective.
-             */
             val correctionDeferred =
                 async {
                     correctAndPersist(
@@ -101,10 +119,6 @@ class SendChatMessageUseCase @Inject constructor(
                         )
                 }
 
-            /*
-             * Record learner activity for progress and streak
-             * tracking.
-             */
             val activeDayCount =
                 activityTracker
                     .recordMessageActivity(
@@ -113,12 +127,6 @@ class SendChatMessageUseCase @Inject constructor(
                                 .LOCAL_PROFILE_ID
                     )
 
-            /*
-             * Assessment is supplementary.
-             *
-             * A failed assessment produces a warning but does
-             * not prevent the assistant from replying.
-             */
             val assessmentWarning =
                 assessWithoutBreakingChat(
                     userMessage =
@@ -127,18 +135,11 @@ class SendChatMessageUseCase @Inject constructor(
                         activeDayCount
                 )
 
-            /*
-             * Await correction independently.
-             */
             correctionDeferred.await()
 
             val assistantReply =
                 assistantReplyDeferred.await()
 
-            /*
-             * Save the assistant message after Qwen
-             * successfully generates it.
-             */
             chatRepository.saveMessage(
                 message =
                     assistantReply.message
@@ -151,6 +152,31 @@ class SendChatMessageUseCase @Inject constructor(
                     assessmentWarning
             )
         }
+
+    /*
+     * A provisional ordinary conversation becomes persistent
+     * only when its first learner message is sent.
+     *
+     * Existing conversations pass through without mutation.
+     */
+    private suspend fun ensureConversationExists(
+        conversationId: String
+    ) {
+        val existingConversation =
+            chatRepository.getConversation(
+                conversationId =
+                    conversationId
+            )
+
+        if (existingConversation != null) {
+            return
+        }
+
+        chatRepository.createConversation(
+            conversationId =
+                conversationId
+        )
+    }
 
     private suspend fun createUserMessage(
         conversationId: String,
@@ -205,12 +231,6 @@ class SendChatMessageUseCase @Inject constructor(
         ) {
             throw cancellationException
         } catch (throwable: Throwable) {
-            /*
-             * Correction is supplementary.
-             *
-             * A failed correction or Room update must not
-             * prevent the assistant from responding.
-             */
             Log.e(
                 SEND_MESSAGE_TAG,
                 "Correction could not be persisted.",
@@ -249,6 +269,7 @@ class SendChatMessageUseCase @Inject constructor(
     }
 
     private companion object {
+
         const val SEND_MESSAGE_TAG =
             "SendChatMessage"
 

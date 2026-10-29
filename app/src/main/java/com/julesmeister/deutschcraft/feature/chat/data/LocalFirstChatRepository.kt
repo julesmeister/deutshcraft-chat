@@ -21,12 +21,16 @@ import kotlinx.coroutines.flow.map
 class LocalFirstChatRepository @Inject constructor(
     private val localDataSource:
     ChatLocalDataSource,
+
     private val conversationFactory:
     ConversationFactory,
+
     private val assistantReplyFactory:
     AssistantReplyFactory,
+
     private val titleGenerator:
     LocalThreadTitleGenerator,
+
     private val clock:
     Clock
 ) : ChatRepository {
@@ -36,7 +40,8 @@ class LocalFirstChatRepository @Inject constructor(
     ): Flow<List<ChatMessage>> {
         return localDataSource
             .observeMessages(
-                conversationId = conversationId
+                conversationId =
+                    conversationId
             )
             .map { entities ->
                 entities.map { entity ->
@@ -45,6 +50,12 @@ class LocalFirstChatRepository @Inject constructor(
             }
     }
 
+    /*
+     * Existing behavior for callers that need an immediately
+     * persisted conversation with an automatically generated ID.
+     *
+     * Recommended missions may continue using this flow.
+     */
     override suspend fun createConversation():
             Conversation {
         return conversationFactory.create(
@@ -53,12 +64,42 @@ class LocalFirstChatRepository @Inject constructor(
         )
     }
 
+    /*
+     * Persist a conversation using a previously generated
+     * provisional conversation ID.
+     */
+    override suspend fun createConversation(
+        conversationId: String
+    ): Conversation {
+        require(
+            conversationId.isNotBlank()
+        ) {
+            "Conversation ID cannot be blank."
+        }
+
+        val existingConversation =
+            getConversation(
+                conversationId =
+                    conversationId
+            )
+
+        if (existingConversation != null) {
+            return existingConversation
+        }
+
+        return conversationFactory.create(
+            conversationId =
+                conversationId
+        )
+    }
+
     override suspend fun getConversation(
         conversationId: String
     ): Conversation? {
         return localDataSource
             .getConversation(
-                conversationId = conversationId
+                conversationId =
+                    conversationId
             )
             ?.toDomain()
     }
@@ -68,7 +109,8 @@ class LocalFirstChatRepository @Inject constructor(
     ): Conversation {
         val existingConversation =
             getConversation(
-                conversationId = conversationId
+                conversationId =
+                    conversationId
             )
 
         if (existingConversation != null) {
@@ -83,7 +125,8 @@ class LocalFirstChatRepository @Inject constructor(
         }
 
         return conversationFactory.create(
-            conversationId = conversationId
+            conversationId =
+                conversationId
         )
     }
 
@@ -118,7 +161,8 @@ class LocalFirstChatRepository @Inject constructor(
 
         return localDataSource
             .getOpenConversationForDay(
-                epochDay = todayEpochDay
+                epochDay =
+                    todayEpochDay
             )
             ?.toDomain()
     }
@@ -136,7 +180,8 @@ class LocalFirstChatRepository @Inject constructor(
             MessageSender.USER
         ) {
             updateGeneratedTitleIfNeeded(
-                message = message
+                message =
+                    message
             )
         }
     }
@@ -144,9 +189,11 @@ class LocalFirstChatRepository @Inject constructor(
     override suspend fun getNextSequenceNumber(
         conversationId: String
     ): Long {
-        return localDataSource.getNextSequenceNumber(
-            conversationId = conversationId
-        )
+        return localDataSource
+            .getNextSequenceNumber(
+                conversationId =
+                    conversationId
+            )
     }
 
     override suspend fun generateAssistantReply(
@@ -179,7 +226,9 @@ class LocalFirstChatRepository @Inject constructor(
     private suspend fun updateGeneratedTitleIfNeeded(
         message: ChatMessage
     ) {
-        if (message.content.isBlank()) {
+        if (
+            message.content.isBlank()
+        ) {
             return
         }
 
@@ -201,6 +250,7 @@ class LocalFirstChatRepository @Inject constructor(
     }
 
     private companion object {
+
         const val PRIMARY_CONVERSATION_ID =
             "primary-conversation"
     }

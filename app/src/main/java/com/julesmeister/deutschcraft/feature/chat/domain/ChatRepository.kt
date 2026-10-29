@@ -26,6 +26,16 @@ interface ChatRepository {
     suspend fun createConversation():
             Conversation
 
+    /*
+     * Creates a conversation using a caller-supplied ID.
+     *
+     * This is used when a provisional new chat receives its
+     * first real learner message.
+     */
+    suspend fun createConversation(
+        conversationId: String
+    ): Conversation
+
     suspend fun saveMessage(
         message: ChatMessage
     )

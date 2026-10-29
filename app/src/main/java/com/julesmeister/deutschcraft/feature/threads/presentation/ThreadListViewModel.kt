@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.ObserveCurrentStreakUseCase
 import com.julesmeister.deutschcraft.feature.threads.domain.ConversationThread
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
@@ -24,17 +25,18 @@ class ThreadListViewModel
 @Inject constructor(
     private val threadController:
     ThreadListThreadController,
+
     private val missionController:
     ThreadListMissionController,
+
     private val missionRecommendationCoordinator:
     ThreadMissionRecommendationCoordinator,
+
     private val threadSectionBuilder:
     ThreadSectionBuilder,
 
     /*
-     * Same streak source previously used by the chat top bar.
-     * It is Room-backed, so the value updates automatically
-     * whenever a new activity day is recorded.
+     * Same Room-backed streak source used by chat.
      */
     private val observeCurrentStreak:
     ObserveCurrentStreakUseCase
@@ -75,6 +77,32 @@ class ThreadListViewModel
         observeThreads()
     }
 
+    /*
+     * =======================================================
+     * NEW CONVERSATION
+     * =======================================================
+     *
+     * A normal blank conversation is now provisional.
+     *
+     * Tapping New Conversation:
+     *
+     * 1. Generates a unique ID.
+     * 2. Navigates to Chat.
+     * 3. Does NOT create a Room conversation.
+     *
+     * SendChatMessageUseCase becomes the persistence boundary.
+     *
+     * Therefore:
+     *
+     * New -> Back
+     *     Nothing persisted.
+     *
+     * New -> type -> Back
+     *     Nothing persisted.
+     *
+     * New -> Send
+     *     Conversation becomes persistent.
+     */
     fun createThread() {
         val currentState =
             _uiState.value
@@ -86,33 +114,31 @@ class ThreadListViewModel
             return
         }
 
-        _uiState.update { state ->
-            state.threadCreationStarted()
-        }
+        val provisionalConversationId =
+            UUID
+                .randomUUID()
+                .toString()
 
-        threadController.createConversation(
-            scope =
-                viewModelScope,
-            onSuccess = { conversation ->
-                navigateToConversation(
-                    conversationId =
-                        conversation.id
-                )
-            },
-            onFailure =
-                ::showError,
-            onFinished = {
-                _uiState.update { state ->
-                    state.threadCreationFinished()
-                }
-            }
-        )
+        viewModelScope.launch {
+            navigateToConversation(
+                conversationId =
+                    provisionalConversationId
+            )
+        }
     }
 
     /*
-     * Starts the recommendation currently displayed in the
-     * top mission cell.
+     * =======================================================
+     * RECOMMENDED MISSION
+     * =======================================================
+     *
+     * Recommended missions intentionally retain their current
+     * committed-conversation behavior.
+     *
+     * Starting a mission is an explicit learning action, unlike
+     * simply opening an empty ordinary conversation.
      */
+
     fun startRecommendedMission() {
         val currentState =
             _uiState.value
@@ -132,15 +158,19 @@ class ThreadListViewModel
         missionController.startRecommendation(
             recommendation =
                 recommendation,
+
             currentState =
                 currentState,
+
             scope =
                 viewModelScope,
+
             onStarted = {
                 _uiState.update { state ->
                     state.recommendedMissionStarted()
                 }
             },
+
             onSuccess = { conversation ->
                 _uiState.update { state ->
                     state.recommendedMissionSucceeded()
@@ -151,6 +181,7 @@ class ThreadListViewModel
                         conversation.id
                 )
             },
+
             onFailure = { message ->
                 _uiState.update { state ->
                     state.recommendedMissionFailed(
@@ -163,10 +194,11 @@ class ThreadListViewModel
     }
 
     /*
-     * Marks the visible recommendation SKIPPED and loads the
-     * next one. After the last READY recommendation, the use
-     * case wraps around to the oldest skipped one.
+     * =======================================================
+     * ANOTHER MISSION RECOMMENDATION
+     * =======================================================
      */
+
     fun showAnotherMissionRecommendation() {
         val currentState =
             _uiState.value
@@ -192,6 +224,7 @@ class ThreadListViewModel
             state.copy(
                 isLoadingMissionRecommendation =
                     true,
+
                 errorMessage =
                     null
             )
@@ -204,6 +237,7 @@ class ThreadListViewModel
                         .loadRecommendation(
                             activeThreads =
                                 activeThreads,
+
                             forceRefresh =
                                 true
                         )
@@ -216,8 +250,10 @@ class ThreadListViewModel
                     state.copy(
                         missionRecommendation =
                             displayedRecommendation,
+
                         isLoadingMissionRecommendation =
                             false,
+
                         errorMessage =
                             if (
                                 nextRecommendation ==
@@ -240,12 +276,20 @@ class ThreadListViewModel
             ) {
                 throw cancellationException
             } catch (throwable: Throwable) {
+                Log.e(
+                    VIEW_MODEL_TAG,
+                    "Another mission recommendation could not be loaded.",
+                    throwable
+                )
+
                 _uiState.update { state ->
                     state.copy(
                         missionRecommendation =
                             previousRecommendation,
+
                         isLoadingMissionRecommendation =
                             false,
+
                         errorMessage =
                             DIFFERENT_MISSION_ERROR
                     )
@@ -254,6 +298,12 @@ class ThreadListViewModel
         }
     }
 
+    /*
+     * =======================================================
+     * ARCHIVE
+     * =======================================================
+     */
+
     fun archiveThread(
         conversationId: String
     ) {
@@ -261,25 +311,36 @@ class ThreadListViewModel
             findActiveThread(
                 conversationId =
                     conversationId
-            )?.title
+            )
+                ?.title
                 ?: DEFAULT_CONVERSATION_TITLE
 
         threadController.archiveConversation(
             conversationId =
                 conversationId,
+
             conversationTitle =
                 conversationTitle,
+
             scope =
                 viewModelScope,
+
             onSuccess = { event ->
                 _archiveSnackbarEvents.emit(
                     event
                 )
             },
+
             onFailure =
                 ::showError
         )
     }
+
+    /*
+     * =======================================================
+     * RESTORE
+     * =======================================================
+     */
 
     fun restoreThread(
         conversationId: String
@@ -287,12 +348,20 @@ class ThreadListViewModel
         threadController.restoreConversation(
             conversationId =
                 conversationId,
+
             scope =
                 viewModelScope,
+
             onFailure =
                 ::showError
         )
     }
+
+    /*
+     * =======================================================
+     * DELETE
+     * =======================================================
+     */
 
     fun deleteThread(
         conversationId: String
@@ -300,12 +369,20 @@ class ThreadListViewModel
         threadController.deleteConversation(
             conversationId =
                 conversationId,
+
             scope =
                 viewModelScope,
+
             onFailure =
                 ::showError
         )
     }
+
+    /*
+     * =======================================================
+     * ERROR
+     * =======================================================
+     */
 
     fun dismissError() {
         _uiState.update { state ->
@@ -314,12 +391,11 @@ class ThreadListViewModel
     }
 
     /*
-     * Keeps ThreadListUiState.currentStreak in sync with the
-     * persisted learning streak.
-     *
-     * A failure here only affects the streak badge; the thread
-     * list keeps working.
+     * =======================================================
+     * STREAK
+     * =======================================================
      */
+
     private fun observeStreak() {
         viewModelScope.launch {
             try {
@@ -350,12 +426,20 @@ class ThreadListViewModel
         }
     }
 
+    /*
+     * =======================================================
+     * THREAD OBSERVATION
+     * =======================================================
+     */
+
     private fun observeThreads() {
         threadController.startObserving(
             scope =
                 viewModelScope,
+
             onSnapshot =
                 ::handleThreadSnapshot,
+
             onFailure = { message ->
                 _uiState.update { state ->
                     state.threadLoadingFailed(
@@ -377,6 +461,7 @@ class ThreadListViewModel
                         threads =
                             snapshot.activeThreads
                     ),
+
                 archivedThreads =
                     snapshot.archivedThreads
             )
@@ -410,6 +495,12 @@ class ThreadListViewModel
         )
     }
 
+    /*
+     * =======================================================
+     * INITIAL MISSION RECOMMENDATION
+     * =======================================================
+     */
+
     private fun loadFirstMissionRecommendation(
         activeThreads:
         List<ConversationThread>
@@ -417,15 +508,19 @@ class ThreadListViewModel
         missionController.loadRecommendationIfNeeded(
             activeThreads =
                 activeThreads,
+
             currentState =
                 _uiState.value,
+
             scope =
                 viewModelScope,
+
             onStarted = {
                 _uiState.update { state ->
                     state.recommendationLoadingStarted()
                 }
             },
+
             onSuccess = { recommendation ->
                 _uiState.update { state ->
                     state.recommendationLoadingFinished(
@@ -439,6 +534,7 @@ class ThreadListViewModel
                         activeThreads
                 )
             },
+
             onFailure = {
                 _uiState.update { state ->
                     state.recommendationLoadingFailed()
@@ -452,6 +548,12 @@ class ThreadListViewModel
         )
     }
 
+    /*
+     * =======================================================
+     * MISSION PREFETCH
+     * =======================================================
+     */
+
     private fun prefetchMissionRecommendations(
         activeThreads:
         List<ConversationThread>
@@ -460,9 +562,13 @@ class ThreadListViewModel
             .prefetchRecommendations(
                 activeThreads =
                     activeThreads,
+
                 scope =
                     viewModelScope,
-                onFirstRecommendationAvailable = { recommendation ->
+
+                onFirstRecommendationAvailable = {
+                        recommendation ->
+
                     if (
                         _uiState
                             .value
@@ -473,14 +579,17 @@ class ThreadListViewModel
                             state.copy(
                                 missionRecommendation =
                                     recommendation,
+
                                 isLoadingMissionRecommendation =
                                     false,
+
                                 errorMessage =
                                     null
                             )
                         }
                     }
                 },
+
                 onFailure = {
                     if (
                         _uiState
@@ -499,6 +608,12 @@ class ThreadListViewModel
             )
     }
 
+    /*
+     * =======================================================
+     * ACTIVE THREAD EXTRACTION
+     * =======================================================
+     */
+
     private fun activeThreadsFromState(
         state: ThreadListUiState
     ): List<ConversationThread> {
@@ -513,6 +628,12 @@ class ThreadListViewModel
             .toList()
     }
 
+    /*
+     * =======================================================
+     * NAVIGATION
+     * =======================================================
+     */
+
     private suspend fun navigateToConversation(
         conversationId: String
     ) {
@@ -524,6 +645,12 @@ class ThreadListViewModel
                 )
         )
     }
+
+    /*
+     * =======================================================
+     * THREAD LOOKUP
+     * =======================================================
+     */
 
     private fun findActiveThread(
         conversationId: String
@@ -543,6 +670,12 @@ class ThreadListViewModel
             }
     }
 
+    /*
+     * =======================================================
+     * ERROR HANDLING
+     * =======================================================
+     */
+
     private fun showError(
         message: String
     ) {
@@ -554,6 +687,12 @@ class ThreadListViewModel
         }
     }
 
+    /*
+     * =======================================================
+     * CLEANUP
+     * =======================================================
+     */
+
     override fun onCleared() {
         missionController.cancel()
 
@@ -564,6 +703,7 @@ class ThreadListViewModel
     }
 
     private companion object {
+
         const val VIEW_MODEL_TAG =
             "ThreadListViewModel"
 
