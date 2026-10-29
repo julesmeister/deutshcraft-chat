@@ -1,9 +1,12 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.LocalChatFontScale
+import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
 
 @Composable
 fun ChatRoute(
@@ -33,83 +36,110 @@ fun ChatRoute(
         .markedPhrases
         .collectAsStateWithLifecycle()
 
-    ChatScreen(
-        uiState =
-            uiState,
+    /*
+     * SettingsRepository.settings is a Flow rather than a
+     * StateFlow.
+     *
+     * UserSettings() supplies the normal 1.00 font scale until
+     * DataStore emits the persisted preference.
+     */
+    val settings by
+    viewModel
+        .settings
+        .collectAsStateWithLifecycle(
+            initialValue =
+                UserSettings()
+        )
 
-        missionGuidanceUiState =
-            missionGuidanceUiState,
+    /*
+     * Provide the persisted font scale once around the entire
+     * chat presentation tree.
+     *
+     * All nested chat components can read LocalChatFontScale
+     * without receiving another function parameter.
+     */
+    CompositionLocalProvider(
+        LocalChatFontScale provides
+                settings.fontScale
+    ) {
+        ChatScreen(
+            uiState =
+                uiState,
 
-        missionResultUiState =
-            missionResultUiState,
+            missionGuidanceUiState =
+                missionGuidanceUiState,
 
-        markedPhrases =
-            markedPhrases,
+            missionResultUiState =
+                missionResultUiState,
 
-        onAction =
-            viewModel::onAction,
+            markedPhrases =
+                markedPhrases,
 
-        onBackClick =
-            onBackClick,
+            onAction =
+                viewModel::onAction,
 
-        /*
-         * ===================================================
-         * BESSER
-         * ===================================================
-         */
+            onBackClick =
+                onBackClick,
 
-        onBesserImprove =
-            viewModel::improveBesserChallenge,
+            /*
+             * ===============================================
+             * BESSER
+             * ===============================================
+             */
 
-        onBesserHint =
-            viewModel::revealNextBesserHint,
+            onBesserImprove =
+                viewModel::improveBesserChallenge,
 
-        onBesserSkip =
-            viewModel::skipBesserChallenge,
+            onBesserHint =
+                viewModel::revealNextBesserHint,
 
-        /*
-         * ===================================================
-         * MISSION GUIDANCE
-         * ===================================================
-         */
+            onBesserSkip =
+                viewModel::skipBesserChallenge,
 
-        onOpenMissionGuidance =
-            viewModel::openMissionGuidance,
+            /*
+             * ===============================================
+             * MISSION GUIDANCE
+             * ===============================================
+             */
 
-        onDismissMissionGuidance =
-            viewModel::dismissMissionGuidance,
+            onOpenMissionGuidance =
+                viewModel::openMissionGuidance,
 
-        onRevealNextMissionHint =
-            viewModel::revealNextMissionHint,
+            onDismissMissionGuidance =
+                viewModel::dismissMissionGuidance,
 
-        onToggleMissionVocabulary =
-            viewModel::toggleMissionVocabulary,
+            onRevealNextMissionHint =
+                viewModel::revealNextMissionHint,
 
-        onToggleMissionExamples =
-            viewModel::toggleMissionExamples,
+            onToggleMissionVocabulary =
+                viewModel::toggleMissionVocabulary,
 
-        /*
-         * ===================================================
-         * MISSION RESULT
-         * ===================================================
-         */
+            onToggleMissionExamples =
+                viewModel::toggleMissionExamples,
 
-        onDismissMissionResult =
-            viewModel::dismissMissionResult,
+            /*
+             * ===============================================
+             * MISSION RESULT
+             * ===============================================
+             */
 
-        onContinueAfterMissionResult =
-            viewModel::continueAfterMissionResult,
+            onDismissMissionResult =
+                viewModel::dismissMissionResult,
 
-        /*
-         * ===================================================
-         * MARKED PHRASES
-         * ===================================================
-         */
+            onContinueAfterMissionResult =
+                viewModel::continueAfterMissionResult,
 
-        onMarkPhrase =
-            viewModel::markPhrase,
+            /*
+             * ===============================================
+             * MARKED PHRASES
+             * ===============================================
+             */
 
-        onRemoveMarkedPhrase =
-            viewModel::removeMarkedPhrase
-    )
+            onMarkPhrase =
+                viewModel::markPhrase,
+
+            onRemoveMarkedPhrase =
+                viewModel::removeMarkedPhrase
+        )
+    }
 }

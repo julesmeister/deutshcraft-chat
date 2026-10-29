@@ -51,6 +51,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.LineHeightStyle
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatGlassColors
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.LocalChatFontScale
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.scaledForChat
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
@@ -58,8 +60,8 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 
 /*
- * Removes excess font padding above and below the visible
- * letters while preserving a centered line box.
+ * Removes excess font padding above and below visible letters
+ * while preserving a centered line box.
  */
 private val CenteredLineHeightStyle =
     LineHeightStyle(
@@ -85,6 +87,17 @@ internal fun ChatGlassInputField(
     val colorScheme =
         MaterialTheme.colorScheme
 
+    /*
+     * Persisted DeutschCraft chat font preference.
+     *
+     * SMALL       = 0.90
+     * NORMAL      = 1.00
+     * LARGE       = 1.15
+     * EXTRA_LARGE = 1.30
+     */
+    val fontScale =
+        LocalChatFontScale.current
+
     val interactionSource =
         remember {
             MutableInteractionSource()
@@ -102,10 +115,13 @@ internal fun ChatGlassInputField(
      * - natural word wrapping
      * - explicit newline characters
      * - changes caused by the available field width
+     * - changes caused by the selected font scale
      */
     var visualLineCount by
     remember {
-        mutableIntStateOf(1)
+        mutableIntStateOf(
+            1
+        )
     }
 
     val isMultiline =
@@ -113,7 +129,7 @@ internal fun ChatGlassInputField(
 
     /*
      * =======================================================
-     * Adaptive shape
+     * ADAPTIVE SHAPE
      * =======================================================
      */
 
@@ -162,7 +178,7 @@ internal fun ChatGlassInputField(
     )
 
     /*
-     * Animate the outer breathing room when text changes
+     * Animate the outer breathing room when the composer moves
      * between one and multiple rendered lines.
      */
     val composerVerticalPadding by
@@ -206,7 +222,7 @@ internal fun ChatGlassInputField(
 
     /*
      * =======================================================
-     * Animated edge reflection
+     * ANIMATED EDGE REFLECTION
      * =======================================================
      *
      * The reflection travels diagonally across the outline.
@@ -247,7 +263,7 @@ internal fun ChatGlassInputField(
 
     /*
      * Focus makes the reflection slightly stronger without
-     * changing its color or turning it into a neon effect.
+     * changing its color or creating a neon effect.
      */
     val reflectionStrength by
     animateFloatAsState(
@@ -285,7 +301,7 @@ internal fun ChatGlassInputField(
 
     /*
      * =======================================================
-     * Input state
+     * INPUT STATE
      * =======================================================
      */
 
@@ -297,10 +313,41 @@ internal fun ChatGlassInputField(
         isInputEnabled &&
                 value.text.isNotBlank()
 
-    val inputTextStyle =
+    /*
+     * Scale both font size and line height.
+     *
+     * Scaling only the font size would make Large and Extra
+     * Large composer text vertically cramped.
+     */
+    val baseInputTextStyle =
         MaterialTheme
             .typography
             .bodyLarge
+
+    val scaledInputFontSize =
+        baseInputTextStyle
+            .fontSize
+            .scaledForChat(
+                scale =
+                    fontScale
+            )
+
+    val scaledInputLineHeight =
+        baseInputTextStyle
+            .lineHeight
+            .scaledForChat(
+                scale =
+                    fontScale
+            )
+
+    val inputTextStyle =
+        baseInputTextStyle
+            .copy(
+                fontSize =
+                    scaledInputFontSize,
+                lineHeight =
+                    scaledInputLineHeight
+            )
             .merge(
                 TextStyle(
                     lineHeightStyle =
@@ -310,7 +357,7 @@ internal fun ChatGlassInputField(
 
     /*
      * =======================================================
-     * Glass appearance
+     * GLASS APPEARANCE
      * =======================================================
      */
 
@@ -333,14 +380,17 @@ internal fun ChatGlassInputField(
     animateColorAsState(
         targetValue =
             when {
-                isRefinementMode ->
+                isRefinementMode -> {
                     glassColors.borderRefinement
+                }
 
-                isFocused ->
+                isFocused -> {
                     glassColors.borderFocused
+                }
 
-                else ->
+                else -> {
                     glassColors.borderResting
+                }
             },
         animationSpec =
             tween(
@@ -356,7 +406,7 @@ internal fun ChatGlassInputField(
 
     /*
      * =======================================================
-     * Glass container
+     * GLASS CONTAINER
      * =======================================================
      */
 
@@ -370,7 +420,7 @@ internal fun ChatGlassInputField(
                 )
 
                 /*
-                 * Clip before Backdrop so blur, tint and lens
+                 * Clip before Backdrop so blur, tint, and lens
                  * refraction cannot leak outside the shape.
                  */
                 .clip(
@@ -475,7 +525,7 @@ internal fun ChatGlassInputField(
                     /*
                      * A diagonal gradient makes the highlight
                      * touch different portions of the top,
-                     * side and bottom edges as it travels.
+                     * side, and bottom edges as it travels.
                      */
                     val reflectionBrush =
                         Brush.linearGradient(
@@ -569,7 +619,7 @@ internal fun ChatGlassInputField(
     ) {
         /*
          * ===================================================
-         * Text area
+         * TEXT AREA
          * ===================================================
          */
 
@@ -577,7 +627,8 @@ internal fun ChatGlassInputField(
             modifier =
                 Modifier
                     .weight(
-                        1f
+                        weight =
+                            1f
                     )
                     .then(
                         if (isMultiline) {
@@ -695,9 +746,9 @@ internal fun ChatGlassInputField(
                             Text(
                                 text =
                                     if (isRefinementMode) {
-                                        "Verbessere deine Antwort"
+                                        REFINEMENT_PLACEHOLDER
                                     } else {
-                                        "Nachricht"
+                                        DEFAULT_PLACEHOLDER
                                     },
                                 style =
                                     inputTextStyle,
@@ -722,7 +773,7 @@ internal fun ChatGlassInputField(
 
         /*
          * ===================================================
-         * Send button
+         * SEND BUTTON
          * ===================================================
          */
 
@@ -750,3 +801,9 @@ internal fun ChatGlassInputField(
         }
     }
 }
+
+private const val DEFAULT_PLACEHOLDER =
+    "Nachricht"
+
+private const val REFINEMENT_PLACEHOLDER =
+    "Verbessere deine Antwort"

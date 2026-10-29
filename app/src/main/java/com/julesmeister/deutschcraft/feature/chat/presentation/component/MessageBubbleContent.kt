@@ -17,6 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.LocalChatFontScale
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.scaledForChat
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -30,20 +32,74 @@ internal fun MessageBubbleContent(
     contentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    /*
+     * Current persisted DeutschCraft font preference.
+     *
+     * Values currently supplied by Settings:
+     *
+     * Small       = 0.90
+     * Normal      = 1.00
+     * Large       = 1.15
+     * Extra large = 1.30
+     */
+    val fontScale =
+        LocalChatFontScale.current
+
     val time =
-        remember(message.timestamp) {
+        remember(
+            message.timestamp
+        ) {
             formatMessageTime(
-                timestamp = message.timestamp
+                timestamp =
+                    message.timestamp
             )
         }
 
+    /*
+     * Timestamp deliberately stays at its normal compact size.
+     *
+     * Enlarging the timestamp together with the message text
+     * would consume too much horizontal bubble width.
+     */
     val timeStyle =
-        MaterialTheme.typography.labelSmall
+        MaterialTheme
+            .typography
+            .labelSmall
+
+    /*
+     * Scale both message font size and line height.
+     *
+     * Scaling only the font size would cause Large and Extra
+     * Large text to feel vertically cramped.
+     */
+    val baseMessageStyle =
+        MaterialTheme
+            .typography
+            .bodyLarge
+
+    val scaledMessageStyle =
+        baseMessageStyle.copy(
+            fontSize =
+                baseMessageStyle
+                    .fontSize
+                    .scaledForChat(
+                        scale =
+                            fontScale
+                    ),
+
+            lineHeight =
+                MESSAGE_LINE_HEIGHT
+                    .scaledForChat(
+                        scale =
+                            fontScale
+                    )
+        )
 
     val hasBesserCorrection =
         isUserMessage &&
                 !correction.isNullOrBlank() &&
-                correction.trim() != message.content.trim()
+                correction.trim() !=
+                message.content.trim()
 
     val primaryText =
         if (hasBesserCorrection) {
@@ -58,11 +114,11 @@ internal fun MessageBubbleContent(
      * When Besser exists:
      *
      * - The corrected sentence becomes the primary text.
-     * - The words changed by Besser are highlighted.
+     * - Words changed by Besser are highlighted.
      *
      * Without Besser:
      *
-     * - The ordinary message is shown normally.
+     * - The ordinary message appears normally.
      */
     val visiblePrimaryText =
         remember(
@@ -73,10 +129,18 @@ internal fun MessageBubbleContent(
         ) {
             if (hasBesserCorrection) {
                 buildHighlightedCorrection(
-                    original = message.content,
-                    correction = primaryText,
-                    baseColor = contentColor,
-                    changedColor = contentColor,
+                    original =
+                        message.content,
+
+                    correction =
+                        primaryText,
+
+                    baseColor =
+                        contentColor,
+
+                    changedColor =
+                        contentColor,
+
                     highlightColor =
                         contentColor.copy(
                             alpha =
@@ -87,10 +151,13 @@ internal fun MessageBubbleContent(
                 buildAnnotatedString {
                     withStyle(
                         SpanStyle(
-                            color = contentColor
+                            color =
+                                contentColor
                         )
                     ) {
-                        append(primaryText)
+                        append(
+                            primaryText
+                        )
                     }
                 }
             }
@@ -99,8 +166,8 @@ internal fun MessageBubbleContent(
     /*
      * Add invisible room for the timestamp.
      *
-     * timeStyle.fontSize is read outside remember because
-     * MaterialTheme values must be read in composition.
+     * The timestamp itself remains fixed-size, so the reserved
+     * space follows the fixed timestamp style as well.
      */
     val primaryTextWithTimestampSpace =
         remember(
@@ -109,16 +176,26 @@ internal fun MessageBubbleContent(
             timeStyle.fontSize
         ) {
             buildAnnotatedString {
-                append(visiblePrimaryText)
+                append(
+                    visiblePrimaryText
+                )
 
                 withStyle(
                     SpanStyle(
-                        color = Color.Transparent,
-                        fontSize = timeStyle.fontSize
+                        color =
+                            Color.Transparent,
+
+                        fontSize =
+                            timeStyle.fontSize
                     )
                 ) {
-                    append(TIMESTAMP_RESERVATION_PREFIX)
-                    append(time)
+                    append(
+                        TIMESTAMP_RESERVATION_PREFIX
+                    )
+
+                    append(
+                        time
+                    )
                 }
             }
         }
@@ -126,6 +203,7 @@ internal fun MessageBubbleContent(
     Column(
         modifier =
             modifier.wrapContentWidth(),
+
         horizontalAlignment =
             Alignment.Start
     ) {
@@ -134,21 +212,17 @@ internal fun MessageBubbleContent(
          * PRIMARY SENTENCE
          * ===================================================
          *
-         * This is the Besser version when a correction exists.
-         * Corrected words are highlighted here.
+         * This is the corrected Besser version when a
+         * correction exists.
          */
         Box {
             Text(
                 text =
                     primaryTextWithTimestampSpace,
+
                 style =
-                    MaterialTheme
-                        .typography
-                        .bodyLarge
-                        .copy(
-                            lineHeight =
-                                MESSAGE_LINE_HEIGHT
-                        ),
+                    scaledMessageStyle,
+
                 color =
                     contentColor
             )
@@ -156,12 +230,15 @@ internal fun MessageBubbleContent(
             Text(
                 text =
                     time,
+
                 modifier =
                     Modifier.align(
                         Alignment.BottomEnd
                     ),
+
                 style =
                     timeStyle,
+
                 color =
                     contentColor.copy(
                         alpha =
@@ -175,15 +252,14 @@ internal fun MessageBubbleContent(
          * ORIGINAL LEARNER SENTENCE
          * ===================================================
          *
-         * The original sentence is displayed underneath as
-         * quiet secondary context.
-         *
-         * No highlights are applied here.
+         * The original sentence remains quiet secondary
+         * context when a corrected version exists.
          */
         if (hasBesserCorrection) {
             MessageCorrectionContent(
                 original =
                     message.content,
+
                 contentColor =
                     contentColor
             )
@@ -196,21 +272,8 @@ internal fun MessageBubbleContent(
  * BESSER CORRECTION HIGHLIGHTING
  * ===========================================================
  *
- * Compares the original sentence with Besser.
- *
- * Words introduced or changed in the correction receive a
- * subtle background and stronger weight.
- *
- * Example:
- *
- * Original:
- *     Ich arbeite seit drei Jahr hier.
- *
- * Besser:
- *     Ich arbeite seit drei Jahren hier.
- *
- * Highlighted:
- *     Jahren
+ * Words introduced or changed in the corrected sentence
+ * receive a subtle background and stronger font weight.
  */
 private fun buildHighlightedCorrection(
     original: String,
@@ -221,12 +284,14 @@ private fun buildHighlightedCorrection(
 ): AnnotatedString {
     val correctionTokens =
         tokenize(
-            value = correction
+            value =
+                correction
         )
 
     val originalWords =
         tokenize(
-            value = original
+            value =
+                original
         )
             .filter { token ->
                 !token.isWhitespace
@@ -239,25 +304,30 @@ private fun buildHighlightedCorrection(
         correctionTokens
             .indices
             .filter { tokenIndex ->
-                !correctionTokens[tokenIndex]
-                    .isWhitespace
+                !correctionTokens[
+                    tokenIndex
+                ].isWhitespace
             }
 
     val correctionWords =
         correctionWordIndices
             .map { tokenIndex ->
-                correctionTokens[tokenIndex]
-                    .normalized
+                correctionTokens[
+                    tokenIndex
+                ].normalized
             }
 
     /*
-     * These positions in the corrected sentence also exist
-     * in the original sentence in the same sequence.
+     * Positions in the corrected sentence that also exist in
+     * the original sentence in the same sequence.
      */
     val unchangedCorrectionPositions =
         longestCommonSubsequenceSecondPositions(
-            first = originalWords,
-            second = correctionWords
+            first =
+                originalWords,
+
+            second =
+                correctionWords
         )
 
     /*
@@ -266,26 +336,39 @@ private fun buildHighlightedCorrection(
      */
     val changedTokenIndices =
         correctionWordIndices
-            .filterIndexed { wordPosition, _ ->
+            .filterIndexed {
+                    wordPosition,
+                    _ ->
+
                 wordPosition !in
                         unchangedCorrectionPositions
             }
             .toSet()
 
     return buildAnnotatedString {
-        correctionTokens.forEachIndexed { tokenIndex, token ->
-            if (tokenIndex in changedTokenIndices) {
+        correctionTokens.forEachIndexed {
+                tokenIndex,
+                token ->
+
+            if (
+                tokenIndex in
+                changedTokenIndices
+            ) {
                 withStyle(
                     SpanStyle(
                         color =
                             changedColor,
+
                         fontWeight =
                             FontWeight.SemiBold,
+
                         background =
                             highlightColor
                     )
                 ) {
-                    append(token.text)
+                    append(
+                        token.text
+                    )
                 }
             } else {
                 withStyle(
@@ -294,7 +377,9 @@ private fun buildHighlightedCorrection(
                             baseColor
                     )
                 ) {
-                    append(token.text)
+                    append(
+                        token.text
+                    )
                 }
             }
         }
@@ -316,23 +401,47 @@ private fun longestCommonSubsequenceSecondPositions(
         second.size
 
     val lengths =
-        Array(rowCount + 1) {
-            IntArray(columnCount + 1)
+        Array(
+            size =
+                rowCount + 1
+        ) {
+            IntArray(
+                size =
+                    columnCount + 1
+            )
         }
 
-    for (row in rowCount - 1 downTo 0) {
-        for (column in columnCount - 1 downTo 0) {
+    for (
+    row in
+    rowCount - 1 downTo 0
+    ) {
+        for (
+        column in
+        columnCount - 1 downTo 0
+        ) {
             lengths[row][column] =
                 if (
                     first[row] ==
                     second[column]
                 ) {
-                    lengths[row + 1][column + 1] +
-                            1
+                    lengths[
+                        row + 1
+                    ][
+                        column + 1
+                    ] + 1
                 } else {
                     maxOf(
-                        lengths[row + 1][column],
-                        lengths[row][column + 1]
+                        lengths[
+                            row + 1
+                        ][
+                            column
+                        ],
+
+                        lengths[
+                            row
+                        ][
+                            column + 1
+                        ]
                     )
                 }
         }
@@ -352,20 +461,38 @@ private fun longestCommonSubsequenceSecondPositions(
         column < columnCount
     ) {
         when {
-            first[row] == second[column] -> {
-                secondPositions.add(column)
+            first[row] ==
+                    second[column] -> {
 
-                row += 1
-                column += 1
+                secondPositions.add(
+                    column
+                )
+
+                row +=
+                    1
+
+                column +=
+                    1
             }
 
-            lengths[row + 1][column] >=
-                    lengths[row][column + 1] -> {
-                row += 1
+            lengths[
+                row + 1
+            ][
+                column
+            ] >=
+                    lengths[
+                        row
+                    ][
+                        column + 1
+                    ] -> {
+
+                row +=
+                    1
             }
 
             else -> {
-                column += 1
+                column +=
+                    1
             }
         }
     }
@@ -378,15 +505,18 @@ private data class CorrectionToken(
     val isWhitespace: Boolean
 ) {
     /*
-     * Case and punctuation alone are ignored while comparing
-     * words.
+     * Case and punctuation alone are ignored during
+     * comparison.
      */
     val normalized: String =
         text
             .lowercase()
             .replace(
-                PUNCTUATION_REGEX,
-                ""
+                regex =
+                    PUNCTUATION_REGEX,
+
+                replacement =
+                    ""
             )
 }
 
@@ -394,11 +524,15 @@ private fun tokenize(
     value: String
 ): List<CorrectionToken> {
     return TOKEN_REGEX
-        .findAll(value)
+        .findAll(
+            input =
+                value
+        )
         .map { match ->
             CorrectionToken(
                 text =
                     match.value,
+
                 isWhitespace =
                     match.value.isBlank()
             )
@@ -410,7 +544,9 @@ private fun formatMessageTime(
     timestamp: Long
 ): String {
     return Instant
-        .ofEpochMilli(timestamp)
+        .ofEpochMilli(
+            timestamp
+        )
         .atZone(
             ZoneId.systemDefault()
         )
@@ -423,10 +559,14 @@ private fun formatMessageTime(
 }
 
 private val TOKEN_REGEX =
-    Regex("\\S+|\\s+")
+    Regex(
+        "\\S+|\\s+"
+    )
 
 private val PUNCTUATION_REGEX =
-    Regex("[^\\p{L}\\p{N}]")
+    Regex(
+        "[^\\p{L}\\p{N}]"
+    )
 
 private const val TIMESTAMP_RESERVATION_PREFIX =
     "\u2002\u2002"
@@ -437,9 +577,6 @@ private const val TIME_FORMAT_PATTERN =
 private const val TIMESTAMP_ALPHA =
     0.55f
 
-/*
- * Background strength applied to corrected Besser words.
- */
 private const val CORRECTION_HIGHLIGHT_ALPHA =
     0.18f
 

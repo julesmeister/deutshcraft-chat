@@ -15,8 +15,11 @@ import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.Missi
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhrase
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhraseType
 import com.julesmeister.deutschcraft.feature.phrasemarking.presentation.MarkedPhraseController
+import com.julesmeister.deutschcraft.feature.settings.data.SettingsRepository
+import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
@@ -37,6 +40,15 @@ class ChatViewModel
 
     private val markedPhraseController:
     MarkedPhraseController,
+
+    /*
+     * =======================================================
+     * SETTINGS
+     * =======================================================
+     */
+
+    private val settingsRepository:
+    SettingsRepository,
 
     /*
      * =======================================================
@@ -77,6 +89,21 @@ class ChatViewModel
 
     /*
      * =======================================================
+     * CHAT SETTINGS
+     * =======================================================
+     *
+     * DataStore remains the single persisted source of truth.
+     *
+     * ChatRoute collects this Flow and provides fontScale to
+     * the chat UI through LocalChatFontScale.
+     */
+
+    val settings:
+            Flow<UserSettings> =
+        settingsRepository.settings
+
+    /*
+     * =======================================================
      * MISSION RESULT
      * =======================================================
      */
@@ -99,8 +126,6 @@ class ChatViewModel
      * =======================================================
      * MARKED PHRASES
      * =======================================================
-     *
-     * messageId -> marked phrases belonging to that message.
      */
 
     val markedPhrases:
@@ -108,31 +133,23 @@ class ChatViewModel
         markedPhraseController.phrasesByMessage
 
     init {
-        /*
-         * Mission guidance uses this lifecycle-aware scope for
-         * restoring and persisting learner support state.
-         */
         missionGuidanceController.attachScope(
             scope =
                 viewModelScope
         )
 
-        /*
-         * Start the main conversation session.
-         */
         coordinator.start(
             conversationId =
                 conversationId,
+
             scope =
                 viewModelScope
         )
 
-        /*
-         * Observe marked phrases for this conversation.
-         */
         markedPhraseController.start(
             conversationId =
                 conversationId,
+
             scope =
                 viewModelScope
         )
@@ -150,6 +167,7 @@ class ChatViewModel
         coordinator.onAction(
             action =
                 action,
+
             scope =
                 viewModelScope
         )
@@ -161,29 +179,13 @@ class ChatViewModel
      * =======================================================
      */
 
-    /*
-     * Accept the challenge and move the original learner
-     * sentence into the composer.
-     *
-     * The actual refinement-submission flow is handled
-     * separately from this initial transition.
-     */
     fun improveBesserChallenge(
         challengeId: String
     ) {
-        if (
-            challengeId.isBlank()
-        ) {
+        if (challengeId.isBlank()) {
             return
         }
 
-        /*
-         * Resolve the challenge while it is still AVAILABLE.
-         *
-         * The challenge remains observable after ACCEPTED, but
-         * resolving it here makes this flow independent of any
-         * future observer filtering changes.
-         */
         val challenge =
             uiState
                 .value
@@ -202,11 +204,6 @@ class ChatViewModel
                     return
                 }
 
-        /*
-         * The owning source message must still exist in the
-         * conversation because its original text will populate
-         * the composer.
-         */
         val sourceMessageExists =
             uiState
                 .value
@@ -257,20 +254,10 @@ class ChatViewModel
         }
     }
 
-    /*
-     * Reveal one additional hint.
-     *
-     * Room remains the source of truth. Once
-     * revealedHintCount changes, the conversation Besser
-     * observer emits an updated BesserChallengeUiModel and the
-     * bubble expands automatically.
-     */
     fun revealNextBesserHint(
         challengeId: String
     ) {
-        if (
-            challengeId.isBlank()
-        ) {
+        if (challengeId.isBlank()) {
             return
         }
 
@@ -291,19 +278,10 @@ class ChatViewModel
         }
     }
 
-    /*
-     * Skip an AVAILABLE or ACCEPTED challenge.
-     *
-     * Once persisted as SKIPPED, the active challenge observer
-     * stops returning it and the bubble disappears
-     * automatically.
-     */
     fun skipBesserChallenge(
         challengeId: String
     ) {
-        if (
-            challengeId.isBlank()
-        ) {
+        if (challengeId.isBlank()) {
             return
         }
 
