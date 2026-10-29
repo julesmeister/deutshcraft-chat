@@ -1,6 +1,8 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import android.util.Log
+import com.julesmeister.deutschcraft.feature.besser.domain.usecase.ObserveConversationBesserChallengesUseCase
+import com.julesmeister.deutschcraft.feature.besser.presentation.BesserChallengeUiModel
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.ObserveActiveMissionUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.ObserveChatMessagesUseCase
@@ -11,13 +13,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-class ChatSessionObservers @Inject constructor(
+class ChatSessionObservers
+@Inject constructor(
     private val observeChatMessages:
     ObserveChatMessagesUseCase,
+
     private val observeCurrentStreak:
     ObserveCurrentStreakUseCase,
+
     private val observeActiveMission:
     ObserveActiveMissionUseCase,
+
+    private val observeBesserChallenges:
+    ObserveConversationBesserChallengesUseCase,
+
     private val missionTracker:
     ChatMissionTracker
 ) {
@@ -31,6 +40,9 @@ class ChatSessionObservers @Inject constructor(
     private var missionObservationJob: Job? =
         null
 
+    private var besserObservationJob: Job? =
+        null
+
     fun observeConversation(
         conversationId: String,
         scope: CoroutineScope,
@@ -38,6 +50,8 @@ class ChatSessionObservers @Inject constructor(
             (ChatMessagesUpdate) -> Unit,
         onMissionChanged:
             (ChatMissionUpdate) -> Unit,
+        onBesserChallengesChanged:
+            (Map<String, BesserChallengeUiModel>) -> Unit,
         onMessageObservationFailed:
             () -> Unit
     ) {
@@ -59,6 +73,15 @@ class ChatSessionObservers @Inject constructor(
                 scope,
             onMissionChanged =
                 onMissionChanged
+        )
+
+        observeBesser(
+            conversationId =
+                conversationId,
+            scope =
+                scope,
+            onBesserChallengesChanged =
+                onBesserChallengesChanged
         )
     }
 
@@ -96,13 +119,28 @@ class ChatSessionObservers @Inject constructor(
         messageObservationJob?.cancel()
         streakObservationJob?.cancel()
         missionObservationJob?.cancel()
+        besserObservationJob?.cancel()
 
-        messageObservationJob = null
-        streakObservationJob = null
-        missionObservationJob = null
+        messageObservationJob =
+            null
+
+        streakObservationJob =
+            null
+
+        missionObservationJob =
+            null
+
+        besserObservationJob =
+            null
 
         missionTracker.reset()
     }
+
+    /*
+     * =======================================================
+     * Messages
+     * =======================================================
+     */
 
     private fun observeMessages(
         conversationId: String,
@@ -144,6 +182,12 @@ class ChatSessionObservers @Inject constructor(
                 }
             }
     }
+
+    /*
+     * =======================================================
+     * Mission
+     * =======================================================
+     */
 
     private fun observeMission(
         conversationId: String,
@@ -187,7 +231,59 @@ class ChatSessionObservers @Inject constructor(
             }
     }
 
+    /*
+     * =======================================================
+     * Besser
+     * =======================================================
+     *
+     * Observe AVAILABLE / ACCEPTED challenges stored in Room.
+     *
+     * The use case already returns:
+     *
+     *     messageId -> BesserChallengeUiModel
+     *
+     * so presentation does not need to search challenge lists.
+     */
+    private fun observeBesser(
+        conversationId: String,
+        scope: CoroutineScope,
+        onBesserChallengesChanged:
+            (Map<String, BesserChallengeUiModel>) -> Unit
+    ) {
+        besserObservationJob?.cancel()
+
+        besserObservationJob =
+            scope.launch {
+                try {
+                    observeBesserChallenges(
+                        conversationId =
+                            conversationId
+                    ).collect { challenges ->
+                        onBesserChallengesChanged(
+                            challenges
+                        )
+                    }
+                } catch (
+                    cancellationException:
+                    CancellationException
+                ) {
+                    throw cancellationException
+                } catch (throwable: Throwable) {
+                    /*
+                     * Chat itself remains usable if Besser
+                     * observation fails.
+                     */
+                    Log.e(
+                        OBSERVERS_TAG,
+                        "Besser challenge observation failed.",
+                        throwable
+                    )
+                }
+            }
+    }
+
     private companion object {
+
         const val OBSERVERS_TAG =
             "ChatSessionObservers"
     }

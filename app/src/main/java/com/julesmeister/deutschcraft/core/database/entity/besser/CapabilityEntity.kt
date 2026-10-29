@@ -9,13 +9,19 @@ import androidx.room.PrimaryKey
     tableName = "besser_capabilities",
     indices = [
         Index(
-            value = ["cefr_level"]
+            value = [
+                "cefr_level"
+            ]
         ),
         Index(
-            value = ["category"]
+            value = [
+                "category"
+            ]
         ),
         Index(
-            value = ["is_active"]
+            value = [
+                "is_active"
+            ]
         )
     ]
 )

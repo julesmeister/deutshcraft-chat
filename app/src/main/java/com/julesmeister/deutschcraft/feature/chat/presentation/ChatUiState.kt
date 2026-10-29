@@ -1,6 +1,7 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import androidx.compose.ui.text.input.TextFieldValue
+import com.julesmeister.deutschcraft.feature.besser.presentation.BesserChallengeUiModel
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.MissionOpportunity
@@ -16,10 +17,27 @@ data class ChatUiState(
         emptyList(),
 
     /*
-     * Temporary generated mission offer.
+     * =======================================================
+     * Besser
+     * =======================================================
      *
-     * The generated mission is persisted only after the
-     * learner accepts it.
+     * Active Besser challenges keyed by their owning learner
+     * message ID.
+     *
+     * This deliberately mirrors the marked-phrase attachment
+     * approach:
+     *
+     *     message.id -> Besser challenge
+     *
+     * ChatMessageList can therefore attach the challenge
+     * directly underneath the correct learner bubble.
+     */
+    val besserChallenges:
+    Map<String, BesserChallengeUiModel> =
+        emptyMap(),
+
+    /*
+     * Temporary generated mission offer.
      */
     val missionOffer: MissionOpportunity? =
         null,
@@ -31,29 +49,20 @@ data class ChatUiState(
         false,
 
     /*
-     * Active mission information observed from Room.
+     * =======================================================
+     * Active mission
+     * =======================================================
      */
+
     val activeMissionId: String? =
         null,
 
     val activeMissionTitle: String? =
         null,
 
-    /*
-     * Short objective title.
-     *
-     * Example:
-     *
-     * "Ask about working hours"
-     */
     val currentMissionObjective: String? =
         null,
 
-    /*
-     * Learner-facing explanation of what to do next.
-     *
-     * This comes from MissionObjective.description.
-     */
     val currentMissionGuidance: String? =
         null,
 
@@ -69,19 +78,16 @@ data class ChatUiState(
 
     /*
      * One-time adaptive-learning feedback.
-     *
-     * Examples:
-     *
-     * "Watch the dative article."
-     * "Giving reasons is improving."
-     * "Present tense mastered."
-     *
-     * Mission-objective completion has higher display
-     * priority than this event.
      */
     val adaptiveLearningFeedbackEvent:
     AdaptiveLearningFeedbackEvent? =
         null,
+
+    /*
+     * =======================================================
+     * Runtime presentation state
+     * =======================================================
+     */
 
     val isInitializing: Boolean =
         true,

@@ -22,23 +22,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/*
- * Generic chat-message bubble shell.
- *
- * Gestures:
- *
- * Single tap:
- *     Opens the existing AI message-action bottom sheet.
- *
- * Long press:
- *     Opens the message context menu.
- *
- * The container does not decide what either action does.
- * Those callbacks are supplied by the presentation layer.
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun MessageBubbleContainer(
@@ -46,6 +33,15 @@ internal fun MessageBubbleContainer(
     backgroundColor: Color,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+
+    /*
+     * Reports the actual rendered width of this bubble.
+     *
+     * The width does not include copied-indicator spacing or
+     * surrounding message-row content.
+     */
+    onBubbleWidthChanged: (Int) -> Unit,
+
     modifier: Modifier = Modifier,
     borderColor: Color = Color.Transparent,
     maxWidth: Dp = DEFAULT_MAXIMUM_BUBBLE_WIDTH,
@@ -56,12 +52,6 @@ internal fun MessageBubbleContainer(
             MutableInteractionSource()
         }
 
-    /*
-     * combinedClickable still emits press interactions through
-     * this interaction source, so the existing press-scale
-     * animation continues to work for both taps and long
-     * presses.
-     */
     val isPressed by
     interactionSource.collectIsPressedAsState()
 
@@ -75,8 +65,10 @@ internal fun MessageBubbleContainer(
             },
         animationSpec =
             spring(
-                dampingRatio = 0.72f,
-                stiffness = 650f
+                dampingRatio =
+                    0.72f,
+                stiffness =
+                    650f
             ),
         label =
             "MessageBubblePressScale"
@@ -92,6 +84,11 @@ internal fun MessageBubbleContainer(
                     max =
                         maxWidth
                 )
+                .onSizeChanged { size ->
+                    onBubbleWidthChanged(
+                        size.width
+                    )
+                }
                 .graphicsLayer {
                     scaleX =
                         animatedScale
@@ -102,8 +99,10 @@ internal fun MessageBubbleContainer(
                 .animateContentSize(
                     animationSpec =
                         spring(
-                            dampingRatio = 0.82f,
-                            stiffness = 420f
+                            dampingRatio =
+                                0.82f,
+                            stiffness =
+                                420f
                         )
                 )
                 .clip(

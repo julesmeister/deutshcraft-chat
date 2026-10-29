@@ -1,6 +1,7 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import android.util.Log
+import com.julesmeister.deutschcraft.feature.besser.presentation.BesserChallengeUiModel
 import com.julesmeister.deutschcraft.feature.learninganalytics.domain.MissionAnalytics
 import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultController
 import javax.inject.Inject
@@ -11,6 +12,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 
 class ChatSessionCoordinator
 @Inject constructor(
@@ -39,24 +42,9 @@ class ChatSessionCoordinator
             StateFlow<ChatUiState> =
         _uiState.asStateFlow()
 
-    /*
-     * Runtime state remains separate from visible UI state.
-     *
-     * It contains:
-     *
-     * - Active conversation ID
-     * - Complete active mission
-     * - Initialization job
-     * - Message-sending job
-     * - Mission-check job
-     * - Mission-action job
-     */
     private val runtime =
         ChatSessionRuntime()
 
-    /*
-     * Starts the chat session once.
-     */
     fun start(
         conversationId: String,
         scope: CoroutineScope
@@ -86,10 +74,6 @@ class ChatSessionCoordinator
             }
     }
 
-    /*
-     * Routes UI actions to the controller responsible for
-     * that behavior.
-     */
     fun onAction(
         action: ChatUiAction,
         scope: CoroutineScope
@@ -123,15 +107,8 @@ class ChatSessionCoordinator
                         _uiState,
                     onMissionOpportunityCheckRequested =
                         ::checkForMissionOpportunity,
-
-                    /*
-                     * When message processing completes the
-                     * entire mission, the message controller
-                     * forwards the finalized analytics here.
-                     */
                     onMissionCompleted =
                         ::showMissionResult,
-
                     onError =
                         ::showError
                 )
@@ -180,10 +157,6 @@ class ChatSessionCoordinator
         }
     }
 
-    /*
-     * Stops every job and observer associated with the
-     * currently opened conversation.
-     */
     fun stop() {
         runtime.clear()
 
@@ -221,10 +194,6 @@ class ChatSessionCoordinator
                 )
             }
 
-            /*
-             * Start observing messages and the active
-             * Room-backed mission.
-             */
             observeConversation(
                 conversationId =
                     initializationResult
@@ -268,10 +237,13 @@ class ChatSessionCoordinator
         sessionObservers.observeConversation(
             conversationId =
                 conversationId,
+
             scope =
                 scope,
+
             onMessagesChanged =
                 ::applyMessageUpdate,
+
             onMissionChanged = { update ->
                 missionController.applyMissionUpdate(
                     update =
@@ -282,6 +254,10 @@ class ChatSessionCoordinator
                         _uiState
                 )
             },
+
+            onBesserChallengesChanged =
+                ::applyBesserChallengeUpdate,
+
             onMessageObservationFailed = {
                 showError(
                     message =
@@ -291,12 +267,8 @@ class ChatSessionCoordinator
         )
     }
 
-    /*
-     * Applies message-list changes emitted by Room.
-     */
     private fun applyMessageUpdate(
-        update:
-        ChatMessagesUpdate
+        update: ChatMessagesUpdate
     ) {
         _uiState.update { state ->
             state.withMessages(
@@ -307,8 +279,28 @@ class ChatSessionCoordinator
     }
 
     /*
-     * Applies streak changes from the existing observer.
+     * =======================================================
+     * Besser
+     * =======================================================
+     *
+     * Room remains the source of truth.
+     *
+     * Once GenerateAndPersistBesserChallengeUseCase saves a
+     * challenge, the Besser observer emits automatically and
+     * updates the correct messageId entry here.
      */
+    private fun applyBesserChallengeUpdate(
+        challenges:
+        Map<String, BesserChallengeUiModel>
+    ) {
+        _uiState.update { state ->
+            state.copy(
+                besserChallenges =
+                    challenges
+            )
+        }
+    }
+
     private fun applyStreakUpdate(
         streakDays: Int
     ) {
@@ -320,17 +312,9 @@ class ChatSessionCoordinator
         }
     }
 
-    /*
-     * Receives finalized analytics when a learner message
-     * completes the mission.
-     *
-     * At this point analytics have already been calculated
-     * and persisted.
-     */
     private fun showMissionResult(
         missionTitle: String,
-        analytics:
-        MissionAnalytics
+        analytics: MissionAnalytics
     ) {
         missionResultController.showResult(
             missionTitle =
@@ -361,10 +345,6 @@ class ChatSessionCoordinator
         )
     }
 
-    /*
-     * Called after a normal message succeeds when no active
-     * mission exists.
-     */
     private fun checkForMissionOpportunity(
         conversationId: String,
         scope: CoroutineScope
@@ -381,10 +361,6 @@ class ChatSessionCoordinator
         )
     }
 
-    /*
-     * Removes adaptive-learning feedback only when the event
-     * ID matches the currently displayed event.
-     */
     private fun consumeAdaptiveLearningFeedback(
         eventId: String
     ) {
@@ -424,6 +400,7 @@ class ChatSessionCoordinator
     }
 
     private companion object {
+
         const val COORDINATOR_TAG =
             "ChatSessionCoordinator"
 
@@ -434,5 +411,84 @@ class ChatSessionCoordinator
         const val MESSAGE_LOAD_ERROR =
             "The saved conversation could not " +
                     "be loaded."
+    }
+
+    fun startBesserRefinement(
+        challengeId: String
+    ): Boolean {
+        val currentState =
+            _uiState.value
+
+        val challenge =
+            currentState
+                .besserChallenges
+                .values
+                .firstOrNull { challenge ->
+                    challenge.id ==
+                            challengeId
+                }
+                ?: return false
+
+        val sourceMessage =
+            currentState
+                .messages
+                .firstOrNull { message ->
+                    message.id ==
+                            challenge.messageId
+                }
+                ?: return false
+
+        val sourceText =
+            sourceMessage.content.trim()
+
+        if (sourceText.isBlank()) {
+            return false
+        }
+
+        _uiState.update { state ->
+            state.copy(
+                messageInput =
+                    TextFieldValue(
+                        text =
+                            sourceText,
+                        selection =
+                            TextRange(
+                                sourceText.length
+                            )
+                    )
+            )
+        }
+
+        Log.i(
+            COORDINATOR_TAG,
+            buildString {
+                append(
+                    "Started Besser refinement. "
+                )
+                append(
+                    "challengeId="
+                )
+                append(
+                    challengeId
+                )
+                append(
+                    ", messageId="
+                )
+                append(
+                    challenge.messageId
+                )
+            }
+        )
+
+        return true
+    }
+
+    fun showBesserError(
+        message: String
+    ) {
+        showError(
+            message =
+                message
+        )
     }
 }

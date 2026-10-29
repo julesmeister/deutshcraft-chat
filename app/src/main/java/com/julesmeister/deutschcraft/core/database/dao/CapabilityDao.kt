@@ -31,6 +31,23 @@ interface CapabilityDao {
         capabilityId: String
     ): CapabilityEntity?
 
+    /*
+     * Used when Besser needs to resolve a capability selected
+     * from the active catalogue.
+     */
+    @Query(
+        """
+        SELECT *
+        FROM besser_capabilities
+        WHERE id = :capabilityId
+            AND is_active = 1
+        LIMIT 1
+        """
+    )
+    suspend fun getActiveById(
+        capabilityId: String
+    ): CapabilityEntity?
+
     @Query(
         """
         SELECT *
@@ -53,7 +70,8 @@ interface CapabilityDao {
             name COLLATE NOCASE ASC
         """
     )
-    fun observeActive(): Flow<List<CapabilityEntity>>
+    fun observeActive():
+            Flow<List<CapabilityEntity>>
 
     @Query(
         """
@@ -85,6 +103,14 @@ interface CapabilityDao {
         category: String
     ): Flow<List<CapabilityEntity>>
 
+    /*
+     * Core shortlist query.
+     *
+     * For a learner currently at B1 and working toward B2,
+     * this will normally receive:
+     *
+     * ["B1", "B2"]
+     */
     @Query(
         """
         SELECT *
@@ -121,7 +147,8 @@ interface CapabilityDao {
         FROM besser_capabilities
         """
     )
-    suspend fun count(): Int
+    suspend fun count():
+            Int
 
     @Query(
         """

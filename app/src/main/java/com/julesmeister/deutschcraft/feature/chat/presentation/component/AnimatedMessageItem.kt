@@ -31,29 +31,29 @@ internal fun AnimatedMessageItem(
     hasAlreadyBeenSeen: Boolean,
 
     /*
-     * True when at least one marked-phrase note is attached
-     * directly underneath this message.
+     * True when any content is visually attached beneath the
+     * source message.
      */
     hasAttachedPhrase: Boolean,
 
     onAnimationStarted: () -> Unit,
-
-    /*
-     * Normal tap opens the message-action bottom sheet.
-     */
     onClick: () -> Unit,
+    onMessageCopied: () -> Unit,
 
     /*
-     * Forwarded after MessageBubble successfully copies its
-     * visible primary sentence.
+     * Reports the exact rendered source-bubble width in pixels.
      */
-    onMessageCopied: () -> Unit,
+    onBubbleWidthChanged: (Int) -> Unit,
 
     modifier: Modifier = Modifier
 ) {
     var isVisible by
-    remember(message.id) {
-        mutableStateOf(hasAlreadyBeenSeen)
+    remember(
+        message.id
+    ) {
+        mutableStateOf(
+            hasAlreadyBeenSeen
+        )
     }
 
     LaunchedEffect(
@@ -61,7 +61,9 @@ internal fun AnimatedMessageItem(
         hasAlreadyBeenSeen
     ) {
         if (hasAlreadyBeenSeen) {
-            isVisible = true
+            isVisible =
+                true
+
             return@LaunchedEffect
         }
 
@@ -72,23 +74,37 @@ internal fun AnimatedMessageItem(
 
         onAnimationStarted()
 
-        isVisible = true
+        isVisible =
+            true
     }
 
     AnimatedVisibility(
-        visible = isVisible,
-        modifier = modifier.fillMaxWidth(),
-        enter = messageEnterTransition(),
-        exit = messageExitTransition()
+        visible =
+            isVisible,
+        modifier =
+            modifier.fillMaxWidth(),
+        enter =
+            messageEnterTransition(),
+        exit =
+            messageExitTransition()
     ) {
         MessageBubble(
-            message = message,
-            correction = correction,
-            isLatestUserMessage = isLatestUserMessage,
-            isLatestAssistantMessage = isLatestAssistantMessage,
-            hasAttachedPhrase = hasAttachedPhrase,
-            onClick = onClick,
-            onMessageCopied = onMessageCopied
+            message =
+                message,
+            correction =
+                correction,
+            isLatestUserMessage =
+                isLatestUserMessage,
+            isLatestAssistantMessage =
+                isLatestAssistantMessage,
+            hasAttachedPhrase =
+                hasAttachedPhrase,
+            onClick =
+                onClick,
+            onMessageCopied =
+                onMessageCopied,
+            onBubbleWidthChanged =
+                onBubbleWidthChanged
         )
     }
 }

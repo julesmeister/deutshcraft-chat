@@ -25,7 +25,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.julesmeister.deutschcraft.feature.besser.presentation.BesserChallengeUiModel
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatBottomBar
@@ -54,41 +53,56 @@ fun ChatScreen(
     missionResultUiState: MissionResultUiState,
     markedPhrases: Map<String, List<MarkedPhrase>>,
 
-    /*
-     * Active Besser growth challenges keyed by their owning
-     * learner message ID.
-     */
-    besserChallenges: Map<String, BesserChallengeUiModel> =
-        emptyMap(),
-
     onAction: (ChatUiAction) -> Unit,
     onBackClick: () -> Unit,
+
     onOpenMissionGuidance: () -> Unit,
     onDismissMissionGuidance: () -> Unit,
     onRevealNextMissionHint: () -> Unit,
     onToggleMissionVocabulary: () -> Unit,
     onToggleMissionExamples: () -> Unit,
+
     onDismissMissionResult: () -> Unit,
     onContinueAfterMissionResult: () -> Unit,
+
     onMarkPhrase: (
         messageId: String,
         phrase: String,
         sourceSentence: String,
         type: MarkedPhraseType
     ) -> Unit,
+
     onRemoveMarkedPhrase: (String) -> Unit,
 
     /*
-     * Besser challenge ID callbacks. Lifecycle behavior stays
-     * in the ViewModel layer.
+     * =======================================================
+     * BESSER
+     * =======================================================
+     *
+     * The challenge map itself is intentionally NOT passed
+     * separately.
+     *
+     * ChatUiState.besserChallenges is the single source of
+     * truth.
      */
-    onBesserImprove: (String) -> Unit = {},
-    onBesserHint: (String) -> Unit = {},
-    onBesserSkip: (String) -> Unit = {},
 
-    modifier: Modifier = Modifier,
-    onAddClick: () -> Unit = {},
-    messageActionViewModel: MessageActionViewModel =
+    onBesserImprove: (String) -> Unit =
+        {},
+
+    onBesserHint: (String) -> Unit =
+        {},
+
+    onBesserSkip: (String) -> Unit =
+        {},
+
+    modifier: Modifier =
+        Modifier,
+
+    onAddClick: () -> Unit =
+        {},
+
+    messageActionViewModel:
+    MessageActionViewModel =
         hiltViewModel()
 ) {
     val snackbarHostState =
@@ -112,39 +126,48 @@ fun ChatScreen(
 
     var selectedMessage by
     remember {
-        mutableStateOf<ChatMessage?>(null)
+        mutableStateOf<ChatMessage?>(
+            null
+        )
     }
 
     var scrollRequestKey by
     remember {
-        mutableIntStateOf(0)
+        mutableIntStateOf(
+            0
+        )
     }
 
     var bottomOverlayHeight by
     remember {
-        mutableStateOf(0.dp)
+        mutableStateOf(
+            0.dp
+        )
     }
 
     /*
-     * Every successful copy increments the key.
+     * Every successful copy increments this key.
+     *
      * A new key restarts the brief top-bar confirmation.
      */
     var copyConfirmationKey by
     remember {
-        mutableIntStateOf(0)
+        mutableIntStateOf(
+            0
+        )
     }
 
     var showCopiedConfirmation by
     remember {
-        mutableStateOf(false)
+        mutableStateOf(
+            false
+        )
     }
 
     /*
      * =======================================================
-     * Error feedback
+     * ERROR FEEDBACK
      * =======================================================
-     *
-     * Snackbar is reserved for real chat errors.
      */
 
     LaunchedEffect(
@@ -166,14 +189,17 @@ fun ChatScreen(
 
     /*
      * =======================================================
-     * Copy confirmation
+     * COPY CONFIRMATION
      * =======================================================
      */
 
     LaunchedEffect(
         copyConfirmationKey
     ) {
-        if (copyConfirmationKey == 0) {
+        if (
+            copyConfirmationKey ==
+            0
+        ) {
             return@LaunchedEffect
         }
 
@@ -192,7 +218,7 @@ fun ChatScreen(
 
     /*
      * =======================================================
-     * Message actions
+     * MESSAGE ACTIONS
      * =======================================================
      */
 
@@ -203,14 +229,19 @@ fun ChatScreen(
         MessageActionBottomSheet(
             sentence =
                 sheetSentence,
+
             selectedAction =
                 messageActionState.selectedAction,
+
             insight =
                 messageActionState.insight,
+
             isLoading =
                 messageActionState.isLoading,
+
             errorMessage =
                 messageActionState.errorMessage,
+
             onActionClick = { action ->
                 messageActionViewModel.analyzeSentence(
                     sentence =
@@ -219,17 +250,26 @@ fun ChatScreen(
                         action
                 )
             },
+
             onDismiss = {
                 selectedMessage =
                     null
 
                 messageActionViewModel.reset()
             },
+
             isCorrectedVersion =
                 message.isShowingBesserVersion(),
+
             markedPhrases =
-                markedPhrases[message.id].orEmpty(),
-            onMarkPhrase = { phrase, type ->
+                markedPhrases[
+                    message.id
+                ].orEmpty(),
+
+            onMarkPhrase = {
+                    phrase,
+                    type ->
+
                 onMarkPhrase(
                     message.id,
                     phrase,
@@ -242,73 +282,107 @@ fun ChatScreen(
 
     /*
      * =======================================================
-     * Mission guidance / result
+     * MISSION GUIDANCE
      * =======================================================
      */
 
     MissionGuidanceBottomSheet(
         state =
             missionGuidanceUiState,
+
         onDismiss =
             onDismissMissionGuidance,
+
         onRevealNextHint =
             onRevealNextMissionHint,
+
         onToggleVocabulary =
             onToggleMissionVocabulary,
+
         onToggleExamples =
             onToggleMissionExamples
     )
 
+    /*
+     * =======================================================
+     * MISSION RESULT
+     * =======================================================
+     */
+
     MissionResultBottomSheet(
         state =
             missionResultUiState,
+
         onDismiss =
             onDismissMissionResult,
+
         onContinue =
             onContinueAfterMissionResult
     )
 
     /*
      * =======================================================
-     * Main chat scaffold
+     * MAIN CHAT
      * =======================================================
      */
 
     Scaffold(
         modifier =
             modifier.fillMaxSize(),
+
         containerColor =
-            MaterialTheme.colorScheme.background,
+            MaterialTheme
+                .colorScheme
+                .background,
+
         contentWindowInsets =
             WindowInsets(
-                left = 0,
-                top = 0,
-                right = 0,
-                bottom = 0
+                left =
+                    0,
+                top =
+                    0,
+                right =
+                    0,
+                bottom =
+                    0
             ),
+
         topBar = {
             ChatTopBar(
                 isAssistantTyping =
                     uiState.isAssistantTyping,
+
                 isAssessing =
                     uiState.isAssessing,
+
                 onBackClick =
                     onBackClick,
+
                 activeMissionTitle =
                     uiState.activeMissionTitle,
+
                 currentMissionObjective =
                     uiState.currentMissionObjective,
+
                 currentMissionGuidance =
                     uiState.currentMissionGuidance,
+
                 missionProgressPercentage =
                     uiState.missionProgressPercentage,
+
                 objectiveCompletionEvent =
                     uiState.objectiveCompletionEvent,
+
                 adaptiveLearningFeedbackEvent =
-                    uiState.adaptiveLearningFeedbackEvent,
+                    uiState
+                        .adaptiveLearningFeedbackEvent,
+
                 showCopiedConfirmation =
                     showCopiedConfirmation,
-                onObjectiveCompletionShown = { eventId ->
+
+                onObjectiveCompletionShown = {
+                        eventId ->
+
                     onAction(
                         ChatUiAction.ObjectiveCompletionShown(
                             eventId =
@@ -316,18 +390,24 @@ fun ChatScreen(
                         )
                     )
                 },
-                onAdaptiveLearningFeedbackShown = { eventId ->
+
+                onAdaptiveLearningFeedbackShown = {
+                        eventId ->
+
                     onAction(
-                        ChatUiAction.AdaptiveLearningFeedbackShown(
-                            eventId =
-                                eventId
-                        )
+                        ChatUiAction
+                            .AdaptiveLearningFeedbackShown(
+                                eventId =
+                                    eventId
+                            )
                     )
                 },
+
                 onMissionGuidanceClick =
                     onOpenMissionGuidance
             )
         },
+
         snackbarHost = {
             SnackbarHost(
                 hostState =
@@ -340,18 +420,26 @@ fun ChatScreen(
                 Modifier
                     .fillMaxSize()
                     .background(
-                        MaterialTheme.colorScheme.background
+                        MaterialTheme
+                            .colorScheme
+                            .background
                     )
                     .padding(
                         top =
-                            innerPadding.calculateTopPadding()
+                            innerPadding
+                                .calculateTopPadding()
                     )
         ) {
 
             /*
-             * ===================================================
-             * Conversation (recorded as the glass backdrop)
-             * ===================================================
+             * =================================================
+             * CONVERSATION
+             * =================================================
+             *
+             * ChatMessageList reads Besser challenges directly
+             * from:
+             *
+             * uiState.besserChallenges
              */
 
             ChatMessageList(
@@ -361,30 +449,39 @@ fun ChatScreen(
                         .layerBackdrop(
                             glassBackdrop
                         ),
+
                 uiState =
                     uiState,
+
                 scrollRequestKey =
                     scrollRequestKey,
+
                 bottomOverlayHeight =
                     bottomOverlayHeight,
+
                 markedPhrases =
                     markedPhrases,
+
                 onRemoveMarkedPhrase =
                     onRemoveMarkedPhrase,
-                besserChallenges =
-                    besserChallenges,
+
                 onBesserImprove =
                     onBesserImprove,
+
                 onBesserHint =
                     onBesserHint,
+
                 onBesserSkip =
                     onBesserSkip,
+
                 onMessageCopied = {
                     copyConfirmationKey +=
                         1
                 },
+
                 onMessageClick = { message ->
-                    messageActionViewModel.reset()
+                    messageActionViewModel
+                        .reset()
 
                     selectedMessage =
                         message
@@ -392,20 +489,25 @@ fun ChatScreen(
             )
 
             /*
-             * ===================================================
-             * Floating liquid-glass composer
-             * ===================================================
+             * =================================================
+             * FLOATING COMPOSER
+             * =================================================
              */
 
             val hasSuggestionContent =
-                uiState.missionOffer != null ||
-                        uiState.suggestions.isNotEmpty()
+                uiState.missionOffer !=
+                        null ||
+                        uiState
+                            .suggestions
+                            .isNotEmpty()
 
             ChatBottomBar(
                 backdrop =
                     glassBackdrop,
+
                 text =
                     uiState.messageInput.text,
+
                 onTextChange = { value ->
                     onAction(
                         ChatUiAction.MessageInputChanged(
@@ -421,55 +523,75 @@ fun ChatScreen(
                         )
                     )
                 },
+
                 onSend = {
                     onAction(
                         ChatUiAction.SendMessage
                     )
                 },
+
                 enabled =
                     !uiState.isInitializing &&
                             !uiState.isStartingMission,
+
                 isSending =
                     uiState.isSending,
+
                 onInputFocused = {
                     scrollRequestKey +=
                         1
                 },
+
                 suggestionContent =
-                    if (hasSuggestionContent) {
+                    if (
+                        hasSuggestionContent
+                    ) {
                         {
-                            uiState.missionOffer?.let { offer ->
-                                MissionOfferCard(
-                                    opportunity =
-                                        offer,
-                                    isStarting =
-                                        uiState.isStartingMission,
-                                    onStartClick = {
-                                        onAction(
-                                            ChatUiAction.StartOfferedMission
-                                        )
-                                    },
-                                    onDismissClick = {
-                                        onAction(
-                                            ChatUiAction.DismissMissionOffer
-                                        )
-                                    }
-                                )
-                            }
+                            uiState
+                                .missionOffer
+                                ?.let { offer ->
+                                    MissionOfferCard(
+                                        opportunity =
+                                            offer,
+
+                                        isStarting =
+                                            uiState
+                                                .isStartingMission,
+
+                                        onStartClick = {
+                                            onAction(
+                                                ChatUiAction
+                                                    .StartOfferedMission
+                                            )
+                                        },
+
+                                        onDismissClick = {
+                                            onAction(
+                                                ChatUiAction
+                                                    .DismissMissionOffer
+                                            )
+                                        }
+                                    )
+                                }
 
                             FloatingReplySuggestions(
                                 suggestions =
                                     uiState.suggestions,
+
                                 enabled =
                                     !uiState.isInitializing &&
                                             !uiState.isSending &&
                                             !uiState.isStartingMission,
-                                onSuggestionClick = { suggestionId ->
+
+                                onSuggestionClick = {
+                                        suggestionId ->
+
                                     onAction(
-                                        ChatUiAction.SuggestionSelected(
-                                            suggestionId =
-                                                suggestionId
-                                        )
+                                        ChatUiAction
+                                            .SuggestionSelected(
+                                                suggestionId =
+                                                    suggestionId
+                                            )
                                     )
 
                                     scrollRequestKey +=
@@ -480,6 +602,7 @@ fun ChatScreen(
                     } else {
                         null
                     },
+
                 modifier =
                     Modifier
                         .align(
@@ -487,11 +610,16 @@ fun ChatScreen(
                         )
                         .onSizeChanged { size ->
                             val measuredHeight =
-                                with(density) {
+                                with(
+                                    density
+                                ) {
                                     size.height.toDp()
                                 }
 
-                            if (bottomOverlayHeight != measuredHeight) {
+                            if (
+                                bottomOverlayHeight !=
+                                measuredHeight
+                            ) {
                                 bottomOverlayHeight =
                                     measuredHeight
                             }
@@ -501,15 +629,20 @@ fun ChatScreen(
     }
 }
 
-private fun ChatMessage.preferredStudySentence(): String {
-    return if (isShowingBesserVersion()) {
+private fun ChatMessage.preferredStudySentence():
+        String {
+    return if (
+        isShowingBesserVersion()
+    ) {
         correction.orEmpty()
     } else {
         content
     }
 }
 
-private fun ChatMessage.isShowingBesserVersion(): Boolean {
-    return sender == MessageSender.USER &&
+private fun ChatMessage.isShowingBesserVersion():
+        Boolean {
+    return sender ==
+            MessageSender.USER &&
             !correction.isNullOrBlank()
 }

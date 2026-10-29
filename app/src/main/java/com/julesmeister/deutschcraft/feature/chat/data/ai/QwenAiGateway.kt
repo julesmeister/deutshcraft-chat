@@ -860,9 +860,163 @@ class QwenAiGateway @Inject constructor(
         }
     }
 
+    override suspend fun generateStructuredText(
+        systemPrompt: String,
+        userPrompt: String
+    ): String {
+        val cleanSystemPrompt =
+            systemPrompt.trim()
+
+        val cleanUserPrompt =
+            userPrompt.trim()
+
+        require(
+            cleanSystemPrompt.isNotBlank()
+        ) {
+            "Structured system prompt must not be blank."
+        }
+
+        require(
+            cleanUserPrompt.isNotBlank()
+        ) {
+            "Structured user prompt must not be blank."
+        }
+
+        if (
+            BuildConfig.QWEN_API_KEY.isBlank()
+        ) {
+            throw AiGatewayException(
+                message =
+                    "The Qwen API key is missing."
+            )
+        }
+
+        return try {
+            val messages =
+                listOf(
+                    QwenMessage(
+                        role =
+                            SYSTEM_ROLE,
+                        content =
+                            cleanSystemPrompt
+                    ),
+                    QwenMessage(
+                        role =
+                            USER_ROLE,
+                        content =
+                            cleanUserPrompt
+                    )
+                )
+
+            Log.d(
+                QWEN_STRUCTURED_TAG,
+                buildString {
+                    append(
+                        "Starting structured generation. "
+                    )
+                    append(
+                        "systemChars="
+                    )
+                    append(
+                        cleanSystemPrompt.length
+                    )
+                    append(
+                        ", userChars="
+                    )
+                    append(
+                        cleanUserPrompt.length
+                    )
+                }
+            )
+
+            val response =
+                requestCompletion(
+                    messages =
+                        messages,
+                    temperature =
+                        STRUCTURED_RESPONSE_TEMPERATURE
+                )
+
+            Log.d(
+                QWEN_STRUCTURED_TAG,
+                buildString {
+                    append(
+                        "Structured generation completed. "
+                    )
+                    append(
+                        "responseChars="
+                    )
+                    append(
+                        response.length
+                    )
+                }
+            )
+
+            response
+        } catch (
+            cancellationException:
+            CancellationException
+        ) {
+            throw cancellationException
+        } catch (
+            httpException:
+            HttpException
+        ) {
+            throw AiGatewayException(
+                message =
+                    createHttpErrorMessage(
+                        statusCode =
+                            httpException.code()
+                    ),
+                cause =
+                    httpException
+            )
+        } catch (
+            ioException:
+            IOException
+        ) {
+            throw AiGatewayException(
+                message =
+                    "DeutschCraft could not reach Qwen. " +
+                            "Check your internet connection.",
+                cause =
+                    ioException
+            )
+        } catch (
+            gatewayException:
+            AiGatewayException
+        ) {
+            throw gatewayException
+        } catch (throwable: Throwable) {
+            throw AiGatewayException(
+                message =
+                    throwable.message
+                        ?: "Qwen structured generation failed.",
+                cause =
+                    throwable
+            )
+        }
+    }
+
     private companion object {
+
+        /*
+         * =======================================================
+         * Logging
+         * =======================================================
+         */
+
         const val QWEN_GATEWAY_TAG =
             "QwenAiGateway"
+
+        const val QWEN_STRUCTURED_TAG =
+            "QwenStructured"
+
+        /*
+         * =======================================================
+         * Qwen roles
+         * =======================================================
+         */
 
         const val SYSTEM_ROLE =
             "system"
@@ -873,8 +1027,20 @@ class QwenAiGateway @Inject constructor(
         const val ASSISTANT_ROLE =
             "assistant"
 
+        /*
+         * =======================================================
+         * Response format
+         * =======================================================
+         */
+
         const val JSON_OBJECT_TYPE =
             "json_object"
+
+        /*
+         * =======================================================
+         * Normal reply JSON keys
+         * =======================================================
+         */
 
         const val REPLY_KEY =
             "reply"
@@ -894,6 +1060,12 @@ class QwenAiGateway @Inject constructor(
         const val TEXT_KEY =
             "text"
 
+        /*
+         * =======================================================
+         * Prompt limits
+         * =======================================================
+         */
+
         const val MAXIMUM_HISTORY_MESSAGES =
             12
 
@@ -906,17 +1078,48 @@ class QwenAiGateway @Inject constructor(
         const val REQUIRED_SUGGESTION_COUNT =
             3
 
+        /*
+         * =======================================================
+         * Generation temperatures
+         * =======================================================
+         */
+
+        /*
+         * Normal conversational Emil response.
+         */
         const val RESPONSE_TEMPERATURE =
             0.62
 
+        /*
+         * Repair malformed normal-chat JSON.
+         */
         const val REPAIR_TEMPERATURE =
             0.15
 
+        /*
+         * Structured selection and evaluation.
+         *
+         * A low value makes the JSON decision more deterministic
+         * and reduces creative deviation from the required schema.
+         */
+        const val STRUCTURED_RESPONSE_TEMPERATURE =
+            0.10
+
+        /*
+         * =======================================================
+         * Text normalization
+         * =======================================================
+         */
+
         val MULTIPLE_WHITESPACE_REGEX =
-            Regex("\\s+")
+            Regex(
+                "\\s+"
+            )
 
         val NON_LETTER_OR_DIGIT_REGEX =
-            Regex("[^\\p{L}\\p{N}]+")
+            Regex(
+                "[^\\p{L}\\p{N}]+"
+            )
     }
 }
 

@@ -50,62 +50,49 @@ fun MessageBubble(
     correction: String?,
     isLatestUserMessage: Boolean,
     isLatestAssistantMessage: Boolean,
-
-    /*
-     * Controls only the corner connecting this message with
-     * an attached marked-phrase bubble.
-     *
-     * User:
-     *     flatten bottom-left
-     *
-     * Assistant:
-     *     flatten bottom-right
-     */
     hasAttachedPhrase: Boolean,
-
-    /*
-     * Normal tap opens message actions.
-     */
     onClick: () -> Unit,
+    onMessageCopied: () -> Unit,
 
     /*
-     * Called after a successful long-press copy.
+     * Reports the actual width of the visible source bubble.
      *
-     * ChatScreen uses this callback to briefly show the
-     * separate top-bar copy confirmation.
+     * This does not include the copied indicator or surrounding
+     * row spacing.
      */
-    onMessageCopied: () -> Unit,
+    onBubbleWidthChanged: (Int) -> Unit,
 
     modifier: Modifier = Modifier
 ) {
     val isUserMessage =
-        message.sender == MessageSender.USER
+        message.sender ==
+                MessageSender.USER
 
-    /*
-     * LocalClipboardManager is deprecated in newer Compose
-     * releases in favor of the newer suspend clipboard API.
-     *
-     * DeutschCraft currently performs this operation inside a
-     * synchronous long-click callback, so we intentionally
-     * retain this API here until the clipboard implementation
-     * is migrated separately.
-     */
     val clipboardManager =
         LocalClipboardManager.current
 
     var copyEventKey by
-    remember(message.id) {
-        mutableIntStateOf(0)
+    remember(
+        message.id
+    ) {
+        mutableIntStateOf(
+            0
+        )
     }
 
     var showCopiedIndicator by
-    remember(message.id) {
-        mutableStateOf(false)
+    remember(
+        message.id
+    ) {
+        mutableStateOf(
+            false
+        )
     }
 
     val colors =
         rememberMessageBubbleColors(
-            isUserMessage = isUserMessage,
+            isUserMessage =
+                isUserMessage,
             isLatestUserMessage =
                 isLatestUserMessage,
             isLatestAssistantMessage =
@@ -114,19 +101,22 @@ fun MessageBubble(
 
     val maxBubbleWidth =
         (
-                LocalConfiguration.current.screenWidthDp.dp *
+                LocalConfiguration
+                    .current
+                    .screenWidthDp.dp *
                         MAXIMUM_BUBBLE_WIDTH_FRACTION
                 )
             .coerceAtMost(
                 MAXIMUM_BUBBLE_WIDTH_CAP
             )
 
-    /*
-     * Restart the local confirmation animation every time the
-     * message is copied.
-     */
-    LaunchedEffect(copyEventKey) {
-        if (copyEventKey == 0) {
+    LaunchedEffect(
+        copyEventKey
+    ) {
+        if (
+            copyEventKey ==
+            0
+        ) {
             return@LaunchedEffect
         }
 
@@ -153,11 +143,6 @@ fun MessageBubble(
         verticalAlignment =
             Alignment.CenterVertically
     ) {
-        /*
-         * User message:
-         *
-         * put confirmation in the empty space on the left.
-         */
         if (isUserMessage) {
             CopiedIndicator(
                 visible =
@@ -190,18 +175,10 @@ fun MessageBubble(
                 colors.borderColor,
             maxWidth =
                 maxBubbleWidth,
-
             onClick =
                 onClick,
-
-            /*
-             * Long press:
-             *
-             * 1. Determine the visible primary message.
-             * 2. Copy it.
-             * 3. Start the animated check beside the bubble.
-             * 4. Notify ChatScreen for the top-bar feedback.
-             */
+            onBubbleWidthChanged =
+                onBubbleWidthChanged,
             onLongClick = {
                 val textToCopy =
                     message.copyablePrimaryText(
@@ -233,11 +210,6 @@ fun MessageBubble(
             )
         }
 
-        /*
-         * Assistant message:
-         *
-         * put confirmation in the empty space on the right.
-         */
         if (!isUserMessage) {
             Spacer(
                 modifier =
@@ -265,13 +237,14 @@ private fun CopiedIndicator(
     animationKey: Int
 ) {
     var animationStarted by
-    remember(animationKey) {
-        mutableStateOf(false)
+    remember(
+        animationKey
+    ) {
+        mutableStateOf(
+            false
+        )
     }
 
-    /*
-     * Spring-pop animation.
-     */
     val badgeScale by
     animateFloatAsState(
         targetValue =
@@ -286,7 +259,8 @@ private fun CopiedIndicator(
         animationSpec =
             spring(
                 dampingRatio =
-                    Spring.DampingRatioMediumBouncy,
+                    Spring
+                        .DampingRatioMediumBouncy,
                 stiffness =
                     Spring.StiffnessMedium
             ),
@@ -294,9 +268,6 @@ private fun CopiedIndicator(
             "CopiedBadgeScale"
     )
 
-    /*
-     * Small stamp-like rotation.
-     */
     val badgeRotation by
     animateFloatAsState(
         targetValue =
@@ -305,12 +276,10 @@ private fun CopiedIndicator(
                 animationStarted
             ) {
                 0f
+            } else if (isUserMessage) {
+                COPIED_BADGE_INITIAL_ROTATION
             } else {
-                if (isUserMessage) {
-                    COPIED_BADGE_INITIAL_ROTATION
-                } else {
-                    -COPIED_BADGE_INITIAL_ROTATION
-                }
+                -COPIED_BADGE_INITIAL_ROTATION
             },
         animationSpec =
             spring(
@@ -323,9 +292,6 @@ private fun CopiedIndicator(
             "CopiedBadgeRotation"
     )
 
-    /*
-     * Expanding pulse behind the white check.
-     */
     val glowScale by
     animateFloatAsState(
         targetValue =
@@ -396,9 +362,11 @@ private fun CopiedIndicator(
                         animationSpec =
                             spring(
                                 dampingRatio =
-                                    Spring.DampingRatioMediumBouncy,
+                                    Spring
+                                        .DampingRatioMediumBouncy,
                                 stiffness =
-                                    Spring.StiffnessMediumLow
+                                    Spring
+                                        .StiffnessMediumLow
                             ),
                         initialOffsetX = { fullWidth ->
                             if (isUserMessage) {
@@ -439,9 +407,6 @@ private fun CopiedIndicator(
             contentAlignment =
                 Alignment.Center
         ) {
-            /*
-             * Expanding pulse.
-             */
             Box(
                 modifier =
                     Modifier
@@ -466,9 +431,6 @@ private fun CopiedIndicator(
                         )
             )
 
-            /*
-             * Main white confirmation badge.
-             */
             Box(
                 modifier =
                     Modifier
@@ -504,7 +466,9 @@ private fun CopiedIndicator(
             ) {
                 Icon(
                     imageVector =
-                        Icons.Outlined.Check,
+                        Icons
+                            .Outlined
+                            .Check,
                     contentDescription =
                         "Copied",
                     modifier =
@@ -519,19 +483,6 @@ private fun CopiedIndicator(
     }
 }
 
-/*
- * Returns the exact text currently treated as the primary
- * sentence by the bubble.
- *
- * Learner with Besser:
- *     corrected sentence
- *
- * Learner without Besser:
- *     original sentence
- *
- * Assistant:
- *     assistant message
- */
 private fun ChatMessage.copyablePrimaryText(
     correction: String?
 ): String {

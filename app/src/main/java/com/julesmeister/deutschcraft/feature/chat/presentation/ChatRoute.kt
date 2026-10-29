@@ -5,47 +5,29 @@ import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-/*
- * Navigation-level entry point for the chat feature.
- *
- * ChatRoute collects ViewModel state while ChatScreen stays
- * a stateless presentation component.
- */
 @Composable
 fun ChatRoute(
-    onBackClick:
-        () -> Unit,
+    onBackClick: () -> Unit,
+
     viewModel:
     ChatViewModel =
         hiltViewModel()
 ) {
-    /*
-     * Main conversation state.
-     */
     val uiState by
     viewModel
         .uiState
         .collectAsStateWithLifecycle()
 
-    /*
-     * Active-mission learner support.
-     */
     val missionGuidanceUiState by
     viewModel
         .missionGuidanceUiState
         .collectAsStateWithLifecycle()
 
-    /*
-     * Completed-mission analytics.
-     */
     val missionResultUiState by
     viewModel
         .missionResultUiState
         .collectAsStateWithLifecycle()
 
-    /*
-     * messageId -> phrases the learner marked on that message.
-     */
     val markedPhrases by
     viewModel
         .markedPhrases
@@ -71,8 +53,26 @@ fun ChatRoute(
             onBackClick,
 
         /*
-         * Mission guidance.
+         * ===================================================
+         * BESSER
+         * ===================================================
          */
+
+        onBesserImprove =
+            viewModel::improveBesserChallenge,
+
+        onBesserHint =
+            viewModel::revealNextBesserHint,
+
+        onBesserSkip =
+            viewModel::skipBesserChallenge,
+
+        /*
+         * ===================================================
+         * MISSION GUIDANCE
+         * ===================================================
+         */
+
         onOpenMissionGuidance =
             viewModel::openMissionGuidance,
 
@@ -89,8 +89,11 @@ fun ChatRoute(
             viewModel::toggleMissionExamples,
 
         /*
-         * Mission result.
+         * ===================================================
+         * MISSION RESULT
+         * ===================================================
          */
+
         onDismissMissionResult =
             viewModel::dismissMissionResult,
 
@@ -98,8 +101,11 @@ fun ChatRoute(
             viewModel::continueAfterMissionResult,
 
         /*
-         * Marked phrases.
+         * ===================================================
+         * MARKED PHRASES
+         * ===================================================
          */
+
         onMarkPhrase =
             viewModel::markPhrase,
 

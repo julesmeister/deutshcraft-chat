@@ -1,41 +1,84 @@
 package com.julesmeister.deutschcraft.feature.besser.presentation
 
-import com.julesmeister.deutschcraft.feature.besser.domain.AssistanceLevel
-import com.julesmeister.deutschcraft.feature.besser.domain.ChallengeStatus
-
 data class BesserChallengeUiModel(
     val id: String,
     val messageId: String,
-    val conversationId: String,
     val capabilityId: String,
+    val capabilityName: String,
     val instruction: String,
-    val confidence: Float,
-    val recommendedAssistanceLevel: AssistanceLevel,
-    val status: ChallengeStatus,
+    val rationale: String,
     val hints: List<String>,
     val revealedHintCount: Int,
-    val originalMessageContent: String
+    val confidence: Float,
+    val isRefinementActive: Boolean
 ) {
 
-    val visibleHints: List<String>
+    /*
+     * Canonical name used by the newer session architecture.
+     */
+    val revealedHints: List<String>
         get() =
             hints.take(
                 revealedHintCount.coerceIn(
-                    minimumValue = 0,
-                    maximumValue = hints.size
+                    minimumValue =
+                        0,
+                    maximumValue =
+                        hints.size
                 )
             )
 
-    val canImprove: Boolean
+    /*
+     * Compatibility name used by BesserChallengeBubble.
+     */
+    val visibleHints: List<String>
         get() =
-            status.isActive
+            revealedHints
 
+    val canRevealAnotherHint: Boolean
+        get() =
+            revealedHintCount <
+                    hints.size
+
+    /*
+     * Compatibility name used by BesserChallengeBubble.
+     */
     val canRevealHint: Boolean
         get() =
-            status.isActive &&
-                    revealedHintCount < hints.size
+            canRevealAnotherHint
 
-    val canSkip: Boolean
-        get() =
-            status.isActive
+    fun revealNextHint():
+            BesserChallengeUiModel {
+        if (!canRevealAnotherHint) {
+            return this
+        }
+
+        return copy(
+            revealedHintCount =
+                revealedHintCount + 1
+        )
+    }
+
+    fun startRefinement():
+            BesserChallengeUiModel {
+        if (isRefinementActive) {
+            return this
+        }
+
+        return copy(
+            isRefinementActive =
+                true
+        )
+    }
+
+    fun stopRefinement():
+            BesserChallengeUiModel {
+        if (!isRefinementActive) {
+            return this
+        }
+
+        return copy(
+            isRefinementActive =
+                false
+        )
+    }
 }

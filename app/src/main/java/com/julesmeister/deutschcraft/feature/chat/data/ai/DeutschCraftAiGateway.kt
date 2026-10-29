@@ -14,4 +14,21 @@ interface DeutschCraftAiGateway {
         ActiveMissionConversationContext? =
             null
     ): AiReply
+
+    /*
+     * Runs a non-conversational structured AI task.
+     *
+     * This path does not apply:
+     *
+     * - Emil's persona
+     * - conversation history
+     * - CEFR conversation adaptation
+     * - active mission role-play
+     *
+     * The supplied system prompt fully defines model behavior.
+     */
+    suspend fun generateStructuredText(
+        systemPrompt: String,
+        userPrompt: String
+    ): String
 }
