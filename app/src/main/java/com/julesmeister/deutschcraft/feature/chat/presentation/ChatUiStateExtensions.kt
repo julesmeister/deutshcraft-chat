@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/presentation/ChatUiStateExtensions.kt
+
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import androidx.compose.ui.text.input.TextFieldValue
@@ -6,12 +8,6 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionObjectiveProgress
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.MissionOpportunity
-
-/*
- * ===========================================================
- * INITIALIZATION
- * ===========================================================
- */
 
 internal fun ChatUiState.initializationSucceeded():
         ChatUiState {
@@ -56,12 +52,6 @@ internal fun ChatUiState.initializationFailed(
     )
 }
 
-/*
- * ===========================================================
- * MESSAGES
- * ===========================================================
- */
-
 internal fun ChatUiState.withMessages(
     messages: List<ChatMessage>
 ): ChatUiState {
@@ -71,12 +61,6 @@ internal fun ChatUiState.withMessages(
             messages
     )
 }
-
-/*
- * ===========================================================
- * COMPOSER INPUT
- * ===========================================================
- */
 
 internal fun ChatUiState.withInput(
     value: TextFieldValue
@@ -89,11 +73,10 @@ internal fun ChatUiState.withInput(
 }
 
 /*
- * ===========================================================
- * NORMAL MESSAGE SEND
- * ===========================================================
+ * The actual conversation send has started.
+ *
+ * Composer input is cleared while Qwen generates Emil's reply.
  */
-
 internal fun ChatUiState.sendingStarted():
         ChatUiState {
 
@@ -118,6 +101,70 @@ internal fun ChatUiState.sendingStarted():
     )
 }
 
+/*
+ * Emil's message has already been persisted.
+ *
+ * The composer becomes usable immediately even though:
+ *
+ * - post-send learning processing may still be running
+ * - remaining suggestions may still be appearing
+ * - Besser generation may still be running
+ */
+internal fun ChatUiState.assistantReplyPersisted(
+    initialSuggestions: List<ReplySuggestion>
+): ChatUiState {
+
+    return copy(
+        suggestions =
+            initialSuggestions,
+
+        isSending =
+            false,
+
+        isAssistantTyping =
+            false,
+
+        /*
+         * Supplementary learning analysis may continue in the
+         * background, but it must not lock the composer.
+         */
+        isAssessing =
+            false,
+
+        errorMessage =
+            null
+    )
+}
+
+/*
+ * Replaces the currently visible progressive suggestion list.
+ *
+ * This does not change composer availability.
+ */
+internal fun ChatUiState.withProgressiveSuggestions(
+    suggestions: List<ReplySuggestion>
+): ChatUiState {
+
+    return copy(
+        suggestions =
+            suggestions
+                .distinctBy { suggestion ->
+                    suggestion.text
+                        .trim()
+                        .lowercase()
+                }
+                .take(
+                    MAXIMUM_VISIBLE_SUGGESTIONS
+                )
+    )
+}
+
+/*
+ * Finalizes supplementary post-send work.
+ *
+ * The composer should already have been unlocked by
+ * assistantReplyPersisted().
+ */
 internal fun ChatUiState.sendingSucceeded(
     suggestions: List<ReplySuggestion>,
     warning: String?
@@ -163,21 +210,6 @@ internal fun ChatUiState.sendingFailed(
     )
 }
 
-/*
- * ===========================================================
- * BESSER REFINEMENT
- * ===========================================================
- */
-
-/*
- * Enters Besser refinement mode.
- *
- * The learner's original sentence is placed in the composer so
- * the learner can rewrite it directly.
- *
- * Ordinary reply suggestions are removed because they belong
- * to the normal conversation flow, not refinement.
- */
 internal fun ChatUiState.besserRefinementStarted(
     refinement: BesserRefinementUiState,
     input: TextFieldValue
@@ -201,13 +233,6 @@ internal fun ChatUiState.besserRefinementStarted(
     )
 }
 
-/*
- * Leaves refinement mode without skipping the persisted
- * challenge.
- *
- * The Besser challenge therefore remains ACCEPTED and the
- * learner can tap Verbessern again later.
- */
 internal fun ChatUiState.besserRefinementCancelled():
         ChatUiState {
 
@@ -226,19 +251,6 @@ internal fun ChatUiState.besserRefinementCancelled():
     )
 }
 
-/*
- * Starts submission of the rewritten sentence.
- *
- * Refinement submission is deliberately separate from an
- * ordinary chat send.
- *
- * We therefore do NOT:
- *
- * - show assistant typing
- * - run normal assessment UI
- * - clear the rewrite before completion succeeds
- * - start another ordinary conversation turn
- */
 internal fun ChatUiState.besserRefinementSubmissionStarted():
         ChatUiState {
 
@@ -265,12 +277,6 @@ internal fun ChatUiState.besserRefinementSubmissionStarted():
     )
 }
 
-/*
- * The rewritten sentence has been successfully persisted and
- * the Besser challenge reached COMPLETED.
- *
- * Exit refinement mode and clear the composer.
- */
 internal fun ChatUiState.besserRefinementSubmissionSucceeded():
         ChatUiState {
 
@@ -298,17 +304,6 @@ internal fun ChatUiState.besserRefinementSubmissionSucceeded():
     )
 }
 
-/*
- * A rejected or failed refinement keeps both:
- *
- * - activeBesserRefinement
- * - messageInput
- *
- * intact.
- *
- * This is important because the learner should be able to edit
- * the sentence again instead of losing the attempted rewrite.
- */
 internal fun ChatUiState.besserRefinementSubmissionFailed(
     message: String
 ): ChatUiState {
@@ -330,12 +325,6 @@ internal fun ChatUiState.besserRefinementSubmissionFailed(
             message
     )
 }
-
-/*
- * ===========================================================
- * MISSION OPPORTUNITY
- * ===========================================================
- */
 
 internal fun ChatUiState.missionCheckStarted():
         ChatUiState {
@@ -387,12 +376,6 @@ internal fun ChatUiState.missionOfferDismissed():
     )
 }
 
-/*
- * ===========================================================
- * MISSION START
- * ===========================================================
- */
-
 internal fun ChatUiState.missionStartStarted():
         ChatUiState {
 
@@ -441,30 +424,17 @@ internal fun ChatUiState.missionStartFailed(
     )
 }
 
-/*
- * ===========================================================
- * STREAK
- * ===========================================================
- */
-
 internal fun ChatUiState.withCurrentStreak(
     streakDays: Int
 ): ChatUiState {
 
     return copy(
         currentStreak =
-            streakDays
-                .coerceAtLeast(
-                    0
-                )
+            streakDays.coerceAtLeast(
+                0
+            )
     )
 }
-
-/*
- * ===========================================================
- * ACTIVE MISSION
- * ===========================================================
- */
 
 internal fun ChatUiState.withActiveMission(
     mission: ConversationMission?,
@@ -567,12 +537,6 @@ internal fun ChatUiState.withActiveMission(
     )
 }
 
-/*
- * ===========================================================
- * OBJECTIVE COMPLETION EVENT
- * ===========================================================
- */
-
 internal fun ChatUiState.objectiveCompletionShown(
     eventId: String
 ): ChatUiState {
@@ -595,12 +559,6 @@ internal fun ChatUiState.objectiveCompletionShown(
     )
 }
 
-/*
- * ===========================================================
- * ERROR
- * ===========================================================
- */
-
 internal fun ChatUiState.errorDismissed():
         ChatUiState {
 
@@ -609,3 +567,50 @@ internal fun ChatUiState.errorDismissed():
             null
     )
 }
+
+/*
+ * The rewrite was evaluated but did not yet demonstrate the
+ * targeted capability.
+ *
+ * Refinement stays open and the composer keeps the attempt.
+ * Feedback is shown in the refinement header, not as an error.
+ */
+internal fun ChatUiState.besserRefinementNeedsRevision(
+    feedback: String,
+    score: Int?
+): ChatUiState {
+    val refinement =
+        activeBesserRefinement
+            ?: return copy(
+                isSubmittingBesserRefinement =
+                    false
+            )
+
+    return copy(
+        activeBesserRefinement =
+            refinement.copy(
+                feedback =
+                    feedback,
+                lastScore =
+                    score
+            ),
+
+        isSubmittingBesserRefinement =
+            false,
+
+        isSending =
+            false,
+
+        isAssistantTyping =
+            false,
+
+        isAssessing =
+            false,
+
+        errorMessage =
+            null
+    )
+}
+
+private const val MAXIMUM_VISIBLE_SUGGESTIONS =
+    3

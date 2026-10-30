@@ -1,25 +1,14 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/data/cache/ReplySuggestionCache.kt
+
 package com.julesmeister.deutschcraft.feature.chat.data.cache
 
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/*
- * Temporary in-memory storage for generated reply
- * suggestions.
- *
- * Suggestions are grouped by conversation ID so every
- * thread can preserve its own latest suggestions while
- * the application process remains alive.
- *
- * This cache intentionally does not use Room:
- *
- * - Suggestions survive normal navigation.
- * - Suggestions disappear after process death.
- * - Suggestions remain temporary helper content.
- */
 @Singleton
-class ReplySuggestionCache @Inject constructor() {
+class ReplySuggestionCache
+@Inject constructor() {
 
     private val suggestionsByConversationId =
         mutableMapOf<
@@ -43,7 +32,18 @@ class ReplySuggestionCache @Inject constructor() {
         conversationId: String,
         suggestions: List<ReplySuggestion>
     ) {
-        if (suggestions.isEmpty()) {
+        val normalizedSuggestions =
+            suggestions
+                .distinctBy { suggestion ->
+                    suggestion.text
+                        .trim()
+                        .lowercase()
+                }
+                .take(
+                    MAXIMUM_SUGGESTION_COUNT
+                )
+
+        if (normalizedSuggestions.isEmpty()) {
             suggestionsByConversationId.remove(
                 conversationId
             )
@@ -53,7 +53,53 @@ class ReplySuggestionCache @Inject constructor() {
 
         suggestionsByConversationId[
             conversationId
-        ] = suggestions.toList()
+        ] =
+            normalizedSuggestions.toList()
+    }
+
+    @Synchronized
+    fun appendSuggestion(
+        conversationId: String,
+        suggestion: ReplySuggestion
+    ): List<ReplySuggestion> {
+        val cleanText =
+            suggestion.text.trim()
+
+        if (cleanText.isBlank()) {
+            return getSuggestions(
+                conversationId =
+                    conversationId
+            )
+        }
+
+        val currentSuggestions =
+            suggestionsByConversationId[
+                conversationId
+            ].orEmpty()
+
+        val updatedSuggestions =
+            (
+                    currentSuggestions +
+                            suggestion.copy(
+                                text =
+                                    cleanText
+                            )
+                    )
+                .distinctBy { item ->
+                    item.text
+                        .trim()
+                        .lowercase()
+                }
+                .take(
+                    MAXIMUM_SUGGESTION_COUNT
+                )
+
+        suggestionsByConversationId[
+            conversationId
+        ] =
+            updatedSuggestions
+
+        return updatedSuggestions.toList()
     }
 
     @Synchronized
@@ -68,5 +114,11 @@ class ReplySuggestionCache @Inject constructor() {
     @Synchronized
     fun clearAll() {
         suggestionsByConversationId.clear()
+    }
+
+    private companion object {
+
+        const val MAXIMUM_SUGGESTION_COUNT =
+            3
     }
 }

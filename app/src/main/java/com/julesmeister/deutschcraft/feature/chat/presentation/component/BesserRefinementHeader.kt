@@ -1,5 +1,11 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,12 +35,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatGlassColors
 
 @Composable
 internal fun BesserRefinementHeader(
     instruction: String,
+    feedback: String?,
+    isEvaluating: Boolean,
     enabled: Boolean,
     glassColors: ChatGlassColors,
     onCancel: () -> Unit,
@@ -69,6 +79,7 @@ internal fun BesserRefinementHeader(
                         ChatDesignTokens
                             .RefinementShape
                 )
+                .animateContentSize()
                 .padding(
                     horizontal =
                         ChatDesignTokens
@@ -96,19 +107,33 @@ internal fun BesserRefinementHeader(
             contentAlignment =
                 Alignment.Center
         ) {
-            Icon(
-                imageVector =
-                    Icons.Rounded.AutoAwesome,
-                contentDescription =
-                    null,
-                modifier =
-                    Modifier.size(
-                        ChatDesignTokens
-                            .RefinementIconSize
-                    ),
-                tint =
-                    colorScheme.primary
-            )
+            if (isEvaluating) {
+                CircularProgressIndicator(
+                    modifier =
+                        Modifier.size(
+                            ChatDesignTokens
+                                .RefinementIconSize
+                        ),
+                    color =
+                        colorScheme.primary,
+                    strokeWidth =
+                        EVALUATING_STROKE_WIDTH
+                )
+            } else {
+                Icon(
+                    imageVector =
+                        Icons.Rounded.AutoAwesome,
+                    contentDescription =
+                        null,
+                    modifier =
+                        Modifier.size(
+                            ChatDesignTokens
+                                .RefinementIconSize
+                        ),
+                    tint =
+                        colorScheme.primary
+                )
+            }
         }
 
         Spacer(
@@ -130,7 +155,11 @@ internal fun BesserRefinementHeader(
         ) {
             Text(
                 text =
-                    "Besser",
+                    if (isEvaluating) {
+                        EVALUATING_LABEL
+                    } else {
+                        TITLE_LABEL
+                    },
                 style =
                     MaterialTheme
                         .typography
@@ -156,6 +185,40 @@ internal fun BesserRefinementHeader(
                 overflow =
                     TextOverflow.Ellipsis
             )
+
+            AnimatedVisibility(
+                visible =
+                    !feedback.isNullOrBlank() &&
+                            !isEvaluating,
+                enter =
+                    fadeIn() +
+                            expandVertically(),
+                exit =
+                    fadeOut() +
+                            shrinkVertically()
+            ) {
+                Text(
+                    text =
+                        feedback.orEmpty(),
+                    modifier =
+                        Modifier.padding(
+                            top =
+                                FEEDBACK_TOP_PADDING
+                        ),
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodySmall,
+                    fontWeight =
+                        FontWeight.SemiBold,
+                    color =
+                        colorScheme.tertiary,
+                    maxLines =
+                        FEEDBACK_MAX_LINES,
+                    overflow =
+                        TextOverflow.Ellipsis
+                )
+            }
         }
 
         Spacer(
@@ -220,3 +283,18 @@ internal fun BesserRefinementHeader(
         }
     }
 }
+
+private const val TITLE_LABEL =
+    "Besser"
+
+private const val EVALUATING_LABEL =
+    "Wird geprüft…"
+
+private const val FEEDBACK_MAX_LINES =
+    3
+
+private val FEEDBACK_TOP_PADDING =
+    2.dp
+
+private val EVALUATING_STROKE_WIDTH =
+    2.dp

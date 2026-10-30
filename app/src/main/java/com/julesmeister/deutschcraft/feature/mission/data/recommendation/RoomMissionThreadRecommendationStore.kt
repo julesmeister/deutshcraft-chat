@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/mission/data/recommendation/RoomMissionThreadRecommendationStore.kt
+
 package com.julesmeister.deutschcraft.feature.mission.data.recommendation
 
 import android.util.Log
@@ -10,6 +12,8 @@ import com.julesmeister.deutschcraft.feature.mission.domain.MissionDifficulty
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.GeneratedMissionDraft
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.GeneratedMissionObjectiveDraft
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.MissionOpportunity
+import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionLearningContext
+import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionRecommendationHistory
 import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionScenarioType
 import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionThreadRecommendation
 import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionThreadRecommendationStore
@@ -28,52 +32,56 @@ class RoomMissionThreadRecommendationStore
 @Inject constructor(
     private val dao:
     MissionThreadRecommendationDao,
+
     private val clock:
     Clock,
+
     private val json:
     Json
 ) : MissionThreadRecommendationStore {
 
     override fun observeNextEligible(
-        cefrLevel: CefrLevel
+        cefrLevel:
+        CefrLevel
     ): Flow<MissionThreadRecommendation?> {
-        /*
-         * Room re-runs the query whenever recommendation or
-         * objective rows are changed.
-         *
-         * This means skipping recommendation A immediately
-         * emits recommendation B without waiting for Qwen.
-         */
+
         return dao
             .observeNextEligibleRecommendation(
                 cefrLevel =
                     cefrLevel.name,
+
                 currentTime =
                     clock.millis()
             )
             .map { persistedRecommendation ->
                 persistedRecommendation
-                    ?.toDomainOrNull()
+                    ?.toRecommendationDomainOrNull()
             }
     }
 
     override suspend fun getNextEligible(
-        cefrLevel: CefrLevel
+        cefrLevel:
+        CefrLevel
     ): MissionThreadRecommendation? {
+
         return dao
             .getNextEligibleRecommendation(
                 cefrLevel =
                     cefrLevel.name,
+
                 currentTime =
                     clock.millis()
             )
-            ?.toDomainOrNull()
+            ?.toRecommendationDomainOrNull()
     }
 
     override suspend fun getEligibleRecommendations(
-        cefrLevel: CefrLevel,
+        cefrLevel:
+        CefrLevel,
+
         limit: Int
     ): List<MissionThreadRecommendation> {
+
         if (limit <= 0) {
             return emptyList()
         }
@@ -82,56 +90,124 @@ class RoomMissionThreadRecommendationStore
             .getEligibleRecommendations(
                 cefrLevel =
                     cefrLevel.name,
+
                 currentTime =
                     clock.millis(),
+
                 limit =
                     limit
             )
             .mapNotNull { persistedRecommendation ->
                 persistedRecommendation
-                    .toDomainOrNull()
+                    .toRecommendationDomainOrNull()
             }
     }
 
     override suspend fun countEligible(
-        cefrLevel: CefrLevel
+        cefrLevel:
+        CefrLevel
     ): Int {
+
         return dao.countEligibleRecommendations(
             cefrLevel =
                 cefrLevel.name,
+
             currentTime =
                 clock.millis()
         )
     }
 
-    override suspend fun getRecentScenarioTypes(
-        cefrLevel: CefrLevel
-    ): Set<MissionScenarioType> {
-        val minimumCreatedAt =
-            clock.millis() -
+    override suspend fun getRecommendationHistory(
+        cefrLevel:
+        CefrLevel
+    ): MissionRecommendationHistory {
+
+        val now =
+            clock.millis()
+
+        val minimumHistoryTime =
+            now -
                     RECENT_HISTORY_DURATION_MILLIS
 
-        return dao
-            .getRecentScenarioTypes(
-                cefrLevel =
-                    cefrLevel.name,
-                minimumCreatedAt =
-                    minimumCreatedAt
-            )
-            .mapNotNull { storedScenarioType ->
-                storedScenarioType
-                    .toMissionScenarioTypeOrNull()
-            }
+        val recentScenarioTypes =
+            dao
+                .getRecentScenarioTypes(
+                    cefrLevel =
+                        cefrLevel.name,
+
+                    minimumCreatedAt =
+                        minimumHistoryTime
+                )
+                .mapNotNull { storedScenarioType ->
+                    storedScenarioType
+                        .toMissionScenarioTypeOrNull()
+                }
+
+        val completedScenarioTypes =
+            dao
+                .getRecentlyCompletedScenarioTypes(
+                    cefrLevel =
+                        cefrLevel.name,
+
+                    minimumCompletedAt =
+                        minimumHistoryTime
+                )
+                .mapNotNull { storedScenarioType ->
+                    storedScenarioType
+                        .toMissionScenarioTypeOrNull()
+                }
+
+        val dismissedScenarioTypes =
+            dao
+                .getRecentlyDismissedScenarioTypes(
+                    cefrLevel =
+                        cefrLevel.name,
+
+                    minimumSkippedAt =
+                        minimumHistoryTime
+                )
+                .mapNotNull { storedScenarioType ->
+                    storedScenarioType
+                        .toMissionScenarioTypeOrNull()
+                }
+
+        return MissionRecommendationHistory(
+            scenarioTypes =
+                recentScenarioTypes,
+
+            completedScenarioTypes =
+                completedScenarioTypes,
+
+            dismissedScenarioTypes =
+                dismissedScenarioTypes
+        )
+    }
+
+    override suspend fun getRecentScenarioTypes(
+        cefrLevel:
+        CefrLevel
+    ): Set<MissionScenarioType> {
+
+        return getRecommendationHistory(
+            cefrLevel =
+                cefrLevel
+        )
+            .scenarioTypes
             .toSet()
     }
 
     override suspend fun hasActiveScenario(
-        cefrLevel: CefrLevel,
-        scenarioType: MissionScenarioType
+        cefrLevel:
+        CefrLevel,
+
+        scenarioType:
+        MissionScenarioType
     ): Boolean {
+
         return dao.hasActiveScenario(
             cefrLevel =
                 cefrLevel.name,
+
             scenarioType =
                 scenarioType.name
         )
@@ -164,6 +240,7 @@ class RoomMissionThreadRecommendationStore
                     objective.toEntity(
                         recommendationId =
                             recommendation.id,
+
                         sequenceNumber =
                             index
                     )
@@ -172,34 +249,15 @@ class RoomMissionThreadRecommendationStore
         dao.insertCompleteRecommendation(
             recommendation =
                 recommendationEntity,
+
             objectives =
                 objectiveEntities
-        )
-
-        Log.d(
-            STORE_TAG,
-            buildString {
-                append("Persisted mission recommendation. ")
-                append("id=")
-                append(recommendation.id)
-                append(", scenario=")
-                append(recommendation.scenarioType)
-                append(", level=")
-                append(
-                    recommendation
-                        .opportunity
-                        .mission
-                        .difficulty
-                        .name
-                )
-                append(", objectiveCount=")
-                append(objectiveEntities.size)
-            }
         )
     }
 
     override suspend fun markDisplayed(
-        recommendationId: String
+        recommendationId:
+        String
     ) {
         if (recommendationId.isBlank()) {
             return
@@ -208,110 +266,124 @@ class RoomMissionThreadRecommendationStore
         dao.markDisplayed(
             recommendationId =
                 recommendationId,
+
             displayedAt =
                 clock.millis()
         )
     }
 
     override suspend fun markSkipped(
-        recommendationId: String
+        recommendationId:
+        String
     ) {
         if (recommendationId.isBlank()) {
             return
         }
 
-        val changedRows =
-            dao.markSkipped(
-                recommendationId =
-                    recommendationId,
-                skippedAt =
+        dao.markSkipped(
+            recommendationId =
+                recommendationId,
+
+            skippedAt =
+                clock.millis()
+        )
+    }
+
+    override suspend fun markStale(
+        recommendationId:
+        String
+    ) {
+        if (recommendationId.isBlank()) {
+            return
+        }
+
+        dao.markStale(
+            recommendationId =
+                recommendationId,
+
+            staleAt =
+                clock.millis()
+        )
+    }
+
+    override suspend fun invalidateStaleRecommendations(
+        cefrLevel:
+        CefrLevel,
+
+        currentLearningContext:
+        MissionLearningContext
+    ): Int {
+
+        val eligibleRecommendations =
+            dao.getAllEligibleRecommendations(
+                cefrLevel =
+                    cefrLevel.name,
+
+                currentTime =
                     clock.millis()
             )
 
-        Log.d(
-            STORE_TAG,
-            "Marked recommendation skipped. " +
-                    "id=$recommendationId, rows=$changedRows"
-        )
-    }
+        var invalidatedCount =
+            0
 
-    /*
-     * Round-robin wrap-around.
-     *
-     * When no READY recommendation is left, the oldest
-     * skipped recommendation becomes the visible one again.
-     *
-     * The just-skipped recommendation is avoided first. It is
-     * only reused when it is the only recommendation in Room,
-     * so the cell is never empty while recommendations exist.
-     */
-    override suspend fun reactivateNextSkipped(
-        cefrLevel: CefrLevel,
-        excludedRecommendationId: String?
-    ): MissionThreadRecommendation? {
-        val now =
-            clock.millis()
+        eligibleRecommendations.forEach { persistedRecommendation ->
+            val recommendation =
+                persistedRecommendation
+                    .toRecommendationDomainOrNull()
 
-        /*
-         * An empty-string exclusion matches no row.
-         */
-        val preferredCandidate =
-            dao.getOldestSkippedRecommendation(
-                cefrLevel =
-                    cefrLevel.name,
-                currentTime =
-                    now,
-                excludedRecommendationId =
-                    excludedRecommendationId.orEmpty()
-            )
+            if (recommendation == null) {
+                val changedRows =
+                    dao.markStale(
+                        recommendationId =
+                            persistedRecommendation
+                                .recommendation
+                                .id,
 
-        val candidate =
-            preferredCandidate
-                ?: if (!excludedRecommendationId.isNullOrBlank()) {
-                    /*
-                     * Only one recommendation exists. Keep
-                     * showing it instead of an empty cell.
-                     */
-                    dao.getOldestSkippedRecommendation(
-                        cefrLevel =
-                            cefrLevel.name,
-                        currentTime =
-                            now,
-                        excludedRecommendationId =
-                            ""
+                        staleAt =
+                            clock.millis()
                     )
-                } else {
-                    null
-                }
-                ?: return null
 
-        val recommendation =
-            candidate.toDomainOrNull()
-                ?: return null
+                invalidatedCount +=
+                    changedRows
 
-        val changedRows =
-            dao.reactivateSkipped(
-                recommendationId =
-                    recommendation.id,
-                displayedAt =
-                    now
-            )
+                return@forEach
+            }
 
-        Log.d(
-            STORE_TAG,
-            "Reactivated skipped recommendation. " +
-                    "id=${recommendation.id}, " +
-                    "scenario=${recommendation.scenarioType}, " +
-                    "rows=$changedRows"
-        )
+            val shouldInvalidate =
+                !recommendation
+                    .learningContext
+                    .materiallyMatches(
+                        other =
+                            currentLearningContext
+                    )
 
-        return recommendation
+            if (shouldInvalidate) {
+                val changedRows =
+                    dao.markStale(
+                        recommendationId =
+                            recommendation.id,
+
+                        staleAt =
+                            clock.millis()
+                    )
+
+                invalidatedCount +=
+                    changedRows
+            }
+        }
+
+        return invalidatedCount
     }
 
     override suspend fun markStarted(
-        recommendationId: String,
-        conversationId: String,
-        conversationMissionId: String
+        recommendationId:
+        String,
+
+        conversationId:
+        String,
+
+        conversationMissionId:
+        String
     ) {
         require(
             recommendationId.isNotBlank()
@@ -335,16 +407,20 @@ class RoomMissionThreadRecommendationStore
             dao.markStarted(
                 recommendationId =
                     recommendationId,
+
                 conversationId =
                     conversationId,
+
                 conversationMissionId =
                     conversationMissionId,
+
                 startedAt =
                     clock.millis()
             )
 
         check(
-            changedRows > 0
+            changedRows >
+                    0
         ) {
             "Recommendation could not be marked STARTED: " +
                     recommendationId
@@ -352,7 +428,8 @@ class RoomMissionThreadRecommendationStore
     }
 
     override suspend fun markCompletedByMissionId(
-        conversationMissionId: String
+        conversationMissionId:
+        String
     ) {
         if (conversationMissionId.isBlank()) {
             return
@@ -361,166 +438,204 @@ class RoomMissionThreadRecommendationStore
         dao.markCompletedByMissionId(
             conversationMissionId =
                 conversationMissionId,
+
             completedAt =
                 clock.millis()
         )
     }
 
     override suspend fun performMaintenance(
-        cefrLevel: CefrLevel
+        cefrLevel:
+        CefrLevel
     ) {
         val now =
             clock.millis()
 
-        val expiredRows =
-            dao.expireOldRecommendations(
-                currentTime =
-                    now
-            )
+        dao.expireOldRecommendations(
+            currentTime =
+                now
+        )
 
-        val otherLevelRows =
-            dao.expireOtherLevels(
-                cefrLevel =
-                    cefrLevel.name,
-                currentTime =
-                    now
-            )
+        dao.expireOtherLevels(
+            cefrLevel =
+                cefrLevel.name,
 
-        val deletedRows =
-            dao.deleteOldInactiveRecommendations(
-                deleteBefore =
-                    now -
-                            INACTIVE_RETENTION_DURATION_MILLIS
-            )
+            currentTime =
+                now
+        )
 
-        if (
-            expiredRows > 0 ||
-            otherLevelRows > 0 ||
-            deletedRows > 0
-        ) {
-            Log.d(
-                STORE_TAG,
-                buildString {
-                    append(
-                        "Recommendation maintenance finished. "
-                    )
-                    append("expired=")
-                    append(expiredRows)
-                    append(", otherLevel=")
-                    append(otherLevelRows)
-                    append(", deleted=")
-                    append(deletedRows)
-                }
-            )
-        }
+        dao.deleteOldInactiveRecommendations(
+            deleteBefore =
+                now -
+                        INACTIVE_RETENTION_DURATION_MILLIS
+        )
     }
 
     private fun MissionThreadRecommendation.toEntity(
-        currentTime: Long
+        currentTime:
+        Long
     ): MissionThreadRecommendationEntity {
+
         val mission =
             opportunity.mission
 
         return MissionThreadRecommendationEntity(
             id =
                 id,
+
             scenarioType =
                 scenarioType.name,
+
             cefrLevel =
                 mission.difficulty.name,
+
             title =
                 title.trim(),
+
             previewText =
                 previewText.trim(),
+
             confidence =
                 opportunity
                     .confidence
                     .coerceIn(
                         minimumValue =
                             0f,
+
                         maximumValue =
                             1f
                     ),
+
             reason =
                 opportunity.reason.trim(),
+
             description =
                 mission.description.trim(),
+
             scenario =
                 mission.scenario.trim(),
+
             learnerRole =
                 mission.learnerRole.trim(),
+
             assistantRole =
                 mission.assistantRole.trim(),
+
             icon =
-                mission.icon
+                mission
+                    .icon
                     .trim()
                     .ifBlank {
                         DEFAULT_MISSION_ICON
                     },
+
+            targetCapabilityIdsJson =
+                encodeStringList(
+                    values =
+                        targetCapabilityIds.toList()
+                ),
+
+            adaptiveFocusKeysJson =
+                encodeStringList(
+                    values =
+                        adaptiveFocusKeys.toList()
+                ),
+
+            masteredCapabilityIdsJson =
+                encodeStringList(
+                    values =
+                        masteredCapabilityIds.toList()
+                ),
+
             status =
                 RecommendationStatus.READY.name,
+
             createdAt =
                 currentTime,
+
             updatedAt =
                 currentTime,
+
             displayedAt =
                 null,
+
             skippedAt =
                 null,
+
             startedAt =
                 null,
+
             completedAt =
                 null,
+
             expiresAt =
                 currentTime +
                         RECOMMENDATION_EXPIRY_DURATION_MILLIS,
+
             conversationId =
                 null,
+
             conversationMissionId =
                 null
         )
     }
 
     private fun GeneratedMissionObjectiveDraft.toEntity(
-        recommendationId: String,
-        sequenceNumber: Int
+        recommendationId:
+        String,
+
+        sequenceNumber:
+        Int
     ): MissionThreadRecommendationObjectiveEntity {
+
         return MissionThreadRecommendationObjectiveEntity(
             id =
-                UUID.randomUUID().toString(),
+                UUID
+                    .randomUUID()
+                    .toString(),
+
             recommendationId =
                 recommendationId,
+
             sequenceNumber =
                 sequenceNumber,
+
             title =
                 title.trim(),
+
             description =
                 description.trim(),
+
             completionHint =
                 completionHint.trim(),
+
             coachingHintsJson =
                 encodeStringList(
                     values =
                         sanitizedCoachingHints
                 ),
+
             targetVocabularyJson =
                 encodeStringList(
                     values =
                         sanitizedTargetVocabulary
                 ),
+
             examplePhrasesJson =
                 encodeStringList(
                     values =
                         sanitizedExamplePhrases
                 ),
+
             isRequired =
                 isRequired
         )
     }
 
     private fun MissionThreadRecommendationWithObjectives
-            .toDomainOrNull():
+            .toRecommendationDomainOrNull():
             MissionThreadRecommendation? {
+
         val recommendationEntity =
             recommendation
 
@@ -542,7 +657,8 @@ class RoomMissionThreadRecommendationStore
                     objective.sequenceNumber
                 }
                 .mapNotNull { objective ->
-                    objective.toDomainOrNull()
+                    objective
+                        .toObjectiveDomainOrNull()
                 }
 
         if (
@@ -550,43 +666,8 @@ class RoomMissionThreadRecommendationStore
             MINIMUM_OBJECTIVE_COUNT..
             MAXIMUM_OBJECTIVE_COUNT
         ) {
-            Log.w(
-                STORE_TAG,
-                buildString {
-                    append(
-                        "Persisted recommendation has an "
-                    )
-                    append(
-                        "invalid objective count. id="
-                    )
-                    append(recommendationEntity.id)
-                    append(", count=")
-                    append(domainObjectives.size)
-                }
-            )
-
             return null
         }
-
-        val draft =
-            GeneratedMissionDraft(
-                title =
-                    recommendationEntity.title,
-                description =
-                    recommendationEntity.description,
-                scenario =
-                    recommendationEntity.scenario,
-                learnerRole =
-                    recommendationEntity.learnerRole,
-                assistantRole =
-                    recommendationEntity.assistantRole,
-                difficulty =
-                    difficulty,
-                icon =
-                    recommendationEntity.icon,
-                objectives =
-                    domainObjectives
-            )
 
         val opportunity =
             MissionOpportunity(
@@ -596,32 +677,108 @@ class RoomMissionThreadRecommendationStore
                         .coerceIn(
                             minimumValue =
                                 0f,
+
                             maximumValue =
                                 1f
                         ),
+
                 reason =
                     recommendationEntity.reason,
+
                 mission =
-                    draft
+                    GeneratedMissionDraft(
+                        title =
+                            recommendationEntity.title,
+
+                        description =
+                            recommendationEntity.description,
+
+                        scenario =
+                            recommendationEntity.scenario,
+
+                        learnerRole =
+                            recommendationEntity.learnerRole,
+
+                        assistantRole =
+                            recommendationEntity.assistantRole,
+
+                        difficulty =
+                            difficulty,
+
+                        icon =
+                            recommendationEntity.icon,
+
+                        objectives =
+                            domainObjectives
+                    )
+            )
+
+        val targetCapabilityIds =
+            decodeStringList(
+                storedValue =
+                    recommendationEntity
+                        .targetCapabilityIdsJson
+            )
+
+        val adaptiveFocusKeys =
+            decodeStringList(
+                storedValue =
+                    recommendationEntity
+                        .adaptiveFocusKeysJson
+            )
+
+        val masteredCapabilityIds =
+            decodeStringList(
+                storedValue =
+                    recommendationEntity
+                        .masteredCapabilityIdsJson
             )
 
         return MissionThreadRecommendation(
             id =
                 recommendationEntity.id,
+
             scenarioType =
                 scenarioType,
+
             title =
                 recommendationEntity.title,
+
             previewText =
                 recommendationEntity.previewText,
+
             opportunity =
-                opportunity
+                opportunity,
+
+            learningContext =
+                MissionLearningContext(
+                    reinforcementFocuses =
+                        adaptiveFocusKeys,
+
+                    progressionReadyCapabilities =
+                        targetCapabilityIds
+                            .map { capabilityId ->
+                                "progression_ready:" +
+                                        capabilityId
+                            },
+
+                    developingCapabilities =
+                        emptyList(),
+
+                    masteredCapabilities =
+                        masteredCapabilityIds
+                            .map { capabilityId ->
+                                "mastered:" +
+                                        capabilityId
+                            }
+                )
         )
     }
 
     private fun MissionThreadRecommendationObjectiveEntity
-            .toDomainOrNull():
+            .toObjectiveDomainOrNull():
             GeneratedMissionObjectiveDraft? {
+
         if (
             title.isBlank() ||
             description.isBlank() ||
@@ -673,16 +830,22 @@ class RoomMissionThreadRecommendationStore
         return GeneratedMissionObjectiveDraft(
             title =
                 title,
+
             description =
                 description,
+
             completionHint =
                 completionHint,
+
             coachingHints =
                 coachingHints,
+
             targetVocabulary =
                 targetVocabulary,
+
             examplePhrases =
                 examplePhrases,
+
             isRequired =
                 isRequired
         )
@@ -707,7 +870,7 @@ class RoomMissionThreadRecommendationStore
         require(
             recommendation.previewText.isNotBlank()
         ) {
-            "Recommendation preview must not be blank."
+            "Recommendation preview text must not be blank."
         }
 
         val objectives =
@@ -731,26 +894,35 @@ class RoomMissionThreadRecommendationStore
                 objective.isRequired
             }
         ) {
-            "Recommendation must contain at least one " +
-                    "required objective."
+            "Recommendation must contain a required objective."
         }
     }
 
     private fun encodeStringList(
-        values: List<String>
+        values:
+        List<String>
     ): String {
+
         return json.encodeToString(
-            value =
-                values
-                    .map(String::trim)
-                    .filter(String::isNotBlank)
-                    .distinct()
+            values
+                .asSequence()
+                .map(
+                    String::trim
+                )
+                .filter(
+                    String::isNotBlank
+                )
+                .distinct()
+                .sorted()
+                .toList()
         )
     }
 
     private fun decodeStringList(
-        storedValue: String
+        storedValue:
+        String
     ): List<String> {
+
         if (storedValue.isBlank()) {
             return emptyList()
         }
@@ -760,17 +932,22 @@ class RoomMissionThreadRecommendationStore
                 string =
                     storedValue
             )
-                .map(String::trim)
-                .filter(String::isNotBlank)
+                .asSequence()
+                .map(
+                    String::trim
+                )
+                .filter(
+                    String::isNotBlank
+                )
                 .distinct()
+                .toList()
         } catch (
             serializationException:
             SerializationException
         ) {
             Log.e(
                 STORE_TAG,
-                "Could not decode a persisted recommendation " +
-                        "string list.",
+                "Could not decode persisted string list.",
                 serializationException
             )
 
@@ -781,8 +958,7 @@ class RoomMissionThreadRecommendationStore
         ) {
             Log.e(
                 STORE_TAG,
-                "Persisted recommendation list JSON was " +
-                        "invalid.",
+                "Persisted string list was invalid.",
                 illegalArgumentException
             )
 
@@ -792,20 +968,24 @@ class RoomMissionThreadRecommendationStore
 
     private fun String.toMissionScenarioTypeOrNull():
             MissionScenarioType? {
+
         return runCatching {
             MissionScenarioType.valueOf(
                 trim().uppercase()
             )
-        }.getOrNull()
+        }
+            .getOrNull()
     }
 
     private fun String.toMissionDifficultyOrNull():
             MissionDifficulty? {
+
         return runCatching {
             MissionDifficulty.valueOf(
                 trim().uppercase()
             )
-        }.getOrNull()
+        }
+            .getOrNull()
     }
 
     private enum class RecommendationStatus {
@@ -819,6 +999,7 @@ class RoomMissionThreadRecommendationStore
     }
 
     private companion object {
+
         const val STORE_TAG =
             "MissionRecommendationStore"
 
@@ -843,10 +1024,6 @@ class RoomMissionThreadRecommendationStore
         const val REQUIRED_EXAMPLE_PHRASE_COUNT =
             2
 
-        /*
-         * READY recommendations remain eligible for seven
-         * days.
-         */
         const val RECOMMENDATION_EXPIRY_DURATION_MILLIS =
             7L *
                     24L *
@@ -854,10 +1031,6 @@ class RoomMissionThreadRecommendationStore
                     60L *
                     1_000L
 
-        /*
-         * Scenario identities remain excluded for thirty
-         * days.
-         */
         const val RECENT_HISTORY_DURATION_MILLIS =
             30L *
                     24L *
@@ -865,10 +1038,6 @@ class RoomMissionThreadRecommendationStore
                     60L *
                     1_000L
 
-        /*
-         * Old skipped, expired, and invalid rows are removed
-         * after sixty days.
-         */
         const val INACTIVE_RETENTION_DURATION_MILLIS =
             60L *
                     24L *

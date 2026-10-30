@@ -1,14 +1,20 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/progress/presentation/ProgressViewModel.kt
+
 package com.julesmeister.deutschcraft.feature.progress.presentation
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.AdaptiveLearningFocus
+import com.julesmeister.deutschcraft.feature.adaptivelearning.domain.repository.AdaptiveLearningRepository
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import com.julesmeister.deutschcraft.feature.mission.domain.repository.MissionRepository
 import com.julesmeister.deutschcraft.feature.progress.domain.ProgressRepository
+import com.julesmeister.deutschcraft.feature.progress.domain.usecase.LoadBesserProgressUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
@@ -16,11 +22,19 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class ProgressViewModel @Inject constructor(
+class ProgressViewModel
+@Inject constructor(
     private val progressRepository:
     ProgressRepository,
+
     private val missionRepository:
-    MissionRepository
+    MissionRepository,
+
+    private val adaptiveLearningRepository:
+    AdaptiveLearningRepository,
+
+    private val loadBesserProgressUseCase:
+    LoadBesserProgressUseCase
 ) : ViewModel() {
 
     private val _uiState =
@@ -31,9 +45,15 @@ class ProgressViewModel @Inject constructor(
     val uiState =
         _uiState.asStateFlow()
 
+    private var besserProgressLoadJob:
+            Job? =
+        null
+
     init {
         observeProgress()
         observeCompletedMissions()
+        observeLearningFocuses()
+        refreshBesserProgress()
     }
 
     private fun observeProgress() {
@@ -58,6 +78,7 @@ class ProgressViewModel @Inject constructor(
                         state.copy(
                             isProgressLoading =
                                 false,
+
                             progressErrorMessage =
                                 throwable.message
                                     ?: PROGRESS_LOAD_ERROR
@@ -69,8 +90,10 @@ class ProgressViewModel @Inject constructor(
                         state.copy(
                             progress =
                                 progress,
+
                             isProgressLoading =
                                 false,
+
                             progressErrorMessage =
                                 null
                         )
@@ -101,6 +124,7 @@ class ProgressViewModel @Inject constructor(
                         state.copy(
                             areMissionsLoading =
                                 false,
+
                             missionErrorMessage =
                                 throwable.message
                                     ?: MISSION_LOAD_ERROR
@@ -109,17 +133,95 @@ class ProgressViewModel @Inject constructor(
                 }
                 .collect { missions ->
                     val completedMissions =
-                        missions.map(
-                            ::toCompletedMissionUiModel
-                        )
+                        missions
+                            .sortedByDescending { mission ->
+                                mission.completedAt
+                                    ?: mission.startedAt
+                                    ?: 0L
+                            }
+                            .map(
+                                ::toCompletedMissionUiModel
+                            )
 
                     _uiState.update { state ->
                         state.copy(
                             completedMissions =
                                 completedMissions,
+
                             areMissionsLoading =
                                 false,
+
                             missionErrorMessage =
+                                null
+                        )
+                    }
+
+                    /*
+                     * Capability mastery now receives evidence
+                     * from completed targeted missions.
+                     *
+                     * Refresh whenever the completed-mission
+                     * source changes so the Besser panel does not
+                     * remain stale while this ViewModel is alive.
+                     */
+                    refreshBesserProgress()
+                }
+        }
+    }
+
+    private fun observeLearningFocuses() {
+        viewModelScope.launch {
+            adaptiveLearningRepository
+                .observeAllFocuses()
+                .catch { throwable ->
+                    if (
+                        throwable is
+                                CancellationException
+                    ) {
+                        throw throwable
+                    }
+
+                    Log.e(
+                        VIEW_MODEL_TAG,
+                        "Adaptive learning focus observation failed.",
+                        throwable
+                    )
+
+                    _uiState.update { state ->
+                        state.copy(
+                            areLearningFocusesLoading =
+                                false,
+
+                            learningFocusErrorMessage =
+                                throwable.message
+                                    ?: LEARNING_FOCUS_LOAD_ERROR
+                        )
+                    }
+                }
+                .collect { focuses ->
+                    val learningFocuses =
+                        focuses
+                            .map(
+                                ::toLearningFocusUiModel
+                            )
+                            .sortedWith(
+                                compareBy<LearningFocusProgressUiModel> { focus ->
+                                    focus.masteryState.priority
+                                }
+                                    .thenByDescending { focus ->
+                                        focus.lastObservedAt
+                                    }
+                            )
+
+                    _uiState.update { state ->
+                        state.copy(
+                            learningFocuses =
+                                learningFocuses,
+
+                            areLearningFocusesLoading =
+                                false,
+
+                            learningFocusErrorMessage =
                                 null
                         )
                     }
@@ -127,9 +229,143 @@ class ProgressViewModel @Inject constructor(
         }
     }
 
+    private fun refreshBesserProgress() {
+        besserProgressLoadJob?.cancel()
+
+        besserProgressLoadJob =
+            viewModelScope.launch {
+                _uiState.update { state ->
+                    state.copy(
+                        isBesserProgressLoading =
+                            true
+                    )
+                }
+
+                try {
+                    val besserProgress =
+                        loadBesserProgressUseCase()
+
+                    _uiState.update { state ->
+                        state.copy(
+                            besserProgress =
+                                besserProgress,
+
+                            isBesserProgressLoading =
+                                false,
+
+                            besserProgressErrorMessage =
+                                null
+                        )
+                    }
+                } catch (
+                    cancellationException:
+                    CancellationException
+                ) {
+                    throw cancellationException
+                } catch (throwable: Throwable) {
+                    Log.e(
+                        VIEW_MODEL_TAG,
+                        "Besser progress loading failed.",
+                        throwable
+                    )
+
+                    _uiState.update { state ->
+                        state.copy(
+                            isBesserProgressLoading =
+                                false,
+
+                            besserProgressErrorMessage =
+                                throwable.message
+                                    ?: BESSER_PROGRESS_LOAD_ERROR
+                        )
+                    }
+                }
+            }
+    }
+
+    private fun toLearningFocusUiModel(
+        focus:
+        AdaptiveLearningFocus
+    ): LearningFocusProgressUiModel {
+
+        return LearningFocusProgressUiModel(
+            focusKey =
+                focus.focusKey,
+
+            title =
+                focus.title,
+
+            description =
+                focus.description,
+
+            type =
+                focus.type,
+
+            masteryState =
+                focus.masteryState,
+
+            masteryPercentage =
+                (
+                        focus.safeMasteryScore *
+                                100f
+                        )
+                    .toInt()
+                    .coerceIn(
+                        minimumValue =
+                            0,
+
+                        maximumValue =
+                            100
+                    ),
+
+            confidencePercentage =
+                (
+                        focus.safeConfidence *
+                                100f
+                        )
+                    .toInt()
+                    .coerceIn(
+                        minimumValue =
+                            0,
+
+                        maximumValue =
+                            100
+                    ),
+
+            evidenceCount =
+                focus.safeEvidenceCount,
+
+            struggleCount =
+                focus.safeStruggleCount,
+
+            successCount =
+                focus.safeSuccessCount,
+
+            consecutiveSuccessCount =
+                focus.safeConsecutiveSuccessCount,
+
+            reinforcementInstruction =
+                focus.reinforcementInstruction,
+
+            learnerGuidance =
+                focus.learnerGuidance,
+
+            lastObservedAt =
+                focus.lastObservedAt,
+
+            lastPracticedAt =
+                focus.lastPracticedAt,
+
+            masteredAt =
+                focus.masteredAt
+        )
+    }
+
     private fun toCompletedMissionUiModel(
-        mission: ConversationMission
+        mission:
+        ConversationMission
     ): CompletedMissionUiModel {
+
         val completedObjectiveCount =
             mission
                 .objectiveProgress
@@ -140,18 +376,24 @@ class ProgressViewModel @Inject constructor(
         return CompletedMissionUiModel(
             id =
                 mission.id,
+
             title =
                 mission.template.title,
+
             description =
                 mission.template.description,
+
             icon =
                 mission.template.icon,
+
             completedAt =
                 mission.completedAt
                     ?: mission.startedAt
                     ?: 0L,
+
             completedObjectiveCount =
                 completedObjectiveCount,
+
             totalObjectiveCount =
                 mission
                     .objectiveProgress
@@ -160,6 +402,7 @@ class ProgressViewModel @Inject constructor(
     }
 
     private companion object {
+
         const val VIEW_MODEL_TAG =
             "ProgressViewModel"
 
@@ -170,5 +413,36 @@ class ProgressViewModel @Inject constructor(
         const val MISSION_LOAD_ERROR =
             "Abgeschlossene Missionen konnten " +
                     "nicht geladen werden."
+
+        const val BESSER_PROGRESS_LOAD_ERROR =
+            "Deine Besser-Entwicklung konnte nicht " +
+                    "geladen werden."
+
+        const val LEARNING_FOCUS_LOAD_ERROR =
+            "Deine Lernschwerpunkte konnten nicht " +
+                    "geladen werden."
     }
 }
+
+private val com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.MasteryState.priority:
+        Int
+    get() =
+        when (this) {
+            com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.MasteryState.NEEDS_REVIEW ->
+                0
+
+            com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.MasteryState.STRUGGLING ->
+                1
+
+            com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.MasteryState.PRACTICING ->
+                2
+
+            com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.MasteryState.IMPROVING ->
+                3
+
+            com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.MasteryState.OBSERVING ->
+                4
+
+            com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.MasteryState.MASTERED ->
+                5
+        }

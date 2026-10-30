@@ -19,15 +19,6 @@ import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignT
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.rememberChatGlassColors
 import com.kyant.backdrop.Backdrop
 
-/*
- * Floating chat controls.
- *
- * ChatScreen draws edge-to-edge, so this container applies
- * its own navigation-bar and IME padding.
- *
- * The fade behind the controls is intentionally light so the
- * liquid-glass composer has visible content to refract.
- */
 @Composable
 fun ChatBottomBar(
     backdrop: Backdrop,
@@ -39,6 +30,8 @@ fun ChatBottomBar(
     isSending: Boolean = false,
     suggestionContent: (@Composable () -> Unit)? = null,
     refinementInstruction: String? = null,
+    refinementFeedback: String? = null,
+    isEvaluatingRefinement: Boolean = false,
     onCancelRefinement: () -> Unit = {},
     onInputFocused: () -> Unit = {}
 ) {
@@ -129,6 +122,10 @@ fun ChatBottomBar(
         ChatBottomBarRefinementSlot(
             instruction =
                 refinementInstruction,
+            feedback =
+                refinementFeedback,
+            isEvaluating =
+                isEvaluatingRefinement,
             enabled =
                 enabled &&
                         !isSending,

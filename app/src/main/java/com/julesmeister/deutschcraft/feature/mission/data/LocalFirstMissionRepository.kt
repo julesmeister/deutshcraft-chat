@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/mission/data/LocalFirstMissionRepository.kt
+
 package com.julesmeister.deutschcraft.feature.mission.data
 
 import com.julesmeister.deutschcraft.core.database.dao.MissionDao
@@ -17,27 +19,34 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Singleton
-class LocalFirstMissionRepository @Inject constructor(
-    private val missionDao: MissionDao,
-    private val clock: Clock,
-    private val json: Json
+class LocalFirstMissionRepository
+@Inject constructor(
+    private val missionDao:
+    MissionDao,
+
+    private val clock:
+    Clock,
+
+    private val json:
+    Json
 ) : MissionRepository {
 
     override fun observeMissionCatalog():
             Flow<List<MissionTemplate>> {
+
         return missionDao
             .observeEnabledMissionTemplates()
             .map { templates ->
                 templates.map { template ->
                     val objectives =
-                        missionDao
-                            .getMissionObjectives(
-                                missionTemplateId =
-                                    template.id
-                            )
+                        missionDao.getMissionObjectives(
+                            missionTemplateId =
+                                template.id
+                        )
 
                     template.toDomain(
                         objectives =
@@ -50,6 +59,7 @@ class LocalFirstMissionRepository @Inject constructor(
     override fun observeActiveMission(
         conversationId: String
     ): Flow<ConversationMission?> {
+
         return missionDao
             .observeActiveMission(
                 conversationId =
@@ -63,6 +73,7 @@ class LocalFirstMissionRepository @Inject constructor(
     override fun observeMissionHistory(
         conversationId: String
     ): Flow<List<ConversationMission>> {
+
         return missionDao
             .observeConversationMissionHistory(
                 conversationId =
@@ -75,9 +86,22 @@ class LocalFirstMissionRepository @Inject constructor(
             }
     }
 
+    override fun observeCompletedMissions():
+            Flow<List<ConversationMission>> {
+
+        return missionDao
+            .observeCompletedMissions()
+            .map { missions ->
+                missions.map { mission ->
+                    mission.toDomain()
+                }
+            }
+    }
+
     override suspend fun getMissionTemplate(
         missionTemplateId: String
     ): MissionTemplate? {
+
         val template =
             missionDao.getMissionTemplate(
                 missionTemplateId =
@@ -100,6 +124,7 @@ class LocalFirstMissionRepository @Inject constructor(
     override suspend fun getConversationMission(
         conversationMissionId: String
     ): ConversationMission? {
+
         return missionDao
             .getConversationMission(
                 conversationMissionId =
@@ -119,24 +144,34 @@ class LocalFirstMissionRepository @Inject constructor(
                 MissionTemplateEntity(
                     id =
                         template.id,
+
                     title =
                         template.title,
+
                     description =
                         template.description,
+
                     scenario =
                         template.scenario,
+
                     learnerRole =
                         template.learnerRole,
+
                     assistantRole =
                         template.assistantRole,
+
                     difficulty =
                         template.difficulty.name,
+
                     icon =
                         template.icon,
+
                     isEnabled =
                         template.isEnabled,
+
                     createdAt =
                         now,
+
                     updatedAt =
                         now
                 )
@@ -148,18 +183,25 @@ class LocalFirstMissionRepository @Inject constructor(
                     MissionObjectiveEntity(
                         id =
                             objective.id,
+
                         missionTemplateId =
                             template.id,
+
                         title =
                             objective.title,
+
                         description =
                             objective.description,
+
                         sequenceNumber =
                             objective.sequenceNumber,
+
                         isRequired =
                             objective.isRequired,
+
                         completionHint =
                             objective.completionHint,
+
                         coachingHintsJson =
                             objective
                                 .coachingHints
@@ -167,6 +209,7 @@ class LocalFirstMissionRepository @Inject constructor(
                                     json =
                                         json
                                 ),
+
                         targetVocabularyJson =
                             objective
                                 .targetVocabulary
@@ -174,6 +217,7 @@ class LocalFirstMissionRepository @Inject constructor(
                                     json =
                                         json
                                 ),
+
                         examplePhrasesJson =
                             objective
                                 .examplePhrases
@@ -188,8 +232,18 @@ class LocalFirstMissionRepository @Inject constructor(
 
     override suspend fun offerMission(
         conversationId: String,
-        missionTemplateId: String
+
+        missionTemplateId: String,
+
+        sourceRecommendationId: String?,
+
+        targetCapabilityIds:
+        Set<String>,
+
+        adaptiveFocusKeys:
+        Set<String>
     ): String {
+
         val template =
             getMissionTemplate(
                 missionTemplateId =
@@ -211,20 +265,47 @@ class LocalFirstMissionRepository @Inject constructor(
                 ConversationMissionEntity(
                     id =
                         conversationMissionId,
+
                     conversationId =
                         conversationId,
+
                     missionTemplateId =
                         missionTemplateId,
+
+                    sourceRecommendationId =
+                        sourceRecommendationId
+                            ?.trim()
+                            ?.takeIf(
+                                String::isNotBlank
+                            ),
+
+                    targetCapabilityIdsJson =
+                        encodeStringSet(
+                            values =
+                                targetCapabilityIds
+                        ),
+
+                    adaptiveFocusKeysJson =
+                        encodeStringSet(
+                            values =
+                                adaptiveFocusKeys
+                        ),
+
                     status =
                         MissionStatus.OFFERED.name,
+
                     startedAt =
                         null,
+
                     completedAt =
                         null,
+
                     dismissedAt =
                         null,
+
                     createdAt =
                         now,
+
                     updatedAt =
                         now
                 )
@@ -236,16 +317,22 @@ class LocalFirstMissionRepository @Inject constructor(
                     MissionObjectiveProgressEntity(
                         conversationMissionId =
                             conversationMissionId,
+
                         objectiveId =
                             objective.id,
+
                         isCompleted =
                             false,
+
                         completedAt =
                             null,
+
                         completedByMessageId =
                             null,
+
                         confidence =
                             0f,
+
                         updatedAt =
                             now
                     )
@@ -265,16 +352,20 @@ class LocalFirstMissionRepository @Inject constructor(
             missionDao.updateMissionStartState(
                 conversationMissionId =
                     conversationMissionId,
+
                 status =
                     MissionStatus.ACTIVE.name,
+
                 startedAt =
                     now,
+
                 updatedAt =
                     now
             )
 
         check(
-            changedRows > 0
+            changedRows >
+                    0
         ) {
             "Mission could not be started: " +
                     conversationMissionId
@@ -290,10 +381,13 @@ class LocalFirstMissionRepository @Inject constructor(
         missionDao.updateMissionDismissalState(
             conversationMissionId =
                 conversationMissionId,
+
             status =
                 MissionStatus.DISMISSED.name,
+
             dismissedAt =
                 now,
+
             updatedAt =
                 now
         )
@@ -312,25 +406,32 @@ class LocalFirstMissionRepository @Inject constructor(
             missionDao.completeObjective(
                 conversationMissionId =
                     conversationMissionId,
+
                 objectiveId =
                     objectiveId,
+
                 completedAt =
                     now,
+
                 messageId =
                     messageId,
+
                 confidence =
                     confidence.coerceIn(
                         minimumValue =
                             0f,
+
                         maximumValue =
                             1f
                     ),
+
                 updatedAt =
                     now
             )
 
         check(
-            changedRows > 0
+            changedRows >
+                    0
         ) {
             "Mission objective could not be completed: " +
                     objectiveId
@@ -343,7 +444,10 @@ class LocalFirstMissionRepository @Inject constructor(
                         conversationMissionId
                 )
 
-        if (remainingRequiredObjectives == 0) {
+        if (
+            remainingRequiredObjectives ==
+            0
+        ) {
             completeMission(
                 conversationMissionId =
                     conversationMissionId
@@ -360,10 +464,13 @@ class LocalFirstMissionRepository @Inject constructor(
         missionDao.updateMissionCompletionState(
             conversationMissionId =
                 conversationMissionId,
+
             status =
                 MissionStatus.COMPLETED.name,
+
             completedAt =
                 now,
+
             updatedAt =
                 now
         )
@@ -378,14 +485,22 @@ class LocalFirstMissionRepository @Inject constructor(
         )
     }
 
-    override fun observeCompletedMissions():
-            Flow<List<ConversationMission>> {
-        return missionDao
-            .observeCompletedMissions()
-            .map { missions ->
-                missions.map { mission ->
-                    mission.toDomain()
-                }
-            }
+    private fun encodeStringSet(
+        values: Set<String>
+    ): String {
+
+        return json.encodeToString(
+            values
+                .asSequence()
+                .map(
+                    String::trim
+                )
+                .filter(
+                    String::isNotBlank
+                )
+                .distinct()
+                .sorted()
+                .toList()
+        )
     }
 }

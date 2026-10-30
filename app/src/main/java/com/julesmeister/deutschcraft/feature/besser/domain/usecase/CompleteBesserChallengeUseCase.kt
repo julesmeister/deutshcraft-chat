@@ -1,10 +1,13 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/besser/domain/usecase/CompleteBesserChallengeUseCase.kt
+
 package com.julesmeister.deutschcraft.feature.besser.domain.usecase
 
 import com.julesmeister.deutschcraft.feature.besser.domain.AssistanceLevel
 import com.julesmeister.deutschcraft.feature.besser.domain.repository.BesserChallengeRepository
 import javax.inject.Inject
 
-class CompleteBesserChallengeUseCase @Inject constructor(
+class CompleteBesserChallengeUseCase
+@Inject constructor(
     private val besserChallengeRepository:
     BesserChallengeRepository
 ) {
@@ -12,8 +15,12 @@ class CompleteBesserChallengeUseCase @Inject constructor(
     suspend operator fun invoke(
         challengeId: String,
         refinedMessageContent: String,
-        actualAssistanceLevel: AssistanceLevel
+        actualAssistanceLevel: AssistanceLevel,
+        evaluationScore: Int?,
+        evaluationFeedback: String?,
+        evaluationEvidence: String?
     ): Result<Unit> {
+
         return runCatching {
             require(
                 challengeId.isNotBlank()
@@ -29,6 +36,29 @@ class CompleteBesserChallengeUseCase @Inject constructor(
             ) {
                 "Refined message content cannot be blank."
             }
+
+            val normalizedEvaluationScore =
+                evaluationScore
+                    ?.coerceIn(
+                        minimumValue =
+                            0,
+                        maximumValue =
+                            100
+                    )
+
+            val normalizedEvaluationFeedback =
+                evaluationFeedback
+                    ?.trim()
+                    ?.takeIf(
+                        String::isNotBlank
+                    )
+
+            val normalizedEvaluationEvidence =
+                evaluationEvidence
+                    ?.trim()
+                    ?.takeIf(
+                        String::isNotBlank
+                    )
 
             val challenge =
                 checkNotNull(
@@ -48,7 +78,9 @@ class CompleteBesserChallengeUseCase @Inject constructor(
 
             check(
                 normalizedRefinedContent !=
-                        challenge.originalMessageContent.trim()
+                        challenge
+                            .originalMessageContent
+                            .trim()
             ) {
                 "The refined message must differ from the original message."
             }
@@ -57,10 +89,22 @@ class CompleteBesserChallengeUseCase @Inject constructor(
                 besserChallengeRepository.complete(
                     challengeId =
                         challengeId,
+
                     refinedMessageContent =
                         normalizedRefinedContent,
+
                     actualAssistanceLevel =
                         actualAssistanceLevel,
+
+                    evaluationScore =
+                        normalizedEvaluationScore,
+
+                    evaluationFeedback =
+                        normalizedEvaluationFeedback,
+
+                    evaluationEvidence =
+                        normalizedEvaluationEvidence,
+
                     completedAt =
                         System.currentTimeMillis()
                 )

@@ -176,10 +176,7 @@ fun ChatScreen(
     LaunchedEffect(
         copyConfirmationKey
     ) {
-        if (
-            copyConfirmationKey ==
-            0
-        ) {
+        if (copyConfirmationKey == 0) {
             return@LaunchedEffect
         }
 
@@ -211,30 +208,25 @@ fun ChatScreen(
                 sheetSentence,
 
             selectedAction =
-                messageActionState
-                    .selectedAction,
+                messageActionState.selectedAction,
 
             insight =
-                messageActionState
-                    .insight,
+                messageActionState.insight,
 
             isLoading =
-                messageActionState
-                    .isLoading,
+                messageActionState.isLoading,
 
             errorMessage =
-                messageActionState
-                    .errorMessage,
+                messageActionState.errorMessage,
 
             onActionClick = { action ->
-                messageActionViewModel
-                    .analyzeSentence(
-                        sentence =
-                            sheetSentence,
+                messageActionViewModel.analyzeSentence(
+                    sentence =
+                        sheetSentence,
 
-                        action =
-                            action
-                    )
+                    action =
+                        action
+                )
             },
 
             onDismiss = {
@@ -245,8 +237,7 @@ fun ChatScreen(
             },
 
             isCorrectedVersion =
-                message
-                    .isShowingBesserVersion(),
+                message.isShowingBesserVersion(),
 
             markedPhrases =
                 markedPhrases[
@@ -324,14 +315,10 @@ fun ChatScreen(
 
         contentWindowInsets =
             WindowInsets(
-                left =
-                    0,
-                top =
-                    0,
-                right =
-                    0,
-                bottom =
-                    0
+                left = 0,
+                top = 0,
+                right = 0,
+                bottom = 0
             ),
 
         topBar = {
@@ -346,53 +333,41 @@ fun ChatScreen(
                     onBackClick,
 
                 activeMissionTitle =
-                    uiState
-                        .activeMissionTitle,
+                    uiState.activeMissionTitle,
 
                 currentMissionObjective =
-                    uiState
-                        .currentMissionObjective,
+                    uiState.currentMissionObjective,
 
                 currentMissionGuidance =
-                    uiState
-                        .currentMissionGuidance,
+                    uiState.currentMissionGuidance,
 
                 missionProgressPercentage =
-                    uiState
-                        .missionProgressPercentage,
+                    uiState.missionProgressPercentage,
 
                 objectiveCompletionEvent =
-                    uiState
-                        .objectiveCompletionEvent,
+                    uiState.objectiveCompletionEvent,
 
                 adaptiveLearningFeedbackEvent =
-                    uiState
-                        .adaptiveLearningFeedbackEvent,
+                    uiState.adaptiveLearningFeedbackEvent,
 
                 showCopiedConfirmation =
                     showCopiedConfirmation,
 
-                onObjectiveCompletionShown = {
-                        eventId ->
-
+                onObjectiveCompletionShown = { eventId ->
                     onAction(
-                        ChatUiAction
-                            .ObjectiveCompletionShown(
-                                eventId =
-                                    eventId
-                            )
+                        ChatUiAction.ObjectiveCompletionShown(
+                            eventId =
+                                eventId
+                        )
                     )
                 },
 
-                onAdaptiveLearningFeedbackShown = {
-                        eventId ->
-
+                onAdaptiveLearningFeedbackShown = { eventId ->
                     onAction(
-                        ChatUiAction
-                            .AdaptiveLearningFeedbackShown(
-                                eventId =
-                                    eventId
-                            )
+                        ChatUiAction.AdaptiveLearningFeedbackShown(
+                            eventId =
+                                eventId
+                        )
                     )
                 },
 
@@ -467,8 +442,7 @@ fun ChatScreen(
                 },
 
                 onMessageClick = { message ->
-                    messageActionViewModel
-                        .reset()
+                    messageActionViewModel.reset()
 
                     selectedMessage =
                         message
@@ -500,19 +474,18 @@ fun ChatScreen(
 
                 onTextChange = { value ->
                     onAction(
-                        ChatUiAction
-                            .MessageInputChanged(
-                                value =
-                                    TextFieldValue(
-                                        text =
-                                            value,
+                        ChatUiAction.MessageInputChanged(
+                            value =
+                                TextFieldValue(
+                                    text =
+                                        value,
 
-                                        selection =
-                                            TextRange(
-                                                value.length
-                                            )
-                                    )
-                            )
+                                    selection =
+                                        TextRange(
+                                            value.length
+                                        )
+                                )
+                        )
                     )
                 },
 
@@ -528,8 +501,7 @@ fun ChatScreen(
 
                 isSending =
                     uiState.isSending ||
-                            uiState
-                                .isSubmittingBesserRefinement,
+                            uiState.isSubmittingBesserRefinement,
 
                 /*
                  * ===========================================
@@ -538,13 +510,19 @@ fun ChatScreen(
                  */
 
                 refinementInstruction =
+                    uiState.besserRefinementInstruction,
+
+                refinementFeedback =
                     uiState
-                        .besserRefinementInstruction,
+                        .activeBesserRefinement
+                        ?.feedback,
+
+                isEvaluatingRefinement =
+                    uiState.isSubmittingBesserRefinement,
 
                 onCancelRefinement = {
                     onAction(
-                        ChatUiAction
-                            .CancelBesserRefinement
+                        ChatUiAction.CancelBesserRefinement
                     )
                 },
 
@@ -564,20 +542,17 @@ fun ChatScreen(
                                             offer,
 
                                         isStarting =
-                                            uiState
-                                                .isStartingMission,
+                                            uiState.isStartingMission,
 
                                         onStartClick = {
                                             onAction(
-                                                ChatUiAction
-                                                    .StartOfferedMission
+                                                ChatUiAction.StartOfferedMission
                                             )
                                         },
 
                                         onDismissClick = {
                                             onAction(
-                                                ChatUiAction
-                                                    .DismissMissionOffer
+                                                ChatUiAction.DismissMissionOffer
                                             )
                                         }
                                     )
@@ -585,28 +560,20 @@ fun ChatScreen(
 
                             FloatingReplySuggestions(
                                 suggestions =
-                                    uiState
-                                        .suggestions,
+                                    uiState.suggestions,
 
                                 enabled =
-                                    !uiState
-                                        .isInitializing &&
-                                            !uiState
-                                                .isSending &&
-                                            !uiState
-                                                .isStartingMission &&
-                                            !uiState
-                                                .isSubmittingBesserRefinement,
+                                    !uiState.isInitializing &&
+                                            !uiState.isSending &&
+                                            !uiState.isStartingMission &&
+                                            !uiState.isSubmittingBesserRefinement,
 
-                                onSuggestionClick = {
-                                        suggestionId ->
-
+                                onSuggestionClick = { suggestionId ->
                                     onAction(
-                                        ChatUiAction
-                                            .SuggestionSelected(
-                                                suggestionId =
-                                                    suggestionId
-                                            )
+                                        ChatUiAction.SuggestionSelected(
+                                            suggestionId =
+                                                suggestionId
+                                        )
                                     )
 
                                     scrollRequestKey +=
@@ -625,9 +592,7 @@ fun ChatScreen(
                         )
                         .onSizeChanged { size ->
                             val measuredHeight =
-                                with(
-                                    density
-                                ) {
+                                with(density) {
                                     size.height.toDp()
                                 }
 
@@ -644,21 +609,15 @@ fun ChatScreen(
     }
 }
 
-private fun ChatMessage.preferredStudySentence():
-        String {
-
-    return if (
-        isShowingBesserVersion()
-    ) {
+private fun ChatMessage.preferredStudySentence(): String {
+    return if (isShowingBesserVersion()) {
         correction.orEmpty()
     } else {
         content
     }
 }
 
-private fun ChatMessage.isShowingBesserVersion():
-        Boolean {
-
+private fun ChatMessage.isShowingBesserVersion(): Boolean {
     return sender ==
             MessageSender.USER &&
             !correction.isNullOrBlank()

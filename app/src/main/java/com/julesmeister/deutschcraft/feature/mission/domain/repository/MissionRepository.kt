@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/mission/domain/repository/MissionRepository.kt
+
 package com.julesmeister.deutschcraft.feature.mission.domain.repository
 
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
@@ -20,7 +22,6 @@ interface MissionRepository {
     fun observeCompletedMissions():
             Flow<List<ConversationMission>>
 
-
     suspend fun getMissionTemplate(
         missionTemplateId: String
     ): MissionTemplate?
@@ -35,7 +36,19 @@ interface MissionRepository {
 
     suspend fun offerMission(
         conversationId: String,
-        missionTemplateId: String
+
+        missionTemplateId: String,
+
+        sourceRecommendationId: String? =
+            null,
+
+        targetCapabilityIds:
+        Set<String> =
+            emptySet(),
+
+        adaptiveFocusKeys:
+        Set<String> =
+            emptySet()
     ): String
 
     suspend fun startMission(

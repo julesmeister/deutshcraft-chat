@@ -10,11 +10,6 @@ import androidx.compose.ui.Modifier
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatGlassColors
 
-/*
- * Mission offer / reply suggestions.
- *
- * Hidden while the learner is refining a message.
- */
 @Composable
 internal fun ChatBottomBarSuggestionSlot(
     visible: Boolean,
@@ -46,24 +41,29 @@ internal fun ChatBottomBarSuggestionSlot(
 /*
  * Besser refinement header.
  *
- * Remembers the last instruction so the header keeps its
- * text while it animates out after refinement ends.
+ * Remembers the last instruction and feedback so the header
+ * keeps its text while it animates out.
  */
 @Composable
 internal fun ChatBottomBarRefinementSlot(
     instruction: String?,
+    feedback: String?,
+    isEvaluating: Boolean,
     enabled: Boolean,
     glassColors: ChatGlassColors,
     onCancel: () -> Unit
 ) {
-    val lastInstruction =
+    val lastContent =
         remember {
-            LastInstructionHolder()
+            LastRefinementHolder()
         }
 
     if (!instruction.isNullOrBlank()) {
-        lastInstruction.value =
+        lastContent.instruction =
             instruction
+
+        lastContent.feedback =
+            feedback
     }
 
     AnimatedVisibility(
@@ -78,7 +78,11 @@ internal fun ChatBottomBarRefinementSlot(
     ) {
         BesserRefinementHeader(
             instruction =
-                lastInstruction.value,
+                lastContent.instruction,
+            feedback =
+                lastContent.feedback,
+            isEvaluating =
+                isEvaluating,
             enabled =
                 enabled,
             glassColors =
@@ -95,11 +99,11 @@ internal fun ChatBottomBarRefinementSlot(
     }
 }
 
-/*
- * Plain holder, not snapshot state: the value only needs to
- * survive the exit animation, not trigger recomposition.
- */
-private class LastInstructionHolder {
-    var value: String =
+private class LastRefinementHolder {
+
+    var instruction: String =
         ""
+
+    var feedback: String? =
+        null
 }

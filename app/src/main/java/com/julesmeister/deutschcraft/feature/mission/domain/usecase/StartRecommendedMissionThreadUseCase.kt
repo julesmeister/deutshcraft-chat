@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/mission/domain/usecase/StartRecommendedMissionThreadUseCase.kt
+
 package com.julesmeister.deutschcraft.feature.mission.domain.usecase
 
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
@@ -12,29 +14,17 @@ import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 
-/*
- * Converts one persisted thread-list recommendation into:
- *
- * - A real conversation
- * - A persisted mission template
- * - A ConversationMission
- * - Objective progress records
- * - An active mission
- *
- * After successful creation, the original persisted
- * recommendation becomes STARTED and is linked to both:
- *
- * - conversationId
- * - conversationMissionId
- */
 class StartRecommendedMissionThreadUseCase
 @Inject constructor(
     private val conversationFactory:
     ConversationFactory,
+
     private val missionOfferCache:
     MissionOfferCache,
+
     private val recommendationStore:
     MissionThreadRecommendationStore,
+
     private val acceptMissionOffer:
     AcceptMissionOfferUseCase
 ) {
@@ -43,6 +33,7 @@ class StartRecommendedMissionThreadUseCase
         recommendation:
         MissionThreadRecommendation
     ): Conversation {
+
         validateRecommendation(
             recommendation =
                 recommendation
@@ -51,77 +42,61 @@ class StartRecommendedMissionThreadUseCase
         val conversationId =
             UUID.randomUUID().toString()
 
-        /*
-         * Create the new conversation from the already
-         * generated recommendation.
-         *
-         * No additional Qwen request is required here.
-         */
         val conversation =
             conversationFactory.create(
                 conversationId =
                     conversationId,
+
                 title =
                     recommendation.title,
+
                 titleSource =
-                    ConversationTitleSource
-                        .AI_GENERATED,
+                    ConversationTitleSource.AI_GENERATED,
+
                 cefrLevel =
                     recommendation
                         .opportunity
                         .mission
                         .difficulty
                         .toCefrLevel(),
+
                 openingMessage =
                     recommendation.previewText
             )
 
-        /*
-         * AcceptMissionOfferUseCase expects a generated
-         * opportunity to be available temporarily through
-         * MissionOfferCache.
-         *
-         * The opportunity is placed under the newly created
-         * conversation ID.
-         */
         missionOfferCache.replaceOffer(
             conversationId =
                 conversation.id,
+
             opportunity =
                 recommendation.opportunity
         )
 
         try {
-            /*
-             * AcceptMissionOfferUseCase:
-             *
-             * 1. Saves the generated MissionTemplate
-             * 2. Saves generated mission objectives
-             * 3. Creates a ConversationMission
-             * 4. Creates objective-progress rows
-             * 5. Starts the ConversationMission
-             * 6. Returns the created conversationMissionId
-             */
             val conversationMissionId =
                 acceptMissionOffer(
                     conversationId =
-                        conversation.id
+                        conversation.id,
+
+                    sourceRecommendationId =
+                        recommendation.id,
+
+                    targetCapabilityIds =
+                        recommendation
+                            .targetCapabilityIds,
+
+                    adaptiveFocusKeys =
+                        recommendation
+                            .adaptiveFocusKeys
                 )
 
-            /*
-             * The recommendation is no longer an available
-             * draft.
-             *
-             * Persist the link to the real conversation and
-             * real ConversationMission. This also prevents the
-             * scenario from being recommended again as READY
-             * after the application restarts.
-             */
             recommendationStore.markStarted(
                 recommendationId =
                     recommendation.id,
+
                 conversationId =
                     conversation.id,
+
                 conversationMissionId =
                     conversationMissionId
             )
@@ -131,10 +106,6 @@ class StartRecommendedMissionThreadUseCase
             cancellationException:
             CancellationException
         ) {
-            /*
-             * Always remove the temporary in-memory offer when
-             * the operation is cancelled.
-             */
             missionOfferCache.clearOffer(
                 conversationId =
                     conversation.id
@@ -142,14 +113,6 @@ class StartRecommendedMissionThreadUseCase
 
             throw cancellationException
         } catch (throwable: Throwable) {
-            /*
-             * Remove the temporary generated offer after any
-             * failure.
-             *
-             * The recommendation remains persisted unless
-             * markStarted succeeded. This allows the learner
-             * to retry after a transient failure.
-             */
             missionOfferCache.clearOffer(
                 conversationId =
                     conversation.id
@@ -157,11 +120,6 @@ class StartRecommendedMissionThreadUseCase
 
             throw throwable
         } finally {
-            /*
-             * AcceptMissionOfferUseCase may already clear the
-             * offer after success, but clearing it again is
-             * harmless and ensures no stale offer remains.
-             */
             missionOfferCache.clearOffer(
                 conversationId =
                     conversation.id
@@ -236,6 +194,7 @@ class StartRecommendedMissionThreadUseCase
 
 private fun MissionDifficulty.toCefrLevel():
         CefrLevel {
+
     return CefrLevel.valueOf(
         value =
             name

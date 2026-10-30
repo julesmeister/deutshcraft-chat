@@ -1,23 +1,9 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/besser/domain/model/BesserCapabilityCandidate.kt
+
 package com.julesmeister.deutschcraft.feature.besser.domain.model
 
-/*
- * One capability shortlisted locally for contextual evaluation.
- *
- * IMPORTANT:
- *
- * localPriorityScore does NOT mean that this capability should
- * automatically become a challenge.
- *
- * Local selection answers:
- *
- *     "Which capabilities are worth showing to AI?"
- *
- * The later Qwen selector answers:
- *
- *     "Which one naturally fits this exact learner message?"
- *
- * Qwen may still return NO_CHALLENGE.
- */
+import com.julesmeister.deutschcraft.feature.besser.domain.mastery.CapabilityMasteryStatus
+
 data class BesserCapabilityCandidate(
     val capabilityId: String,
     val name: String,
@@ -25,35 +11,102 @@ data class BesserCapabilityCandidate(
     val category: String,
     val cefrLevel: String,
 
-    /*
-     * Local relevance/prioritization score.
-     */
     val localPriorityScore: Float,
 
-    /*
-     * Number of meaningful words shared by the learner message
-     * and the capability's catalogue text.
-     */
     val lexicalMatchCount: Int,
-
-    /*
-     * True when an upstream category/intention hint matches the
-     * catalogue category.
-     */
     val categoryMatched: Boolean,
-
-    /*
-     * Distinguishes reinforcement from forward growth.
-     *
-     * For B1 -> B2:
-     *
-     * B1 capability = reinforcement
-     * B2 capability = target-level growth
-     */
     val isTargetLevelCapability: Boolean,
+    val sortOrder: Int,
+
+    val masteryScore: Float =
+        0f,
+
+    val masteryStatus:
+    CapabilityMasteryStatus =
+        CapabilityMasteryStatus.DEVELOPING,
+
+    val masteryAttemptCount: Int =
+        0,
+
+    val masteryCompletedCount: Int =
+        0,
+
+    val masterySkippedCount: Int =
+        0,
+
+    val lastChallengedAt: Long? =
+        null,
 
     /*
-     * Original curriculum/catalogue order.
+     * =======================================================
+     * PROGRESSION
+     * =======================================================
      */
-    val sortOrder: Int
-)
+
+    val progressionReady: Boolean =
+        true,
+
+    val progressionPrerequisiteCount: Int =
+        0,
+
+    val satisfiedProgressionPrerequisiteCount: Int =
+        0,
+
+    val averagePrerequisiteMastery: Float =
+        1f,
+
+    val isDirectSuccessorOfMasteredCapability: Boolean =
+        false
+) {
+
+    val safeMasteryScore: Float
+        get() =
+            masteryScore.coerceIn(
+                minimumValue =
+                    0f,
+                maximumValue =
+                    1f
+            )
+
+    val masteryPercentage: Int
+        get() =
+            (
+                    safeMasteryScore *
+                            100f
+                    )
+                .toInt()
+                .coerceIn(
+                    minimumValue =
+                        0,
+                    maximumValue =
+                        100
+                )
+
+    val hasMasteryHistory: Boolean
+        get() =
+            masteryAttemptCount >
+                    0
+
+    val safeAveragePrerequisiteMastery: Float
+        get() =
+            averagePrerequisiteMastery.coerceIn(
+                minimumValue =
+                    0f,
+                maximumValue =
+                    1f
+            )
+
+    val prerequisiteMasteryPercentage: Int
+        get() =
+            (
+                    safeAveragePrerequisiteMastery *
+                            100f
+                    )
+                .toInt()
+                .coerceIn(
+                    minimumValue =
+                        0,
+                    maximumValue =
+                        100
+                )
+}

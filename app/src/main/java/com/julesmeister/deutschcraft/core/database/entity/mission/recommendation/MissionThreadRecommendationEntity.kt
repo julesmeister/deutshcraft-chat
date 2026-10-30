@@ -1,18 +1,12 @@
+// app/src/main/java/com/julesmeister/deutschcraft/core/database/entity/mission/recommendation/MissionThreadRecommendationEntity.kt
+
 package com.julesmeister.deutschcraft.core.database.entity.mission.recommendation
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-/*
- * Persisted draft recommendation displayed in the featured
- * mission cell on the thread-list screen.
- *
- * This is not yet a real ConversationMission.
- *
- * A real conversation and mission are created only after the
- * learner starts the recommendation.
- */
 @Entity(
     tableName =
         "mission_thread_recommendations",
@@ -41,15 +35,6 @@ data class MissionThreadRecommendationEntity(
     @PrimaryKey
     val id: String,
 
-    /*
-     * Stable semantic identity.
-     *
-     * Examples:
-     *
-     * CAFE_ORDERING
-     * JOB_INTERVIEW
-     * DAILY_ROUTINE
-     */
     val scenarioType: String,
 
     val cefrLevel: String,
@@ -72,15 +57,27 @@ data class MissionThreadRecommendationEntity(
 
     val icon: String,
 
-    /*
-     * READY
-     * DISPLAYED
-     * SKIPPED
-     * STARTED
-     * COMPLETED
-     * EXPIRED
-     * INVALID
-     */
+    @ColumnInfo(
+        defaultValue =
+            "'[]'"
+    )
+    val targetCapabilityIdsJson: String =
+        "[]",
+
+    @ColumnInfo(
+        defaultValue =
+            "'[]'"
+    )
+    val adaptiveFocusKeysJson: String =
+        "[]",
+
+    @ColumnInfo(
+        defaultValue =
+            "'[]'"
+    )
+    val masteredCapabilityIdsJson: String =
+        "[]",
+
     val status: String,
 
     val createdAt: Long,
@@ -97,15 +94,7 @@ data class MissionThreadRecommendationEntity(
 
     val expiresAt: Long?,
 
-    /*
-     * Populated after the recommendation creates a real
-     * conversation.
-     */
     val conversationId: String?,
 
-    /*
-     * Populated after the recommendation creates a real
-     * ConversationMission.
-     */
     val conversationMissionId: String?
 )

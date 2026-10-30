@@ -1,39 +1,68 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/mission/domain/ConversationMission.kt
+
 package com.julesmeister.deutschcraft.feature.mission.domain
 
 data class ConversationMission(
     val id: String,
+
     val conversationId: String,
-    val template: MissionTemplate,
-    val status: MissionStatus,
+
+    val template:
+    MissionTemplate,
+
+    val sourceRecommendationId: String? =
+        null,
+
+    val targetCapabilityIds:
+    Set<String> =
+        emptySet(),
+
+    val adaptiveFocusKeys:
+    Set<String> =
+        emptySet(),
+
+    val status:
+    MissionStatus,
+
     val objectiveProgress:
     List<MissionObjectiveProgress>,
+
     val startedAt: Long?,
+
     val completedAt: Long?,
+
     val dismissedAt: Long?,
+
     val createdAt: Long,
+
     val updatedAt: Long
 ) {
+
+    val hasLearningTargets: Boolean
+        get() =
+            targetCapabilityIds.isNotEmpty() ||
+                    adaptiveFocusKeys.isNotEmpty()
 
     val progress: MissionProgress
         get() {
             val requiredObjectives =
-                objectiveProgress.filter {
-                    it.objective.isRequired
+                objectiveProgress.filter { progress ->
+                    progress.objective.isRequired
                 }
 
             val optionalObjectives =
-                objectiveProgress.filter {
-                    !it.objective.isRequired
+                objectiveProgress.filter { progress ->
+                    !progress.objective.isRequired
                 }
 
             val completedRequired =
-                requiredObjectives.count {
-                    it.isCompleted
+                requiredObjectives.count { progress ->
+                    progress.isCompleted
                 }
 
             val completedOptional =
-                optionalObjectives.count {
-                    it.isCompleted
+                optionalObjectives.count { progress ->
+                    progress.isCompleted
                 }
 
             val percentage =
@@ -41,23 +70,32 @@ data class ConversationMission(
                     0
                 } else {
                     (
-                            completedRequired * 100 /
+                            completedRequired *
+                                    100 /
                                     requiredObjectives.size
-                            ).coerceIn(
-                            minimumValue = 0,
-                            maximumValue = 100
+                            )
+                        .coerceIn(
+                            minimumValue =
+                                0,
+
+                            maximumValue =
+                                100
                         )
                 }
 
             return MissionProgress(
                 completedRequiredObjectives =
                     completedRequired,
+
                 totalRequiredObjectives =
                     requiredObjectives.size,
+
                 completedOptionalObjectives =
                     completedOptional,
+
                 totalOptionalObjectives =
                     optionalObjectives.size,
+
                 percentage =
                     percentage
             )
@@ -67,11 +105,11 @@ data class ConversationMission(
             MissionObjectiveProgress?
         get() =
             objectiveProgress
-                .sortedBy {
-                    it.objective.sequenceNumber
+                .sortedBy { progress ->
+                    progress.objective.sequenceNumber
                 }
-                .firstOrNull {
-                    it.objective.isRequired &&
-                            !it.isCompleted
+                .firstOrNull { progress ->
+                    progress.objective.isRequired &&
+                            !progress.isCompleted
                 }
 }

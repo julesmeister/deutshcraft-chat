@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/core/database/dao/MissionThreadRecommendationDao.kt
+
 package com.julesmeister.deutschcraft.core.database.dao
 
 import androidx.room.Dao
@@ -13,12 +15,6 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface MissionThreadRecommendationDao {
 
-    /*
-     * Observes the first recommendation eligible for display.
-     *
-     * A currently DISPLAYED recommendation has priority over
-     * unseen READY recommendations.
-     */
     @Transaction
     @Query(
         """
@@ -35,6 +31,7 @@ interface MissionThreadRecommendationDao {
                 WHEN 'DISPLAYED' THEN 0
                 ELSE 1
             END,
+            confidence DESC,
             createdAt ASC
         LIMIT 1
         """
@@ -60,6 +57,7 @@ interface MissionThreadRecommendationDao {
                 WHEN 'DISPLAYED' THEN 0
                 ELSE 1
             END,
+            confidence DESC,
             createdAt ASC
         LIMIT 1
         """
@@ -85,6 +83,7 @@ interface MissionThreadRecommendationDao {
                 WHEN 'DISPLAYED' THEN 0
                 ELSE 1
             END,
+            confidence DESC,
             createdAt ASC
         LIMIT :limit
         """
@@ -93,6 +92,31 @@ interface MissionThreadRecommendationDao {
         cefrLevel: String,
         currentTime: Long,
         limit: Int
+    ): List<MissionThreadRecommendationWithObjectives>
+
+    @Transaction
+    @Query(
+        """
+        SELECT *
+        FROM mission_thread_recommendations
+        WHERE cefrLevel = :cefrLevel
+          AND status IN ('READY', 'DISPLAYED')
+          AND (
+              expiresAt IS NULL
+              OR expiresAt > :currentTime
+          )
+        ORDER BY
+            CASE status
+                WHEN 'DISPLAYED' THEN 0
+                ELSE 1
+            END,
+            confidence DESC,
+            createdAt ASC
+        """
+    )
+    suspend fun getAllEligibleRecommendations(
+        cefrLevel: String,
+        currentTime: Long
     ): List<MissionThreadRecommendationWithObjectives>
 
     @Query(
@@ -112,56 +136,9 @@ interface MissionThreadRecommendationDao {
         currentTime: Long
     ): Int
 
-    /*
-     * Oldest skipped, non-expired recommendation for the
-     * level, excluding one ID (the recommendation that was
-     * just skipped).
-     *
-     * Ordering by skippedAt ASC turns skipped rows into a
-     * round-robin queue: the first one swiped away returns
-     * first.
-     *
-     * Pass an empty string to exclude nothing.
-     */
-    @Transaction
     @Query(
         """
-        SELECT *
-        FROM mission_thread_recommendations
-        WHERE cefrLevel = :cefrLevel
-          AND status = 'SKIPPED'
-          AND (
-              expiresAt IS NULL
-              OR expiresAt > :currentTime
-          )
-          AND id != :excludedRecommendationId
-        ORDER BY
-            skippedAt ASC,
-            createdAt ASC
-        LIMIT 1
-        """
-    )
-    suspend fun getOldestSkippedRecommendation(
-        cefrLevel: String,
-        currentTime: Long,
-        excludedRecommendationId: String
-    ): MissionThreadRecommendationWithObjectives?
-
-    /*
-     * Returns scenario identities that must be excluded from
-     * generation.
-     *
-     * This includes:
-     *
-     * - Waiting recommendations
-     * - Displayed recommendations
-     * - Skipped recommendations
-     * - Started recommendations
-     * - Recently completed recommendations
-     */
-    @Query(
-        """
-        SELECT DISTINCT scenarioType
+        SELECT scenarioType
         FROM mission_thread_recommendations
         WHERE cefrLevel = :cefrLevel
           AND createdAt >= :minimumCreatedAt
@@ -172,12 +149,44 @@ interface MissionThreadRecommendationDao {
               'STARTED',
               'COMPLETED'
           )
-        ORDER BY createdAt DESC
+        ORDER BY updatedAt ASC
         """
     )
     suspend fun getRecentScenarioTypes(
         cefrLevel: String,
         minimumCreatedAt: Long
+    ): List<String>
+
+    @Query(
+        """
+        SELECT scenarioType
+        FROM mission_thread_recommendations
+        WHERE cefrLevel = :cefrLevel
+          AND completedAt IS NOT NULL
+          AND completedAt >= :minimumCompletedAt
+          AND status = 'COMPLETED'
+        ORDER BY completedAt ASC
+        """
+    )
+    suspend fun getRecentlyCompletedScenarioTypes(
+        cefrLevel: String,
+        minimumCompletedAt: Long
+    ): List<String>
+
+    @Query(
+        """
+        SELECT scenarioType
+        FROM mission_thread_recommendations
+        WHERE cefrLevel = :cefrLevel
+          AND skippedAt IS NOT NULL
+          AND skippedAt >= :minimumSkippedAt
+          AND status = 'SKIPPED'
+        ORDER BY skippedAt ASC
+        """
+    )
+    suspend fun getRecentlyDismissedScenarioTypes(
+        cefrLevel: String,
+        minimumSkippedAt: Long
     ): List<String>
 
     @Query(
@@ -218,14 +227,11 @@ interface MissionThreadRecommendationDao {
         List<MissionThreadRecommendationObjectiveEntity>
     )
 
-    /*
-     * Persists the complete generated recommendation as one
-     * Room transaction.
-     */
     @Transaction
     suspend fun insertCompleteRecommendation(
         recommendation:
         MissionThreadRecommendationEntity,
+
         objectives:
         List<MissionThreadRecommendationObjectiveEntity>
     ) {
@@ -273,28 +279,18 @@ interface MissionThreadRecommendationDao {
         skippedAt: Long
     ): Int
 
-    /*
-     * Brings a skipped recommendation back into rotation as
-     * the visible one.
-     *
-     * skippedAt is cleared. When the learner swipes it away
-     * again, markSkipped gives it a fresh skippedAt and it
-     * moves to the end of the round-robin queue.
-     */
     @Query(
         """
         UPDATE mission_thread_recommendations
-        SET status = 'DISPLAYED',
-            displayedAt = :displayedAt,
-            skippedAt = NULL,
-            updatedAt = :displayedAt
+        SET status = 'INVALID',
+            updatedAt = :staleAt
         WHERE id = :recommendationId
-          AND status = 'SKIPPED'
+          AND status IN ('READY', 'DISPLAYED')
         """
     )
-    suspend fun reactivateSkipped(
+    suspend fun markStale(
         recommendationId: String,
-        displayedAt: Long
+        staleAt: Long
     ): Int
 
     @Query(
@@ -304,8 +300,7 @@ interface MissionThreadRecommendationDao {
             startedAt = :startedAt,
             updatedAt = :startedAt,
             conversationId = :conversationId,
-            conversationMissionId =
-                :conversationMissionId
+            conversationMissionId = :conversationMissionId
         WHERE id = :recommendationId
           AND status IN ('READY', 'DISPLAYED')
         """
@@ -323,8 +318,7 @@ interface MissionThreadRecommendationDao {
         SET status = 'COMPLETED',
             completedAt = :completedAt,
             updatedAt = :completedAt
-        WHERE conversationMissionId =
-            :conversationMissionId
+        WHERE conversationMissionId = :conversationMissionId
         """
     )
     suspend fun markCompletedByMissionId(

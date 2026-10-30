@@ -1,18 +1,12 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/besser/domain/usecase/GenerateContextualBesserChallengeUseCase.kt
+
 package com.julesmeister.deutschcraft.feature.besser.domain.usecase
 
 import com.julesmeister.deutschcraft.feature.besser.domain.model.BesserChallengeSelectionResult
 import javax.inject.Inject
 
-/*
- * Application-facing entry point for generating a contextual
- * Besser Challenge after a learner sends a message.
- *
- * This wraps the complete two-stage selection pipeline:
- *
- * 1. Local Room-backed capability shortlist
- * 2. Qwen contextual selection
- */
-class GenerateContextualBesserChallengeUseCase @Inject constructor(
+class GenerateContextualBesserChallengeUseCase
+@Inject constructor(
     private val selectContextualChallenge:
     SelectContextualBesserChallengeUseCase
 ) {
@@ -28,6 +22,7 @@ class GenerateContextualBesserChallengeUseCase @Inject constructor(
         recentlyChallengedCapabilityIds: Set<String> =
             emptySet()
     ): BesserChallengeSelectionResult {
+
         val cleanMessage =
             learnerMessage.trim()
 
@@ -43,27 +38,45 @@ class GenerateContextualBesserChallengeUseCase @Inject constructor(
             )
         }
 
+        val normalizedRecentCapabilityIds =
+            recentlyChallengedCapabilityIds
+                .asSequence()
+                .map(
+                    String::trim
+                )
+                .filter(
+                    String::isNotBlank
+                )
+                .toSet()
+
         return selectContextualChallenge(
             userMessage =
                 cleanMessage,
+
             currentCefrLevel =
                 currentCefrLevel,
+
             targetCefrLevel =
                 targetCefrLevel,
+
             missionTitle =
                 missionTitle,
+
             missionObjective =
                 missionObjective,
+
             detectedCategories =
                 detectedCategories,
+
             recentlyChallengedCapabilityIds =
-                recentlyChallengedCapabilityIds
+                normalizedRecentCapabilityIds
         )
     }
 
     private fun isEligibleMessage(
         message: String
     ): Boolean {
+
         if (message.isBlank()) {
             return false
         }

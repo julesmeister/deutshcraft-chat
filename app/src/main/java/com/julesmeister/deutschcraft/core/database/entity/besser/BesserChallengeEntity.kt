@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/core/database/entity/besser/BesserChallengeEntity.kt
+
 package com.julesmeister.deutschcraft.core.database.entity.besser
 
 import androidx.room.ColumnInfo
@@ -7,32 +9,44 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
-    tableName = "besser_challenges",
+    tableName =
+        "besser_challenges",
     foreignKeys = [
         ForeignKey(
-            entity = CapabilityEntity::class,
+            entity =
+                CapabilityEntity::class,
             parentColumns = [
                 "id"
             ],
             childColumns = [
                 "capability_id"
             ],
-            onUpdate = ForeignKey.CASCADE,
-            onDelete = ForeignKey.RESTRICT
+            onUpdate =
+                ForeignKey.CASCADE,
+            onDelete =
+                ForeignKey.RESTRICT
         )
     ],
     indices = [
         Index(
-            value = ["message_id"]
+            value = [
+                "message_id"
+            ]
         ),
         Index(
-            value = ["conversation_id"]
+            value = [
+                "conversation_id"
+            ]
         ),
         Index(
-            value = ["capability_id"]
+            value = [
+                "capability_id"
+            ]
         ),
         Index(
-            value = ["status"]
+            value = [
+                "status"
+            ]
         ),
         Index(
             value = [
@@ -45,97 +59,143 @@ import androidx.room.PrimaryKey
 data class BesserChallengeEntity(
     @PrimaryKey
     @ColumnInfo(
-        name = "id"
+        name =
+            "id"
     )
     val id: String,
 
     @ColumnInfo(
-        name = "message_id"
+        name =
+            "message_id"
     )
     val messageId: String,
 
     @ColumnInfo(
-        name = "conversation_id"
+        name =
+            "conversation_id"
     )
     val conversationId: String,
 
     @ColumnInfo(
-        name = "capability_id"
+        name =
+            "capability_id"
     )
     val capabilityId: String,
 
     @ColumnInfo(
-        name = "outcome"
+        name =
+            "outcome"
     )
     val outcome: String,
 
     @ColumnInfo(
-        name = "instruction"
+        name =
+            "instruction"
     )
     val instruction: String,
 
     @ColumnInfo(
-        name = "reason_code"
+        name =
+            "reason_code"
     )
     val reasonCode: String,
 
     @ColumnInfo(
-        name = "confidence"
+        name =
+            "confidence"
     )
     val confidence: Float,
 
     @ColumnInfo(
-        name = "recommended_assistance_level"
+        name =
+            "recommended_assistance_level"
     )
     val recommendedAssistanceLevel: String,
 
     @ColumnInfo(
-        name = "actual_assistance_level"
+        name =
+            "actual_assistance_level"
     )
-    val actualAssistanceLevel: String? = null,
+    val actualAssistanceLevel: String? =
+        null,
 
     @ColumnInfo(
-        name = "status"
+        name =
+            "status"
     )
     val status: String,
 
     @ColumnInfo(
-        name = "revealed_hint_count"
+        name =
+            "revealed_hint_count"
     )
-    val revealedHintCount: Int = 0,
+    val revealedHintCount: Int =
+        0,
 
     @ColumnInfo(
-        name = "original_message_content"
+        name =
+            "original_message_content"
     )
     val originalMessageContent: String,
 
     @ColumnInfo(
-        name = "refined_message_content"
+        name =
+            "refined_message_content"
     )
-    val refinedMessageContent: String? = null,
+    val refinedMessageContent: String? =
+        null,
 
     @ColumnInfo(
-        name = "created_at"
+        name =
+            "evaluation_score"
+    )
+    val evaluationScore: Int? =
+        null,
+
+    @ColumnInfo(
+        name =
+            "evaluation_feedback"
+    )
+    val evaluationFeedback: String? =
+        null,
+
+    @ColumnInfo(
+        name =
+            "evaluation_evidence"
+    )
+    val evaluationEvidence: String? =
+        null,
+
+    @ColumnInfo(
+        name =
+            "created_at"
     )
     val createdAt: Long,
 
     @ColumnInfo(
-        name = "accepted_at"
+        name =
+            "accepted_at"
     )
-    val acceptedAt: Long? = null,
+    val acceptedAt: Long? =
+        null,
 
     @ColumnInfo(
-        name = "skipped_at"
+        name =
+            "skipped_at"
     )
-    val skippedAt: Long? = null,
+    val skippedAt: Long? =
+        null,
 
     @ColumnInfo(
-        name = "completed_at"
+        name =
+            "completed_at"
     )
-    val completedAt: Long? = null,
+    val completedAt: Long? =
+        null,
 
     @ColumnInfo(
-        name = "updated_at"
+        name =
+            "updated_at"
     )
     val updatedAt: Long
 )

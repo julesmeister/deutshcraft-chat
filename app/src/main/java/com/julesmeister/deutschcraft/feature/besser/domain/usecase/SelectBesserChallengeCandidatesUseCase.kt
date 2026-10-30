@@ -1,43 +1,38 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/besser/domain/usecase/SelectBesserChallengeCandidatesUseCase.kt
+
 package com.julesmeister.deutschcraft.feature.besser.domain.usecase
 
 import android.util.Log
 import com.julesmeister.deutschcraft.core.database.dao.CapabilityDao
 import com.julesmeister.deutschcraft.core.database.entity.besser.CapabilityEntity
+import com.julesmeister.deutschcraft.feature.besser.domain.mastery.CapabilityMastery
+import com.julesmeister.deutschcraft.feature.besser.domain.mastery.CapabilityMasteryStatus
 import com.julesmeister.deutschcraft.feature.besser.domain.model.BesserCandidateSelectionRequest
 import com.julesmeister.deutschcraft.feature.besser.domain.model.BesserCapabilityCandidate
+import com.julesmeister.deutschcraft.feature.besser.domain.progression.CapabilityProgressionEvaluator
+import com.julesmeister.deutschcraft.feature.besser.domain.progression.CapabilityProgressionState
 import javax.inject.Inject
 
-class SelectBesserChallengeCandidatesUseCase @Inject constructor(
-    private val capabilityDao: CapabilityDao
+class SelectBesserChallengeCandidatesUseCase
+@Inject constructor(
+    private val capabilityDao:
+    CapabilityDao,
+
+    private val getCapabilityMasteries:
+    GetCapabilityMasteriesUseCase,
+
+    private val progressionEvaluator:
+    CapabilityProgressionEvaluator
 ) {
 
     suspend operator fun invoke(
         request: BesserCandidateSelectionRequest
     ): List<BesserCapabilityCandidate> {
+
         val message =
             request.userMessage.trim()
 
-        Log.d(
-            SHORTLIST_TAG,
-            buildString {
-                append("Starting shortlist. ")
-                append("current=")
-                append(request.currentCefrLevel)
-                append(", target=")
-                append(request.targetCefrLevel)
-                append(", requestedLimit=")
-                append(request.limit)
-                append(", messageLength=")
-                append(message.length)
-            }
-        )
-
         if (message.isBlank()) {
-            Log.d(
-                SHORTLIST_TAG,
-                "Shortlist stopped: learner message is blank."
-            )
-
             return emptyList()
         }
 
@@ -45,6 +40,7 @@ class SelectBesserChallengeCandidatesUseCase @Inject constructor(
             request.limit.coerceIn(
                 minimumValue =
                     MINIMUM_SHORTLIST_LIMIT,
+
                 maximumValue =
                     MAXIMUM_SHORTLIST_LIMIT
             )
@@ -53,32 +49,12 @@ class SelectBesserChallengeCandidatesUseCase @Inject constructor(
             buildEligibleCefrLevels(
                 currentCefrLevel =
                     request.currentCefrLevel,
+
                 targetCefrLevel =
                     request.targetCefrLevel
             )
 
-        Log.d(
-            SHORTLIST_TAG,
-            buildString {
-                append("Eligible CEFR levels=")
-                append(eligibleCefrLevels)
-                append(", effectiveLimit=")
-                append(shortlistLimit)
-            }
-        )
-
         if (eligibleCefrLevels.isEmpty()) {
-            Log.w(
-                SHORTLIST_TAG,
-                buildString {
-                    append("Shortlist stopped: no valid CEFR levels. ")
-                    append("current=")
-                    append(request.currentCefrLevel)
-                    append(", target=")
-                    append(request.targetCefrLevel)
-                }
-            )
-
             return emptyList()
         }
 
@@ -89,19 +65,10 @@ class SelectBesserChallengeCandidatesUseCase @Inject constructor(
             )
                 .asSequence()
                 .filterNot { token ->
-                    token in MESSAGE_STOP_WORDS
+                    token in
+                            MESSAGE_STOP_WORDS
                 }
                 .toSet()
-
-        Log.d(
-            SHORTLIST_TAG,
-            buildString {
-                append("Meaningful message tokens=")
-                append(messageTokens.size)
-                append(" ")
-                append(messageTokens)
-            }
-        )
 
         val normalizedCategories =
             request
@@ -115,14 +82,6 @@ class SelectBesserChallengeCandidatesUseCase @Inject constructor(
                 )
                 .toSet()
 
-        Log.d(
-            SHORTLIST_TAG,
-            buildString {
-                append("Detected categories=")
-                append(normalizedCategories)
-            }
-        )
-
         val recentCapabilityIds =
             request
                 .recentlyChallengedCapabilityIds
@@ -135,51 +94,23 @@ class SelectBesserChallengeCandidatesUseCase @Inject constructor(
                 )
                 .toSet()
 
-        Log.d(
-            SHORTLIST_TAG,
-            buildString {
-                append("Recently challenged capabilities=")
-                append(recentCapabilityIds.size)
-
-                if (recentCapabilityIds.isNotEmpty()) {
-                    append(" ")
-                    append(recentCapabilityIds)
-                }
-            }
-        )
-
-        /*
-         * ====================================================
-         * ROOM CATALOGUE
-         * ====================================================
-         */
-
         val capabilities =
             capabilityDao.getActiveForShortlist(
                 cefrLevels =
                     eligibleCefrLevels
             )
 
-        Log.d(
-            SHORTLIST_TAG,
-            buildString {
-                append("Room catalogue returned ")
-                append(capabilities.size)
-                append(" active capabilities for ")
-                append(eligibleCefrLevels)
-                append(".")
-            }
-        )
-
         if (capabilities.isEmpty()) {
             Log.w(
                 SHORTLIST_TAG,
                 buildString {
-                    append("EMPTY CATALOGUE RESULT. ")
-                    append("No active capabilities exist for levels=")
-                    append(eligibleCefrLevels)
-                    append(". Check BuiltInCapabilityCatalogue ")
-                    append("and CapabilityCatalogueInitializer.")
+                    append(
+                        "No active capabilities for "
+                    )
+
+                    append(
+                        eligibleCefrLevels
+                    )
                 }
             )
 
@@ -187,25 +118,45 @@ class SelectBesserChallengeCandidatesUseCase @Inject constructor(
         }
 
         /*
-         * Log the CEFR distribution returned by Room.
+         * Include both:
+         *
+         * - the locally selectable capabilities
+         * - every prerequisite referenced by those capabilities
+         *
+         * This is important because the target-level capability
+         * may depend on a prerequisite outside the current
+         * shortlist's CEFR bands.
          */
-        capabilities
-            .groupingBy { capability ->
-                capability.cefrLevel
-            }
-            .eachCount()
-            .forEach { (level, count) ->
-                Log.d(
-                    SHORTLIST_TAG,
-                    "Room level=$level count=$count"
-                )
-            }
+        val shortlistCapabilityIds =
+            capabilities
+                .asSequence()
+                .map { capability ->
+                    capability.id
+                }
+                .toSet()
 
-        /*
-         * ====================================================
-         * CONVERT TO CANDIDATES
-         * ====================================================
-         */
+        val prerequisiteCapabilityIds =
+            shortlistCapabilityIds
+                .asSequence()
+                .flatMap { capabilityId ->
+                    progressionEvaluator
+                        .prerequisitesFor(
+                            capabilityId =
+                                capabilityId
+                        )
+                        .asSequence()
+                }
+                .toSet()
+
+        val masteryCapabilityIds =
+            shortlistCapabilityIds +
+                    prerequisiteCapabilityIds
+
+        val masteryByCapabilityId =
+            getCapabilityMasteries(
+                capabilityIds =
+                    masteryCapabilityIds
+            )
 
         val allCandidates =
             capabilities
@@ -214,114 +165,74 @@ class SelectBesserChallengeCandidatesUseCase @Inject constructor(
                     capability.isActive
                 }
                 .map { capability ->
+                    val mastery =
+                        masteryByCapabilityId[
+                            capability.id
+                        ]
+                            ?: CapabilityMastery.empty(
+                                capabilityId =
+                                    capability.id
+                            )
+
+                    val progression =
+                        progressionEvaluator.evaluate(
+                            capabilityId =
+                                capability.id,
+
+                            masteryByCapabilityId =
+                                masteryByCapabilityId
+                        )
+
                     capability.toCandidate(
                         messageTokens =
                             messageTokens,
+
                         normalizedCategories =
                             normalizedCategories,
+
                         targetCefrLevel =
                             request.targetCefrLevel,
+
                         recentCapabilityIds =
-                            recentCapabilityIds
+                            recentCapabilityIds,
+
+                        mastery =
+                            mastery,
+
+                        progression =
+                            progression
                     )
                 }
                 .toList()
 
-        Log.d(
-            SHORTLIST_TAG,
-            buildString {
-                append("Candidates before eligibility filter=")
-                append(allCandidates.size)
-            }
-        )
-
-        /*
-         * Print every candidate before local filtering.
-         *
-         * With the medium catalogue this is normally only the
-         * current and target bands, around 20 entries.
-         */
-        allCandidates.forEach { candidate ->
-            Log.d(
-                SHORTLIST_TAG,
-                buildString {
-                    append("PRE ")
-                    append(candidate.capabilityId)
-                    append(" | level=")
-                    append(candidate.cefrLevel)
-                    append(" | category=")
-                    append(candidate.category)
-                    append(" | score=")
-                    append(candidate.localPriorityScore)
-                    append(" | lexical=")
-                    append(candidate.lexicalMatchCount)
-                    append(" | categoryMatched=")
-                    append(candidate.categoryMatched)
-                    append(" | targetLevel=")
-                    append(candidate.isTargetLevelCapability)
-                }
-            )
-        }
-
-        /*
-         * ====================================================
-         * LOCAL ELIGIBILITY
-         * ====================================================
-         */
-
         val eligibleCandidates =
-            allCandidates
-                .filter { candidate ->
-                    candidate.isLocallyEligible(
-                        hasDetectedCategories =
-                            normalizedCategories.isNotEmpty(),
-                        hasMeaningfulMessageTokens =
-                            messageTokens.isNotEmpty()
-                    )
-                }
+            allCandidates.filter { candidate ->
+                candidate.isLocallyEligible(
+                    hasDetectedCategories =
+                        normalizedCategories.isNotEmpty(),
 
-        Log.d(
-            SHORTLIST_TAG,
-            buildString {
-                append("Locally eligible candidates=")
-                append(eligibleCandidates.size)
-                append("/")
-                append(allCandidates.size)
+                    hasMeaningfulMessageTokens =
+                        messageTokens.isNotEmpty()
+                )
             }
-        )
 
         if (eligibleCandidates.isEmpty()) {
-            Log.w(
-                SHORTLIST_TAG,
-                buildString {
-                    append("EMPTY LOCAL SHORTLIST. ")
-                    append("Room supplied ")
-                    append(capabilities.size)
-                    append(" capabilities, but all were removed ")
-                    append("by local eligibility. ")
-                    append("messageTokens=")
-                    append(messageTokens)
-                    append(", categories=")
-                    append(normalizedCategories)
-                }
-            )
-
             return emptyList()
         }
-
-        /*
-         * ====================================================
-         * RANK + FINAL SHORTLIST
-         * ====================================================
-         */
 
         val shortlist =
             eligibleCandidates
                 .sortedWith(
-                    compareByDescending<BesserCapabilityCandidate> {
-                            candidate ->
+                    compareByDescending<BesserCapabilityCandidate> { candidate ->
                         candidate.localPriorityScore
                     }
+                        .thenByDescending { candidate ->
+                            candidate
+                                .isDirectSuccessorOfMasteredCapability
+                        }
+                        .thenByDescending { candidate ->
+                            candidate.progressionReady
+                        }
                         .thenByDescending { candidate ->
                             candidate.categoryMatched
                         }
@@ -339,22 +250,9 @@ class SelectBesserChallengeCandidatesUseCase @Inject constructor(
                         }
                 )
                 .take(
-                    shortlistLimit
+                    n =
+                        shortlistLimit
                 )
-
-        Log.i(
-            SHORTLIST_TAG,
-            buildString {
-                append("FINAL SHORTLIST ")
-                append(shortlist.size)
-                append("/")
-                append(capabilities.size)
-                append(" | current=")
-                append(request.currentCefrLevel)
-                append(" | target=")
-                append(request.targetCefrLevel)
-            }
-        )
 
         shortlist.forEachIndexed { index, candidate ->
             Log.i(
@@ -362,20 +260,38 @@ class SelectBesserChallengeCandidatesUseCase @Inject constructor(
                 buildString {
                     append("#")
                     append(index + 1)
+
                     append(" ")
                     append(candidate.capabilityId)
-                    append(" | ")
-                    append(candidate.name)
-                    append(" | level=")
-                    append(candidate.cefrLevel)
+
                     append(" | score=")
                     append(candidate.localPriorityScore)
-                    append(" | lexical=")
-                    append(candidate.lexicalMatchCount)
-                    append(" | categoryMatched=")
-                    append(candidate.categoryMatched)
-                    append(" | targetLevel=")
-                    append(candidate.isTargetLevelCapability)
+
+                    append(" | mastery=")
+                    append(candidate.masteryPercentage)
+                    append("%")
+
+                    append(" | status=")
+                    append(candidate.masteryStatus)
+
+                    append(" | progressionReady=")
+                    append(candidate.progressionReady)
+
+                    append(" | prerequisiteMastery=")
+                    append(candidate.prerequisiteMasteryPercentage)
+                    append("%")
+
+                    append(" | successorOfMastered=")
+                    append(
+                        candidate
+                            .isDirectSuccessorOfMasteredCapability
+                    )
+
+                    append(" | recent=")
+                    append(
+                        candidate.capabilityId in
+                                recentCapabilityIds
+                    )
                 }
             )
         }
@@ -390,18 +306,15 @@ class SelectBesserChallengeCandidatesUseCase @Inject constructor(
     }
 }
 
-/*
- * ===========================================================
- * Capability -> candidate
- * ===========================================================
- */
-
 private fun CapabilityEntity.toCandidate(
     messageTokens: Set<String>,
     normalizedCategories: Set<String>,
     targetCefrLevel: String,
-    recentCapabilityIds: Set<String>
+    recentCapabilityIds: Set<String>,
+    mastery: CapabilityMastery,
+    progression: CapabilityProgressionState
 ): BesserCapabilityCandidate {
+
     val capabilityTokens =
         (
                 tokenize(
@@ -415,7 +328,8 @@ private fun CapabilityEntity.toCandidate(
                 )
             .asSequence()
             .filterNot { token ->
-                token in CAPABILITY_STOP_WORDS
+                token in
+                        CAPABILITY_STOP_WORDS
             }
             .toSet()
 
@@ -426,7 +340,8 @@ private fun CapabilityEntity.toCandidate(
 
     val normalizedCapabilityCategory =
         normalizeCategory(
-            category
+            category =
+                category
         )
 
     val categoryMatched =
@@ -435,10 +350,12 @@ private fun CapabilityEntity.toCandidate(
 
     val isTargetLevelCapability =
         normalizeCefrLevel(
-            cefrLevel
+            rawLevel =
+                cefrLevel
         ) ==
                 normalizeCefrLevel(
-                    targetCefrLevel
+                    rawLevel =
+                        targetCefrLevel
                 )
 
     val lexicalScore =
@@ -466,21 +383,61 @@ private fun CapabilityEntity.toCandidate(
         (
                 MAXIMUM_SORT_ORDER_BONUS -
                         sortOrder.coerceAtLeast(
-                            0
+                            minimumValue =
+                                0
                         )
                 )
             .coerceAtLeast(
-                0
+                minimumValue =
+                    0
             ) *
                 SORT_ORDER_WEIGHT
 
     val recentChallengePenalty =
         if (
-            id in recentCapabilityIds
+            id in
+            recentCapabilityIds
         ) {
             RECENT_CAPABILITY_PENALTY
         } else {
             0f
+        }
+
+    val masteryAdjustment =
+        when (mastery.status) {
+            CapabilityMasteryStatus.DEVELOPING -> {
+                DEVELOPING_CAPABILITY_BONUS
+            }
+
+            CapabilityMasteryStatus.PRACTISING -> {
+                PRACTISING_CAPABILITY_BONUS
+            }
+
+            CapabilityMasteryStatus.MASTERED -> {
+                -MASTERED_CAPABILITY_PENALTY
+            }
+        }
+
+    val progressionAdjustment =
+        when {
+            progression
+                .isDirectSuccessorOfMasteredCapability -> {
+                DIRECT_SUCCESSOR_BONUS
+            }
+
+            progression.isProgressionReady &&
+                    progression.hasPrerequisites -> {
+                PROGRESSION_READY_BONUS
+            }
+
+            !progression.isProgressionReady &&
+                    progression.hasPrerequisites -> {
+                -UNREADY_PROGRESSION_PENALTY
+            }
+
+            else -> {
+                0f
+            }
         }
 
     val localPriorityScore =
@@ -489,86 +446,118 @@ private fun CapabilityEntity.toCandidate(
                         lexicalScore +
                         categoryScore +
                         cefrScore +
-                        catalogueOrderScore -
+                        catalogueOrderScore +
+                        masteryAdjustment +
+                        progressionAdjustment -
                         recentChallengePenalty
                 )
             .coerceAtLeast(
-                0f
+                minimumValue =
+                    0f
             )
 
     return BesserCapabilityCandidate(
         capabilityId =
             id,
+
         name =
             name,
+
         description =
             description,
+
         category =
             category,
+
         cefrLevel =
             cefrLevel,
+
         localPriorityScore =
             localPriorityScore,
+
         lexicalMatchCount =
             lexicalMatches.size,
+
         categoryMatched =
             categoryMatched,
+
         isTargetLevelCapability =
             isTargetLevelCapability,
+
         sortOrder =
-            sortOrder
+            sortOrder,
+
+        masteryScore =
+            mastery.safeMasteryScore,
+
+        masteryStatus =
+            mastery.status,
+
+        masteryAttemptCount =
+            mastery.attemptCount,
+
+        masteryCompletedCount =
+            mastery.completedCount,
+
+        masterySkippedCount =
+            mastery.skippedCount,
+
+        lastChallengedAt =
+            mastery.lastChallengedAt,
+
+        progressionReady =
+            progression.isProgressionReady,
+
+        progressionPrerequisiteCount =
+            progression.totalPrerequisiteCount,
+
+        satisfiedProgressionPrerequisiteCount =
+            progression.satisfiedPrerequisiteCount,
+
+        averagePrerequisiteMastery =
+            progression.safeAveragePrerequisiteMastery,
+
+        isDirectSuccessorOfMasteredCapability =
+            progression
+                .isDirectSuccessorOfMasteredCapability
     )
 }
-
-/*
- * ===========================================================
- * Local eligibility
- * ===========================================================
- */
 
 private fun BesserCapabilityCandidate.isLocallyEligible(
     hasDetectedCategories: Boolean,
     hasMeaningfulMessageTokens: Boolean
 ): Boolean {
+
     if (hasDetectedCategories) {
         return categoryMatched ||
-                lexicalMatchCount > 0
+                lexicalMatchCount >
+                0
     }
 
-    /*
-     * English catalogue descriptions generally will not share
-     * many literal tokens with German learner messages.
-     *
-     * Target-level capabilities therefore remain eligible even
-     * when lexical overlap is zero. Qwen performs the actual
-     * semantic judgment afterward.
-     */
     if (hasMeaningfulMessageTokens) {
-        return lexicalMatchCount > 0 ||
+        return lexicalMatchCount >
+                0 ||
                 isTargetLevelCapability
     }
 
     return isTargetLevelCapability
 }
 
-/*
- * ===========================================================
- * CEFR range
- * ===========================================================
- */
-
 private fun buildEligibleCefrLevels(
     currentCefrLevel: String,
     targetCefrLevel: String
 ): List<String> {
+
     val currentLevel =
         normalizeCefrLevel(
-            currentCefrLevel
+            rawLevel =
+                currentCefrLevel
         )
 
     val targetLevel =
         normalizeCefrLevel(
-            targetCefrLevel
+            rawLevel =
+                targetCefrLevel
         )
 
     val currentIsValid =
@@ -607,15 +596,10 @@ private fun buildEligibleCefrLevels(
     }
 }
 
-/*
- * ===========================================================
- * Tokenization
- * ===========================================================
- */
-
 private fun tokenize(
     value: String
 ): List<String> {
+
     return TOKEN_PATTERN
         .findAll(
             value.lowercase()
@@ -630,15 +614,10 @@ private fun tokenize(
         .toList()
 }
 
-/*
- * ===========================================================
- * Normalization
- * ===========================================================
- */
-
 private fun normalizeCategory(
     category: String
 ): String {
+
     return category
         .trim()
         .lowercase()
@@ -654,16 +633,11 @@ private fun normalizeCategory(
 private fun normalizeCefrLevel(
     rawLevel: String
 ): String {
+
     return rawLevel
         .trim()
         .uppercase()
 }
-
-/*
- * ===========================================================
- * Patterns
- * ===========================================================
- */
 
 private val TOKEN_PATTERN =
     Regex(
@@ -677,12 +651,6 @@ private val CATEGORY_SEPARATOR_PATTERN =
             """[\s\-/]+"""
     )
 
-/*
- * ===========================================================
- * CEFR
- * ===========================================================
- */
-
 private val SUPPORTED_CEFR_LEVELS =
     setOf(
         "A1",
@@ -692,12 +660,6 @@ private val SUPPORTED_CEFR_LEVELS =
         "C1",
         "C2"
     )
-
-/*
- * ===========================================================
- * Stop words
- * ===========================================================
- */
 
 private val MESSAGE_STOP_WORDS =
     setOf(
@@ -749,7 +711,6 @@ private val MESSAGE_STOP_WORDS =
         "zu",
         "zum",
         "zur",
-
         "a",
         "an",
         "and",
@@ -795,12 +756,6 @@ private val CAPABILITY_STOP_WORDS =
                 "verwenden"
             )
 
-/*
- * ===========================================================
- * Selection limits
- * ===========================================================
- */
-
 private const val MINIMUM_SHORTLIST_LIMIT =
     1
 
@@ -813,11 +768,8 @@ private const val MINIMUM_TOKEN_LENGTH =
 private const val MAXIMUM_LEXICAL_MATCH_COUNT =
     5
 
-/*
- * ===========================================================
- * Ranking weights
- * ===========================================================
- */
+private const val MAXIMUM_SORT_ORDER_BONUS =
+    20
 
 private const val BASE_PRIORITY_SCORE =
     10f
@@ -834,11 +786,26 @@ private const val TARGET_LEVEL_WEIGHT =
 private const val CURRENT_LEVEL_WEIGHT =
     5f
 
-private const val MAXIMUM_SORT_ORDER_BONUS =
-    20
-
 private const val SORT_ORDER_WEIGHT =
     0.25f
 
 private const val RECENT_CAPABILITY_PENALTY =
     40f
+
+private const val DEVELOPING_CAPABILITY_BONUS =
+    18f
+
+private const val PRACTISING_CAPABILITY_BONUS =
+    8f
+
+private const val MASTERED_CAPABILITY_PENALTY =
+    35f
+
+private const val PROGRESSION_READY_BONUS =
+    12f
+
+private const val DIRECT_SUCCESSOR_BONUS =
+    22f
+
+private const val UNREADY_PROGRESSION_PENALTY =
+    14f

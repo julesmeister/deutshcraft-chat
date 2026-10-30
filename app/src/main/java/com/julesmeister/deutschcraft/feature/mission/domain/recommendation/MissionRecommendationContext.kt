@@ -1,51 +1,190 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/mission/domain/recommendation/MissionRecommendationContext.kt
+
 package com.julesmeister.deutschcraft.feature.mission.domain.recommendation
 
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 
-/*
- * All information used to select the next scenario.
- *
- * Recent conversation text is only one signal. It must not
- * overpower CEFR relevance, adaptive weaknesses, and scenario
- * diversity.
- */
 data class MissionRecommendationContext(
-    val cefrLevel: CefrLevel,
+    val cefrLevel:
+    CefrLevel,
 
-    val recentConversationText: String,
+    val recentConversationText:
+    String,
 
-    /*
-     * Recently offered scenarios, including dismissed offers.
-     */
     val recentlyOfferedScenarioTypes:
     List<MissionScenarioType> =
         emptyList(),
 
-    /*
-     * Recently completed scenarios.
-     */
     val recentlyCompletedScenarioTypes:
     List<MissionScenarioType> =
         emptyList(),
 
-    /*
-     * Current adaptive-learning focus keys or titles.
-     *
-     * Examples:
-     *
-     * communication:giving_reasons
-     * communication:comparing_options
-     * grammar:dative_case
-     */
+    val recentlyDismissedScenarioTypes:
+    List<MissionScenarioType> =
+        emptyList(),
+
     val adaptiveLearningFocuses:
     List<String> =
         emptyList(),
 
-    /*
-     * A scenario currently active in this conversation must
-     * never be recommended again.
-     */
+    val progressionReadyCapabilities:
+    List<String> =
+        emptyList(),
+
+    val developingCapabilities:
+    List<String> =
+        emptyList(),
+
+    val masteredCapabilities:
+    List<String> =
+        emptyList(),
+
     val activeScenarioType:
     MissionScenarioType? =
         null
-)
+) {
+
+    val positiveLearningSignals:
+            List<String>
+        get() =
+            (
+                    adaptiveLearningFocuses +
+                            progressionReadyCapabilities +
+                            developingCapabilities
+                    )
+                .asSequence()
+                .map(
+                    String::trim
+                )
+                .filter(
+                    String::isNotBlank
+                )
+                .distinct()
+                .toList()
+
+    val normalizedMasteredCapabilities:
+            Set<String>
+        get() =
+            masteredCapabilities
+                .asSequence()
+                .map(
+                    String::trim
+                )
+                .filter(
+                    String::isNotBlank
+                )
+                .map(
+                    String::lowercase
+                )
+                .toSet()
+
+    val recentlyUsedContextCategories:
+            List<MissionScenarioContextCategory>
+        get() =
+            (
+                    recentlyOfferedScenarioTypes +
+                            recentlyCompletedScenarioTypes
+                    )
+                .map(
+                    MissionScenarioType::contextCategory
+                )
+
+    val recentlyDismissedContextCategories:
+            List<MissionScenarioContextCategory>
+        get() =
+            recentlyDismissedScenarioTypes
+                .map(
+                    MissionScenarioType::contextCategory
+                )
+
+    val freshnessFingerprint:
+            String
+        get() =
+            buildString {
+                append(
+                    cefrLevel.name
+                )
+
+                append(
+                    "|adaptive="
+                )
+
+                append(
+                    adaptiveLearningFocuses
+                        .mapNotNull(
+                            ::extractSignalIdentity
+                        )
+                        .sorted()
+                        .joinToString(
+                            separator =
+                                ","
+                        )
+                )
+
+                append(
+                    "|progression="
+                )
+
+                append(
+                    progressionReadyCapabilities
+                        .mapNotNull(
+                            ::extractSignalIdentity
+                        )
+                        .sorted()
+                        .joinToString(
+                            separator =
+                                ","
+                        )
+                )
+
+                append(
+                    "|developing="
+                )
+
+                append(
+                    developingCapabilities
+                        .mapNotNull(
+                            ::extractSignalIdentity
+                        )
+                        .sorted()
+                        .joinToString(
+                            separator =
+                                ","
+                        )
+                )
+
+                append(
+                    "|mastered="
+                )
+
+                append(
+                    masteredCapabilities
+                        .mapNotNull(
+                            ::extractSignalIdentity
+                        )
+                        .sorted()
+                        .joinToString(
+                            separator =
+                                ","
+                        )
+                )
+            }
+
+    private fun extractSignalIdentity(
+        signal: String
+    ): String? {
+
+        val normalized =
+            signal
+                .substringBefore(
+                    delimiter =
+                        "|"
+                )
+                .trim()
+                .lowercase()
+
+        return normalized.takeIf(
+            String::isNotBlank
+        )
+    }
+}

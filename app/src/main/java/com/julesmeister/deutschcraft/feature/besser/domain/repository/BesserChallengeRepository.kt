@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/besser/domain/repository/BesserChallengeRepository.kt
+
 package com.julesmeister.deutschcraft.feature.besser.domain.repository
 
 import com.julesmeister.deutschcraft.feature.besser.domain.AssistanceLevel
@@ -56,6 +58,9 @@ interface BesserChallengeRepository {
         challengeId: String,
         refinedMessageContent: String,
         actualAssistanceLevel: AssistanceLevel,
+        evaluationScore: Int?,
+        evaluationFeedback: String?,
+        evaluationEvidence: String?,
         completedAt: Long
     ): Boolean
 

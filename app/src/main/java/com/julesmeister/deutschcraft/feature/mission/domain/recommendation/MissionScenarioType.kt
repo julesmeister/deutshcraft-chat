@@ -1,21 +1,7 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/mission/domain/recommendation/MissionScenarioType.kt
+
 package com.julesmeister.deutschcraft.feature.mission.domain.recommendation
 
-/*
- * Stable semantic identity of a mission scenario.
- *
- * Mission titles are not reliable for duplicate detection.
- *
- * For example:
- *
- * - Morning Coffee
- * - Bestellung im Café
- * - Ein Kaffee am Morgen
- * - Im Café bestellen
- *
- * all belong to:
- *
- * CAFE_ORDERING
- */
 enum class MissionScenarioType {
 
     /*
@@ -38,6 +24,16 @@ enum class MissionScenarioType {
     DESCRIBING_YOUR_HOME,
 
     /*
+     * New A1 diversity.
+     */
+    MEETING_A_NEIGHBOR,
+    TALKING_ABOUT_YOUR_ROOM,
+    BUYING_A_TRAIN_TICKET,
+    ASKING_ABOUT_OPENING_HOURS,
+    JOINING_A_BEGINNER_CLASS,
+    MAKING_SIMPLE_WEEKEND_PLANS,
+
+    /*
      * A2 everyday independence.
      */
     PLANNING_A_DAY_OUT,
@@ -54,6 +50,18 @@ enum class MissionScenarioType {
     ASKING_FOR_INFORMATION,
     DESCRIBING_A_PERSON,
     DESCRIBING_A_PLACE,
+
+    /*
+     * New A2 diversity.
+     */
+    VIEWING_AN_APARTMENT,
+    MISSING_A_TRAIN,
+    CHANGING_AN_APPOINTMENT,
+    ASKING_A_NEIGHBOR_FOR_HELP,
+    JOINING_A_SPORTS_CLUB,
+    BOOKING_AN_ACTIVITY,
+    EXPLAINING_A_DELIVERY_PROBLEM,
+    PLANNING_A_BIRTHDAY,
 
     /*
      * B1 independent communication.
@@ -73,6 +81,18 @@ enum class MissionScenarioType {
     EXPLAINING_ADVANTAGES_AND_DISADVANTAGES,
     ARRANGING_A_SERVICE,
     DEALING_WITH_A_MISUNDERSTANDING,
+
+    /*
+     * New B1 diversity.
+     */
+    CHOOSING_BETWEEN_APARTMENTS,
+    COMPARING_JOB_OFFERS,
+    HANDLING_A_TRAIN_CANCELLATION,
+    RESOLVING_A_SCHEDULING_CONFLICT,
+    ORGANIZING_AN_EVENT,
+    GIVING_ADVICE_TO_A_FRIEND,
+    DISCUSSING_REMOTE_VS_OFFICE_WORK,
+    PLANNING_A_GROUP_TRIP,
 
     /*
      * B2 detailed, flexible interaction.

@@ -6,33 +6,8 @@ import com.julesmeister.deutschcraft.feature.besser.domain.model.BesserChallenge
 import com.julesmeister.deutschcraft.feature.besser.domain.selector.BesserChallengeSelector
 import javax.inject.Inject
 
-/*
- * Full contextual Besser selection pipeline.
- *
- * Stage 1:
- *
- *     Room capability catalogue
- *             ↓
- *     local shortlist
- *
- * Stage 2:
- *
- *     learner message
- *     + shortlist
- *     + CEFR
- *     + mission context
- *             ↓
- *     contextual Qwen selector
- *
- * Result:
- *
- *     Selected
- *
- * or
- *
- *     NoChallenge
- */
-class SelectContextualBesserChallengeUseCase @Inject constructor(
+class SelectContextualBesserChallengeUseCase
+@Inject constructor(
     private val selectCandidates:
     SelectBesserChallengeCandidatesUseCase,
 
@@ -61,25 +36,22 @@ class SelectContextualBesserChallengeUseCase @Inject constructor(
             )
         }
 
-        /*
-         * ===================================================
-         * Stage 1
-         * ===================================================
-         *
-         * Run the cheap local shortlist first.
-         */
         val candidates =
             selectCandidates(
                 request =
                     BesserCandidateSelectionRequest(
                         userMessage =
                             cleanMessage,
+
                         currentCefrLevel =
                             currentCefrLevel,
+
                         targetCefrLevel =
                             targetCefrLevel,
+
                         detectedCategories =
                             detectedCategories,
+
                         recentlyChallengedCapabilityIds =
                             recentlyChallengedCapabilityIds
                     )
@@ -92,26 +64,24 @@ class SelectContextualBesserChallengeUseCase @Inject constructor(
             )
         }
 
-        /*
-         * ===================================================
-         * Stage 2
-         * ===================================================
-         *
-         * Qwen receives only this shortlist.
-         */
         return challengeSelector.select(
             request =
                 BesserChallengeSelectionRequest(
                     userMessage =
                         cleanMessage,
+
                     currentCefrLevel =
                         currentCefrLevel,
+
                     targetCefrLevel =
                         targetCefrLevel,
+
                     missionTitle =
                         missionTitle,
+
                     missionObjective =
                         missionObjective,
+
                     candidates =
                         candidates
                 )

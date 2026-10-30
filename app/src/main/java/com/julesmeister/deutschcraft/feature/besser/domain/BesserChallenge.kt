@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/besser/domain/BesserChallenge.kt
+
 package com.julesmeister.deutschcraft.feature.besser.domain
 
 data class BesserChallenge(
@@ -16,6 +18,16 @@ data class BesserChallenge(
     val revealedHintCount: Int,
     val originalMessageContent: String,
     val refinedMessageContent: String?,
+
+    val evaluationScore: Int? =
+        null,
+
+    val evaluationFeedback: String? =
+        null,
+
+    val evaluationEvidence: String? =
+        null,
+
     val createdAt: Long,
     val acceptedAt: Long?,
     val skippedAt: Long?,
@@ -27,19 +39,23 @@ data class BesserChallenge(
         get() =
             hints.take(
                 revealedHintCount.coerceIn(
-                    minimumValue = 0,
-                    maximumValue = hints.size
+                    minimumValue =
+                        0,
+                    maximumValue =
+                        hints.size
                 )
             )
 
     val canRevealHint: Boolean
         get() =
             status.isActive &&
-                    revealedHintCount < hints.size
+                    revealedHintCount <
+                    hints.size
 
     val canAccept: Boolean
         get() =
-            status == ChallengeStatus.AVAILABLE
+            status ==
+                    ChallengeStatus.AVAILABLE
 
     val canSkip: Boolean
         get() =
@@ -48,4 +64,21 @@ data class BesserChallenge(
     val canComplete: Boolean
         get() =
             status.isActive
+
+    val safeEvaluationScore: Int?
+        get() =
+            evaluationScore
+                ?.coerceIn(
+                    minimumValue =
+                        0,
+                    maximumValue =
+                        100
+                )
+
+    val hasEvaluationEvidence: Boolean
+        get() =
+            safeEvaluationScore !=
+                    null ||
+                    !evaluationFeedback.isNullOrBlank() ||
+                    !evaluationEvidence.isNullOrBlank()
 }

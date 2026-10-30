@@ -62,9 +62,6 @@ interface MessageDao {
     /*
      * Returns every message created during a specific time
      * window.
-     *
-     * Mission analytics can use this to isolate messages that
-     * occurred while one ConversationMission was active.
      */
     @Query(
         """
@@ -85,13 +82,6 @@ interface MessageDao {
     /*
      * Returns messages from one sender during a given time
      * window.
-     *
-     * Mission analytics uses this with:
-     *
-     * MessageSenderEntity.USER
-     *
-     * so assistant messages do not inflate learner-message
-     * counts or Besser correction statistics.
      */
     @Query(
         """
@@ -127,10 +117,8 @@ interface MessageDao {
     ): MessageEntity?
 
     /*
-     * Returns the largest sequence number currently persisted
-     * for a conversation.
-     *
-     * A conversation with no messages returns 0.
+     * Returns the largest persisted sequence number for one
+     * conversation.
      */
     @Query(
         """
@@ -164,7 +152,7 @@ interface MessageDao {
             List<MessageEntity>
 
     /*
-     * Deletes one message.
+     * Permanently deletes one message.
      */
     @Query(
         """
@@ -177,10 +165,11 @@ interface MessageDao {
     )
 
     /*
-     * Updates the Besser correction stored directly on a
-     * learner message.
+     * Updates the automatic correction attached to a learner
+     * message.
      *
-     * null means that no meaningful correction is required.
+     * null means that no meaningful correction is currently
+     * attached.
      */
     @Query(
         """
@@ -192,6 +181,33 @@ interface MessageDao {
     suspend fun updateMessageCorrection(
         messageId: String,
         correction: String?
+    ): Int
+
+    /*
+     * Replaces the source learner message with the sentence
+     * written during a completed Besser refinement.
+     *
+     * The old automatic correction is cleared because it was
+     * generated for the previous message content and is now
+     * stale.
+     *
+     * The sender condition protects against accidentally
+     * rewriting an assistant message if malformed challenge
+     * data ever reaches this operation.
+     */
+    @Query(
+        """
+        UPDATE messages
+        SET
+            content = :refinedContent,
+            correction = NULL
+        WHERE id = :messageId
+          AND sender = 'USER'
+        """
+    )
+    suspend fun replaceLearnerMessageContent(
+        messageId: String,
+        refinedContent: String
     ): Int
 
     /*
@@ -220,8 +236,7 @@ interface MessageDao {
     /*
      * Observes the latest messages for one conversation.
      *
-     * Results are intentionally returned newest-first because
-     * the SQL orders by sequenceNumber DESC.
+     * Results are newest-first.
      */
     @Query(
         """

@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/core/di/DatabaseModule.kt
+
 package com.julesmeister.deutschcraft.core.di
 
 import android.content.Context
@@ -12,6 +14,7 @@ import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
 import com.julesmeister.deutschcraft.core.database.dao.MarkedPhraseDao
 import com.julesmeister.deutschcraft.core.database.dao.MessageDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionAnalyticsDao
+import com.julesmeister.deutschcraft.core.database.dao.MissionCapabilityEvidenceDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionInteractionEvidenceDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionObjectiveHintUsageDao
@@ -30,92 +33,49 @@ import javax.inject.Singleton
 )
 object DatabaseModule {
 
-    /*
-     * Main DeutschCraft Room database.
-     *
-     * DatabaseMigrations.ALL contains the complete migration
-     * chain currently supported by the application.
-     *
-     * Current schema version:
-     *
-     * 13
-     */
     @Provides
     @Singleton
     fun provideDeutschCraftDatabase(
         @ApplicationContext
         context: Context
     ): DeutschCraftDatabase {
+
         return Room.databaseBuilder(
             context,
             DeutschCraftDatabase::class.java,
             DATABASE_NAME
         )
-            /*
-             * Current migration chain:
-             *
-             * 5 -> 6
-             * 6 -> 7
-             * 7 -> 8
-             * 8 -> 9
-             * 9 -> 10
-             * 10 -> 11
-             * 11 -> 12
-             * 12 -> 13
-             *
-             * Future migrations only need to be added to:
-             *
-             * DatabaseMigrations.ALL
-             */
             .addMigrations(
                 *DatabaseMigrations.ALL
             )
             .build()
     }
 
-    /*
-     * =======================================================
-     * CONVERSATION AND CHAT
-     * =======================================================
-     */
-
     @Provides
     fun provideConversationDao(
         database:
         DeutschCraftDatabase
     ): ConversationDao {
-        return database
-            .conversationDao()
+
+        return database.conversationDao()
     }
 
-    /*
-     * Handles persisted conversation messages.
-     *
-     * Mission analytics also uses this DAO to retrieve learner
-     * messages from a mission's active time window.
-     */
     @Provides
     fun provideMessageDao(
         database:
         DeutschCraftDatabase
     ): MessageDao {
-        return database
-            .messageDao()
-    }
 
-    /*
-     * =======================================================
-     * LEARNER ASSESSMENT
-     * =======================================================
-     */
+        return database.messageDao()
+    }
 
     @Provides
     fun provideLearnerProfileDao(
         database:
         DeutschCraftDatabase
     ): LearnerProfileDao {
-        return database
-            .learnerProfileDao()
+
+        return database.learnerProfileDao()
     }
 
     @Provides
@@ -123,151 +83,113 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): AssessmentDao {
-        return database
-            .assessmentDao()
+
+        return database.assessmentDao()
     }
 
-    /*
-     * Learning activity and streak tracking.
-     */
     @Provides
     fun provideActivityDayDao(
         database:
         DeutschCraftDatabase
     ): ActivityDayDao {
-        return database
-            .activityDayDao()
+
+        return database.activityDayDao()
     }
 
-    /*
-     * =======================================================
-     * MISSION SYSTEM
-     * =======================================================
-     */
-
-    /*
-     * Handles:
-     *
-     * - mission templates
-     * - mission objectives
-     * - active conversation missions
-     * - objective progress
-     */
     @Provides
     fun provideMissionDao(
         database:
         DeutschCraftDatabase
     ): MissionDao {
-        return database
-            .missionDao()
+
+        return database.missionDao()
     }
 
-    /*
-     * Handles the persisted thread-list recommendation pool.
-     */
     @Provides
     fun provideMissionThreadRecommendationDao(
         database:
         DeutschCraftDatabase
     ): MissionThreadRecommendationDao {
+
         return database
             .missionThreadRecommendationDao()
     }
 
-    /*
-     * =======================================================
-     * MISSION LEARNING ANALYTICS
-     * =======================================================
-     */
-
-    /*
-     * Stores finalized mission-performance analytics.
-     */
     @Provides
     fun provideMissionAnalyticsDao(
         database:
         DeutschCraftDatabase
     ): MissionAnalyticsDao {
-        return database
-            .missionAnalyticsDao()
+
+        return database.missionAnalyticsDao()
     }
 
-    /*
-     * Stores coaching hints actually revealed by the learner.
-     */
     @Provides
     fun provideMissionObjectiveHintUsageDao(
         database:
         DeutschCraftDatabase
     ): MissionObjectiveHintUsageDao {
+
         return database
             .missionObjectiveHintUsageDao()
     }
 
-    /*
-     * Stores semantic interaction evidence for each evaluated
-     * learner message during a mission.
-     */
     @Provides
     fun provideMissionInteractionEvidenceDao(
         database:
         DeutschCraftDatabase
     ): MissionInteractionEvidenceDao {
+
         return database
             .missionInteractionEvidenceDao()
     }
 
-    /*
-     * =======================================================
-     * ADAPTIVE LEARNING
-     * =======================================================
-     */
+    @Provides
+    fun provideMissionCapabilityEvidenceDao(
+        database:
+        DeutschCraftDatabase
+    ): MissionCapabilityEvidenceDao {
 
-    /*
-     * Persistent adaptive-learning focuses and evidence.
-     */
+        return database
+            .missionCapabilityEvidenceDao()
+    }
+
     @Provides
     fun provideAdaptiveLearningDao(
         database:
         DeutschCraftDatabase
     ): AdaptiveLearningDao {
-        return database
-            .adaptiveLearningDao()
+
+        return database.adaptiveLearningDao()
     }
 
-    /*
-     * Reads DetectedMistakeEntity and its assessment evidence.
-     */
     @Provides
     fun provideAdaptiveLearningMistakeDao(
         database:
         DeutschCraftDatabase
     ): AdaptiveLearningMistakeDao {
+
         return database
             .adaptiveLearningMistakeDao()
     }
 
-    /*
-     * =======================================================
-     * MARKED PHRASES
-     * =======================================================
-     */
-
-    /*
-     * Learner-highlighted difficult words and grammar.
-     *
-     * Used by MarkedPhraseRepository to show explanation
-     * bubbles under their original message and, later, to
-     * bring weak points back into practice.
-     */
     @Provides
     fun provideMarkedPhraseDao(
         database:
         DeutschCraftDatabase
     ): MarkedPhraseDao {
-        return database
-            .markedPhraseDao()
+
+        return database.markedPhraseDao()
     }
+
+    /*
+     * CapabilityDao and BesserChallengeDao are intentionally
+     * NOT provided here.
+     *
+     * BesserPersistenceModule already owns those two bindings.
+     * Providing them again in DatabaseModule creates Dagger /
+     * Hilt DuplicateBindings errors.
+     */
 
     private const val DATABASE_NAME =
         "deutschcraft.db"

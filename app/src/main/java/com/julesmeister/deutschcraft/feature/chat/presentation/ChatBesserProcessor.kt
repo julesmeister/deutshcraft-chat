@@ -1,23 +1,24 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/presentation/ChatBesserProcessor.kt
+
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import android.util.Log
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
+import com.julesmeister.deutschcraft.feature.besser.domain.repository.BesserChallengeRepository
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.GenerateAndPersistBesserChallengeUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 
-/*
- * Handles contextual Besser challenge generation after an exact
- * persisted learner message has been identified.
- *
- * A Besser failure never fails the normal chat send.
- */
 class ChatBesserProcessor
 @Inject constructor(
     private val generateAndPersistBesserChallenge:
-    GenerateAndPersistBesserChallengeUseCase
+    GenerateAndPersistBesserChallengeUseCase,
+
+    private val besserChallengeRepository:
+    BesserChallengeRepository
 ) {
 
     suspend fun process(
@@ -45,6 +46,66 @@ class ChatBesserProcessor
                         String::isNotBlank
                     )
 
+            val missionObjective =
+                activeMission
+                    ?.currentObjective
+                    ?.objective
+                    ?.title
+                    ?.trim()
+                    ?.takeIf(
+                        String::isNotBlank
+                    )
+
+            val recentlyChallengedCapabilityIds =
+                loadRecentlyChallengedCapabilityIds(
+                    conversationId =
+                        conversationId,
+
+                    currentMessageId =
+                        learnerMessage.id
+                )
+
+            Log.d(
+                BESSER_TAG,
+                buildString {
+                    append(
+                        "Preparing contextual Besser selection. "
+                    )
+
+                    append(
+                        "messageId="
+                    )
+
+                    append(
+                        learnerMessage.id
+                    )
+
+                    append(
+                        ", currentLevel="
+                    )
+
+                    append(
+                        currentLevelName
+                    )
+
+                    append(
+                        ", targetLevel="
+                    )
+
+                    append(
+                        targetLevelName
+                    )
+
+                    append(
+                        ", recentCapabilityIds="
+                    )
+
+                    append(
+                        recentlyChallengedCapabilityIds
+                    )
+                }
+            )
+
             val challenge =
                 generateAndPersistBesserChallenge(
                     conversationId =
@@ -65,19 +126,14 @@ class ChatBesserProcessor
                     missionTitle =
                         missionTitle,
 
-                    /*
-                     * Add the exact active objective here later
-                     * when ConversationMission exposes the
-                     * current-objective property.
-                     */
                     missionObjective =
-                        null,
+                        missionObjective,
 
                     detectedCategories =
                         emptySet(),
 
                     recentlyChallengedCapabilityIds =
-                        emptySet()
+                        recentlyChallengedCapabilityIds
                 )
 
             if (challenge == null) {
@@ -87,9 +143,11 @@ class ChatBesserProcessor
                         append(
                             "No contextual Besser challenge. "
                         )
+
                         append(
                             "messageId="
                         )
+
                         append(
                             learnerMessage.id
                         )
@@ -105,29 +163,46 @@ class ChatBesserProcessor
                     append(
                         "Contextual Besser challenge saved. "
                     )
+
                     append(
                         "challengeId="
                     )
+
                     append(
                         challenge.id
                     )
+
                     append(
                         ", messageId="
                     )
+
                     append(
                         challenge.messageId
                     )
+
                     append(
                         ", capabilityId="
                     )
+
                     append(
                         challenge.capabilityId
                     )
+
                     append(
                         ", confidence="
                     )
+
                     append(
                         challenge.confidence
+                    )
+
+                    append(
+                        ", recentPenaltyApplied="
+                    )
+
+                    append(
+                        challenge.capabilityId in
+                                recentlyChallengedCapabilityIds
                     )
                 }
             )
@@ -145,12 +220,59 @@ class ChatBesserProcessor
         }
     }
 
-    /*
-     * Returns the next CEFR destination.
-     *
-     * C2 learners remain at C2 so Besser can focus on
-     * consolidation rather than a nonexistent next band.
-     */
+    private suspend fun loadRecentlyChallengedCapabilityIds(
+        conversationId: String,
+        currentMessageId: String
+    ): Set<String> {
+        val challenges =
+            besserChallengeRepository
+                .observeForConversation(
+                    conversationId =
+                        conversationId
+                )
+                .first()
+
+        return challenges
+            .asSequence()
+            /*
+             * Exclude a challenge already attached to the
+             * message currently being processed.
+             */
+            .filter { challenge ->
+                challenge.messageId !=
+                        currentMessageId
+            }
+            /*
+             * Newest challenges first.
+             *
+             * AVAILABLE and ACCEPTED challenges also count as
+             * recent exposure. This prevents several nearby
+             * asynchronous turns from being offered the same
+             * capability while an earlier challenge is still
+             * unresolved.
+             */
+            .sortedByDescending { challenge ->
+                challenge.updatedAt
+            }
+            /*
+             * We care about the latest distinct capabilities,
+             * not merely the latest challenge rows.
+             */
+            .distinctBy { challenge ->
+                challenge.capabilityId
+            }
+            .take(
+                RECENT_CAPABILITY_HISTORY_LIMIT
+            )
+            .map { challenge ->
+                challenge.capabilityId
+            }
+            .filter(
+                String::isNotBlank
+            )
+            .toSet()
+    }
+
     private fun nextCefrLevelName(
         currentLevel: String
     ): String {
@@ -188,5 +310,8 @@ class ChatBesserProcessor
 
         const val BESSER_TAG =
             "ContextualBesser"
+
+        const val RECENT_CAPABILITY_HISTORY_LIMIT =
+            4
     }
 }

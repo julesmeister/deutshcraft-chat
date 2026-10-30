@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/core/database/dao/BesserChallengeDao.kt
+
 package com.julesmeister.deutschcraft.core.database.dao
 
 import androidx.room.Dao
@@ -39,31 +41,39 @@ abstract class BesserChallengeDao {
     ) {
         require(
             hints.all { hint ->
-                hint.challengeId == challenge.id
+                hint.challengeId ==
+                        challenge.id
             }
         ) {
             "Every hint must belong to challenge ${challenge.id}."
         }
 
         require(
-            hints.map { hint ->
-                hint.position
-            }.distinct().size == hints.size
+            hints
+                .map { hint ->
+                    hint.position
+                }
+                .distinct()
+                .size ==
+                    hints.size
         ) {
             "Hint positions must be unique inside one challenge."
         }
 
         upsertChallengeInternal(
-            challenge = challenge
+            challenge =
+                challenge
         )
 
         deleteHintsInternal(
-            challengeId = challenge.id
+            challengeId =
+                challenge.id
         )
 
         if (hints.isNotEmpty()) {
             upsertHintsInternal(
-                hints = hints
+                hints =
+                    hints
             )
         }
     }
@@ -113,10 +123,10 @@ abstract class BesserChallengeDao {
         SELECT *
         FROM besser_challenges
         WHERE message_id = :messageId
-            AND status IN (
-                'AVAILABLE',
-                'ACCEPTED'
-            )
+          AND status IN (
+              'AVAILABLE',
+              'ACCEPTED'
+          )
         ORDER BY created_at DESC
         LIMIT 1
         """
@@ -144,10 +154,10 @@ abstract class BesserChallengeDao {
         SELECT *
         FROM besser_challenges
         WHERE conversation_id = :conversationId
-            AND status IN (
-                'AVAILABLE',
-                'ACCEPTED'
-            )
+          AND status IN (
+              'AVAILABLE',
+              'ACCEPTED'
+          )
         ORDER BY created_at ASC
         """
     )
@@ -160,10 +170,10 @@ abstract class BesserChallengeDao {
         SELECT *
         FROM besser_challenges
         WHERE message_id IN (:messageIds)
-            AND status IN (
-                'AVAILABLE',
-                'ACCEPTED'
-            )
+          AND status IN (
+              'AVAILABLE',
+              'ACCEPTED'
+          )
         ORDER BY created_at ASC
         """
     )
@@ -191,7 +201,7 @@ abstract class BesserChallengeDao {
             accepted_at = :acceptedAt,
             updated_at = :acceptedAt
         WHERE id = :challengeId
-            AND status = 'AVAILABLE'
+          AND status = 'AVAILABLE'
         """
     )
     abstract suspend fun accept(
@@ -207,10 +217,10 @@ abstract class BesserChallengeDao {
             skipped_at = :skippedAt,
             updated_at = :skippedAt
         WHERE id = :challengeId
-            AND status IN (
-                'AVAILABLE',
-                'ACCEPTED'
-            )
+          AND status IN (
+              'AVAILABLE',
+              'ACCEPTED'
+          )
         """
     )
     abstract suspend fun skip(
@@ -225,19 +235,25 @@ abstract class BesserChallengeDao {
             status = 'COMPLETED',
             refined_message_content = :refinedMessageContent,
             actual_assistance_level = :actualAssistanceLevel,
+            evaluation_score = :evaluationScore,
+            evaluation_feedback = :evaluationFeedback,
+            evaluation_evidence = :evaluationEvidence,
             completed_at = :completedAt,
             updated_at = :completedAt
         WHERE id = :challengeId
-            AND status IN (
-                'AVAILABLE',
-                'ACCEPTED'
-            )
+          AND status IN (
+              'AVAILABLE',
+              'ACCEPTED'
+          )
         """
     )
     abstract suspend fun complete(
         challengeId: String,
         refinedMessageContent: String,
         actualAssistanceLevel: String,
+        evaluationScore: Int?,
+        evaluationFeedback: String?,
+        evaluationEvidence: String?,
         completedAt: Long
     ): Int
 
@@ -257,10 +273,10 @@ abstract class BesserChallengeDao {
                 END,
             updated_at = :updatedAt
         WHERE id = :challengeId
-            AND status IN (
-                'AVAILABLE',
-                'ACCEPTED'
-            )
+          AND status IN (
+              'AVAILABLE',
+              'ACCEPTED'
+          )
         """
     )
     abstract suspend fun revealNextHint(
@@ -285,10 +301,10 @@ abstract class BesserChallengeDao {
         SELECT COUNT(*)
         FROM besser_challenges
         WHERE message_id = :messageId
-            AND status IN (
-                'AVAILABLE',
-                'ACCEPTED'
-            )
+          AND status IN (
+              'AVAILABLE',
+              'ACCEPTED'
+          )
         """
     )
     abstract suspend fun countActiveForMessage(

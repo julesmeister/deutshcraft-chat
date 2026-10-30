@@ -1,5 +1,8 @@
+// app/src/main/java/com/julesmeister/deutschcraft/core/database/DeutschCraftDatabase.kt
+
 package com.julesmeister.deutschcraft.core.database
 
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.julesmeister.deutschcraft.core.database.dao.ActivityDayDao
@@ -13,6 +16,7 @@ import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
 import com.julesmeister.deutschcraft.core.database.dao.MarkedPhraseDao
 import com.julesmeister.deutschcraft.core.database.dao.MessageDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionAnalyticsDao
+import com.julesmeister.deutschcraft.core.database.dao.MissionCapabilityEvidenceDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionInteractionEvidenceDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionObjectiveHintUsageDao
@@ -30,6 +34,7 @@ import com.julesmeister.deutschcraft.core.database.entity.adaptivelearning.Adapt
 import com.julesmeister.deutschcraft.core.database.entity.besser.BesserChallengeEntity
 import com.julesmeister.deutschcraft.core.database.entity.besser.BesserChallengeHintEntity
 import com.julesmeister.deutschcraft.core.database.entity.besser.CapabilityEntity
+import com.julesmeister.deutschcraft.core.database.entity.besser.MissionCapabilityEvidenceEntity
 import com.julesmeister.deutschcraft.core.database.entity.learning.MarkedPhraseEntity
 import com.julesmeister.deutschcraft.core.database.entity.learninganalytics.MissionAnalyticsEntity
 import com.julesmeister.deutschcraft.core.database.entity.learninganalytics.MissionInteractionEvidenceEntity
@@ -44,20 +49,8 @@ import com.julesmeister.deutschcraft.core.database.entity.mission.recommendation
 
 @Database(
     entities = [
-        /*
-         * ===================================================
-         * Conversation and chat
-         * ===================================================
-         */
-
         ConversationEntity::class,
         MessageEntity::class,
-
-        /*
-         * ===================================================
-         * Learner assessment and CEFR evidence
-         * ===================================================
-         */
 
         LearnerProfileEntity::class,
         SkillScoreEntity::class,
@@ -66,98 +59,56 @@ import com.julesmeister.deutschcraft.core.database.entity.mission.recommendation
         DetectedMistakeEntity::class,
         ActivityDayEntity::class,
 
-        /*
-         * ===================================================
-         * Mission system
-         * ===================================================
-         */
-
         MissionTemplateEntity::class,
         MissionObjectiveEntity::class,
         ConversationMissionEntity::class,
         MissionObjectiveProgressEntity::class,
 
-        /*
-         * ===================================================
-         * Mission recommendation persistence
-         * ===================================================
-         */
-
         MissionThreadRecommendationEntity::class,
         MissionThreadRecommendationObjectiveEntity::class,
-
-        /*
-         * ===================================================
-         * Mission learning analytics
-         * ===================================================
-         */
 
         MissionAnalyticsEntity::class,
         MissionObjectiveAnalyticsEntity::class,
         MissionObjectiveHintUsageEntity::class,
         MissionInteractionEvidenceEntity::class,
 
-        /*
-         * ===================================================
-         * Adaptive-learning memory
-         * ===================================================
-         */
-
         AdaptiveLearningFocusEntity::class,
         AdaptiveLearningEvidenceEntity::class,
 
-        /*
-         * ===================================================
-         * Learner-marked phrases
-         * ===================================================
-         *
-         * Words and grammar the learner highlighted as
-         * difficult, with their AI explanation.
-         */
-
         MarkedPhraseEntity::class,
-
-        /*
-         * ===================================================
-         * Besser growth system
-         * ===================================================
-         *
-         * Capability catalogue and contextual growth
-         * challenges attached to individual learner messages.
-         *
-         * Challenges can later progress through:
-         *
-         * AVAILABLE
-         *     -> ACCEPTED
-         *     -> COMPLETED
-         *
-         * or:
-         *
-         * AVAILABLE / ACCEPTED
-         *     -> SKIPPED
-         *
-         * Challenge hints are persisted independently so they
-         * can be revealed progressively without storing lists
-         * as JSON.
-         */
 
         CapabilityEntity::class,
         BesserChallengeEntity::class,
-        BesserChallengeHintEntity::class
+        BesserChallengeHintEntity::class,
+        MissionCapabilityEvidenceEntity::class
     ],
     version =
-        14,
+        17,
     exportSchema =
-        true
+        true,
+    autoMigrations = [
+        AutoMigration(
+            from =
+                14,
+            to =
+                15
+        ),
+        AutoMigration(
+            from =
+                15,
+            to =
+                16
+        ),
+        AutoMigration(
+            from =
+                16,
+            to =
+                17
+        )
+    ]
 )
 abstract class DeutschCraftDatabase :
     RoomDatabase() {
-
-    /*
-     * =======================================================
-     * Conversation and chat
-     * =======================================================
-     */
 
     abstract fun conversationDao():
             ConversationDao
@@ -165,48 +116,20 @@ abstract class DeutschCraftDatabase :
     abstract fun messageDao():
             MessageDao
 
-    /*
-     * =======================================================
-     * Learner profile and CEFR assessment
-     * =======================================================
-     */
-
     abstract fun learnerProfileDao():
             LearnerProfileDao
 
     abstract fun assessmentDao():
             AssessmentDao
 
-    /*
-     * Learning activity and streak tracking.
-     */
-
     abstract fun activityDayDao():
             ActivityDayDao
-
-    /*
-     * =======================================================
-     * Mission system
-     * =======================================================
-     */
 
     abstract fun missionDao():
             MissionDao
 
-    /*
-     * =======================================================
-     * Mission recommendation persistence
-     * =======================================================
-     */
-
     abstract fun missionThreadRecommendationDao():
             MissionThreadRecommendationDao
-
-    /*
-     * =======================================================
-     * Mission learning analytics
-     * =======================================================
-     */
 
     abstract fun missionAnalyticsDao():
             MissionAnalyticsDao
@@ -217,40 +140,21 @@ abstract class DeutschCraftDatabase :
     abstract fun missionInteractionEvidenceDao():
             MissionInteractionEvidenceDao
 
-    /*
-     * =======================================================
-     * Adaptive learning
-     * =======================================================
-     */
-
     abstract fun adaptiveLearningDao():
             AdaptiveLearningDao
 
     abstract fun adaptiveLearningMistakeDao():
             AdaptiveLearningMistakeDao
 
-    /*
-     * =======================================================
-     * Marked phrases
-     * =======================================================
-     *
-     * Learner-highlighted difficult words and grammar,
-     * shown as explanation bubbles under their message and
-     * later reused for practice.
-     */
-
     abstract fun markedPhraseDao():
             MarkedPhraseDao
-
-    /*
-     * =======================================================
-     * Besser growth system
-     * =======================================================
-     */
 
     abstract fun capabilityDao():
             CapabilityDao
 
     abstract fun besserChallengeDao():
             BesserChallengeDao
+
+    abstract fun missionCapabilityEvidenceDao():
+            MissionCapabilityEvidenceDao
 }

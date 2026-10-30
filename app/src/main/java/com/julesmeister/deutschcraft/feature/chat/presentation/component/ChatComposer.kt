@@ -21,14 +21,9 @@ import com.kyant.backdrop.Backdrop
 /*
  * Composer entry point.
  *
- * Responsibilities are split across:
- *
- * - BesserRefinementHeader: refinement instruction + cancel
- * - ChatGlassInputField:    liquid-glass text field + send button
- * - ChatGlassColors:        light / dark glass palette
- *
- * The backdrop is the recorded conversation layer from
- * ChatScreen. The glass input field refracts it.
+ * - BesserRefinementHeader: instruction, evaluation state,
+ *   feedback and cancel
+ * - ChatGlassInputField: liquid-glass text field + send button
  */
 @Composable
 fun ChatComposer(
@@ -40,6 +35,8 @@ fun ChatComposer(
     onSendClick: () -> Unit,
     onInputFocused: () -> Unit = {},
     refinementInstruction: String? = null,
+    refinementFeedback: String? = null,
+    isEvaluatingRefinement: Boolean = false,
     onCancelRefinement: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -119,6 +116,10 @@ fun ChatComposer(
             BesserRefinementHeader(
                 instruction =
                     refinementInstruction.orEmpty(),
+                feedback =
+                    refinementFeedback,
+                isEvaluating =
+                    isEvaluatingRefinement,
                 enabled =
                     enabled &&
                             !isSending,

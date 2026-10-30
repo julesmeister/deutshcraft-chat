@@ -1,24 +1,10 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/mission/domain/recommendation/SelectMissionScenarioUseCase.kt
+
 package com.julesmeister.deutschcraft.feature.mission.domain.recommendation
 
 import javax.inject.Inject
 import kotlin.math.absoluteValue
 
-/*
- * Selects a diverse CEFR-appropriate scenario before Qwen
- * generates the final mission wording.
- *
- * Recommendation priorities:
- *
- * 1. CEFR compatibility
- * 2. Scenario diversity
- * 3. Adaptive-learning relevance
- * 4. Conversation relevance
- * 5. Stable variety
- *
- * Conversation keywords are intentionally weighted lower
- * than curriculum and diversity. This prevents one coffee
- * conversation from producing endless café missions.
- */
 class SelectMissionScenarioUseCase
 @Inject constructor(
     private val catalog:
@@ -26,8 +12,32 @@ class SelectMissionScenarioUseCase
 ) {
 
     operator fun invoke(
-        context: MissionRecommendationContext
+        context:
+        MissionRecommendationContext
     ): MissionScenarioDefinition? {
+
+        return rank(
+            context =
+                context,
+
+            limit =
+                1
+        )
+            .firstOrNull()
+    }
+
+    fun rank(
+        context:
+        MissionRecommendationContext,
+
+        limit: Int =
+            DEFAULT_RANKED_CANDIDATE_LIMIT
+    ): List<MissionScenarioDefinition> {
+
+        if (limit <= 0) {
+            return emptyList()
+        }
+
         val levelScenarios =
             catalog.scenariosFor(
                 level =
@@ -35,10 +45,10 @@ class SelectMissionScenarioUseCase
             )
 
         if (levelScenarios.isEmpty()) {
-            return null
+            return emptyList()
         }
 
-        val excludedScenarioTypes =
+        val hardExcludedTypes =
             buildSet {
                 context.activeScenarioType
                     ?.let(
@@ -49,58 +59,43 @@ class SelectMissionScenarioUseCase
                     context
                         .recentlyOfferedScenarioTypes
                         .takeLast(
-                            RECENT_OFFER_EXCLUSION_COUNT
+                            HARD_RECENT_OFFER_EXCLUSION_COUNT
                         )
                 )
 
                 addAll(
                     context
-                        .recentlyCompletedScenarioTypes
+                        .recentlyDismissedScenarioTypes
                         .takeLast(
-                            RECENT_COMPLETION_EXCLUSION_COUNT
+                            HARD_RECENT_DISMISSAL_EXCLUSION_COUNT
                         )
                 )
             }
 
-        val diverseCandidates =
-            levelScenarios.filter { scenario ->
-                scenario.type !in
-                        excludedScenarioTypes
-            }
-
-        /*
-         * If every CEFR scenario is temporarily excluded,
-         * relax completed-history exclusions first.
-         *
-         * Recently offered and active scenarios remain
-         * excluded because immediately repeating an offer is
-         * especially disruptive.
-         */
         val candidates =
-            diverseCandidates.ifEmpty {
-                val stronglyExcludedTypes =
-                    buildSet {
-                        context.activeScenarioType
-                            ?.let(
-                                ::add
-                            )
-
-                        addAll(
-                            context
-                                .recentlyOfferedScenarioTypes
-                                .takeLast(
-                                    RECENT_OFFER_EXCLUSION_COUNT
-                                )
-                        )
-                    }
-
-                levelScenarios.filter { scenario ->
+            levelScenarios
+                .filter { scenario ->
                     scenario.type !in
-                            stronglyExcludedTypes
+                            hardExcludedTypes
                 }
-            }.ifEmpty {
-                levelScenarios
-            }
+                .ifEmpty {
+                    levelScenarios.filter { scenario ->
+                        scenario.type !=
+                                context.activeScenarioType &&
+                                scenario.type !in
+                                context
+                                    .recentlyDismissedScenarioTypes
+                                    .takeLast(
+                                        HARD_RECENT_DISMISSAL_EXCLUSION_COUNT
+                                    )
+                    }
+                }
+                .ifEmpty {
+                    levelScenarios.filter { scenario ->
+                        scenario.type !=
+                                context.activeScenarioType
+                    }
+                }
 
         val normalizedConversation =
             normalize(
@@ -108,201 +103,382 @@ class SelectMissionScenarioUseCase
                     context.recentConversationText
             )
 
-        val normalizedFocuses =
+        val normalizedLearningSignals =
             context
-                .adaptiveLearningFocuses
+                .positiveLearningSignals
+                .map(
+                    ::normalize
+                )
+
+        val normalizedMasteredCapabilities =
+            context
+                .masteredCapabilities
                 .map(
                     ::normalize
                 )
 
         return candidates
             .map { scenario ->
-                val score =
-                    calculateScore(
-                        scenario =
-                            scenario,
-                        normalizedConversation =
-                            normalizedConversation,
-                        normalizedFocuses =
-                            normalizedFocuses,
-                        context =
-                            context
-                    )
-
                 ScoredScenario(
                     scenario =
                         scenario,
+
                     score =
-                        score
-                )
-            }
-            .sortedWith(
-                compareByDescending<ScoredScenario> {
-                    it.score
-                }
-                    .thenBy {
+                        calculateScore(
+                            scenario =
+                                scenario,
+
+                            normalizedConversation =
+                                normalizedConversation,
+
+                            normalizedLearningSignals =
+                                normalizedLearningSignals,
+
+                            normalizedMasteredCapabilities =
+                                normalizedMasteredCapabilities,
+
+                            context =
+                                context
+                        ),
+
+                    tieBreaker =
                         stableVarietyValue(
                             scenario =
-                                it.scenario,
+                                scenario,
+
                             context =
                                 context
                         )
+                )
+            }
+            .sortedWith(
+                compareByDescending<ScoredScenario> { scored ->
+                    scored.score
+                }
+                    .thenBy { scored ->
+                        scored.tieBreaker
                     }
             )
-            .firstOrNull()
-            ?.scenario
+            .map(
+                ScoredScenario::scenario
+            )
+            .take(
+                limit
+            )
     }
 
     private fun calculateScore(
-        scenario: MissionScenarioDefinition,
-        normalizedConversation: String,
-        normalizedFocuses: List<String>,
-        context: MissionRecommendationContext
+        scenario:
+        MissionScenarioDefinition,
+
+        normalizedConversation:
+        String,
+
+        normalizedLearningSignals:
+        List<String>,
+
+        normalizedMasteredCapabilities:
+        List<String>,
+
+        context:
+        MissionRecommendationContext
     ): Int {
-        val curriculumScore =
-            CEFR_CURRICULUM_SCORE
 
-        val adaptiveScore =
-            calculateAdaptiveScore(
-                scenario =
-                    scenario,
-                normalizedFocuses =
-                    normalizedFocuses
-            )
+        return CEFR_CURRICULUM_SCORE +
+                calculateLearningRelevanceScore(
+                    scenario =
+                        scenario,
 
-        val conversationScore =
-            calculateConversationScore(
-                scenario =
-                    scenario,
-                normalizedConversation =
-                    normalizedConversation
-            )
+                    normalizedLearningSignals =
+                        normalizedLearningSignals
+                ) +
+                calculateConversationScore(
+                    scenario =
+                        scenario,
 
-        val repetitionPenalty =
-            calculateRepetitionPenalty(
-                scenario =
-                    scenario,
-                context =
-                    context
-            )
+                    normalizedConversation =
+                        normalizedConversation
+                ) +
+                calculateContextNoveltyBonus(
+                    scenario =
+                        scenario,
 
-        return curriculumScore +
-                adaptiveScore +
-                conversationScore -
-                repetitionPenalty
+                    context =
+                        context
+                ) -
+                calculateMasteredCapabilityPenalty(
+                    scenario =
+                        scenario,
+
+                    normalizedMasteredCapabilities =
+                        normalizedMasteredCapabilities
+                ) -
+                calculateScenarioRepetitionPenalty(
+                    scenario =
+                        scenario,
+
+                    context =
+                        context
+                ) -
+                calculateContextRepetitionPenalty(
+                    scenario =
+                        scenario,
+
+                    context =
+                        context
+                ) -
+                calculateDismissalPenalty(
+                    scenario =
+                        scenario,
+
+                    context =
+                        context
+                )
     }
 
-    private fun calculateAdaptiveScore(
-        scenario: MissionScenarioDefinition,
-        normalizedFocuses: List<String>
+    private fun calculateLearningRelevanceScore(
+        scenario:
+        MissionScenarioDefinition,
+
+        normalizedLearningSignals:
+        List<String>
     ): Int {
-        if (normalizedFocuses.isEmpty()) {
+
+        if (normalizedLearningSignals.isEmpty()) {
             return 0
         }
 
-        val normalizedTargetSkills =
-            scenario.targetSkills.map(
-                ::normalize
-            )
+        val scenarioSignals =
+            scenario.normalizedLearningSignals()
 
-        val matchingSignals =
-            normalizedFocuses.count { focus ->
-                normalizedTargetSkills.any { skill ->
-                    focus.contains(
-                        other =
-                            skill,
-                        ignoreCase =
-                            true
-                    ) ||
-                            skill.contains(
-                                other =
-                                    focus.substringAfterLast(
-                                        delimiter =
-                                            ":"
-                                    ),
-                                ignoreCase =
-                                    true
-                            )
+        val matchingSignalCount =
+            normalizedLearningSignals.count { learningSignal ->
+                scenarioSignals.any { scenarioSignal ->
+                    signalsOverlap(
+                        first =
+                            learningSignal,
+
+                        second =
+                            scenarioSignal
+                    )
                 } ||
                         adaptiveScenarioMatches(
                             scenario =
                                 scenario,
+
                             normalizedFocus =
-                                focus
+                                learningSignal
                         )
             }
 
         return (
-                matchingSignals *
-                        ADAPTIVE_SIGNAL_SCORE
+                matchingSignalCount *
+                        LEARNING_SIGNAL_SCORE
                 )
             .coerceAtMost(
                 maximumValue =
-                    MAXIMUM_ADAPTIVE_SCORE
+                    MAXIMUM_LEARNING_RELEVANCE_SCORE
             )
     }
 
-    private fun adaptiveScenarioMatches(
-        scenario: MissionScenarioDefinition,
-        normalizedFocus: String
-    ): Boolean {
-        return when {
-            normalizedFocus.contains(
-                "giving_reasons"
-            ) -> {
-                scenario.type in
-                        REASONING_SCENARIOS
-            }
+    private fun calculateContextNoveltyBonus(
+        scenario:
+        MissionScenarioDefinition,
 
-            normalizedFocus.contains(
-                "expressing_opinions"
-            ) -> {
-                scenario.type in
-                        OPINION_SCENARIOS
-            }
+        context:
+        MissionRecommendationContext
+    ): Int {
 
-            normalizedFocus.contains(
-                "comparing_options"
-            ) -> {
-                scenario.type in
-                        COMPARISON_SCENARIOS
-            }
+        val category =
+            scenario.type.contextCategory
 
-            normalizedFocus.contains(
-                "storytelling"
-            ) ||
-                    normalizedFocus.contains(
-                        "describing_experiences"
-                    ) -> {
+        val recentCategories =
+            context
+                .recentlyUsedContextCategories
+                .takeLast(
+                    CONTEXT_HISTORY_WINDOW
+                )
 
-                scenario.type in
-                        STORYTELLING_SCENARIOS
-            }
-
-            normalizedFocus.contains(
-                "polite_interaction"
-            ) -> {
-                scenario.type in
-                        POLITE_INTERACTION_SCENARIOS
-            }
-
-            normalizedFocus.contains(
-                "dative"
-            ) -> {
-                scenario.type in
-                        LOCATION_AND_SERVICE_SCENARIOS
-            }
-
-            else -> {
-                false
-            }
+        if (category !in recentCategories) {
+            return UNUSED_CONTEXT_BONUS
         }
+
+        val distance =
+            reverseDistanceFromEnd(
+                values =
+                    recentCategories,
+
+                target =
+                    category
+            )
+                ?: return UNUSED_CONTEXT_BONUS
+
+        return (
+                distance *
+                        CONTEXT_DISTANCE_BONUS
+                )
+            .coerceAtMost(
+                maximumValue =
+                    MAXIMUM_CONTEXT_DISTANCE_BONUS
+            )
+    }
+
+    private fun calculateScenarioRepetitionPenalty(
+        scenario:
+        MissionScenarioDefinition,
+
+        context:
+        MissionRecommendationContext
+    ): Int {
+
+        val offeredPenalty =
+            recencyPenalty(
+                values =
+                    context.recentlyOfferedScenarioTypes,
+
+                target =
+                    scenario.type,
+
+                maximumPenalty =
+                    RECENT_OFFER_PENALTY,
+
+                reductionPerPosition =
+                    OFFER_DISTANCE_REDUCTION
+            )
+
+        val completedPenalty =
+            recencyPenalty(
+                values =
+                    context.recentlyCompletedScenarioTypes,
+
+                target =
+                    scenario.type,
+
+                maximumPenalty =
+                    RECENT_COMPLETION_PENALTY,
+
+                reductionPerPosition =
+                    COMPLETION_DISTANCE_REDUCTION
+            )
+
+        return offeredPenalty +
+                completedPenalty
+    }
+
+    private fun calculateContextRepetitionPenalty(
+        scenario:
+        MissionScenarioDefinition,
+
+        context:
+        MissionRecommendationContext
+    ): Int {
+
+        val category =
+            scenario.type.contextCategory
+
+        return recencyPenalty(
+            values =
+                context.recentlyUsedContextCategories,
+
+            target =
+                category,
+
+            maximumPenalty =
+                RECENT_CONTEXT_PENALTY,
+
+            reductionPerPosition =
+                CONTEXT_DISTANCE_REDUCTION
+        )
+    }
+
+    private fun calculateDismissalPenalty(
+        scenario:
+        MissionScenarioDefinition,
+
+        context:
+        MissionRecommendationContext
+    ): Int {
+
+        val scenarioPenalty =
+            recencyPenalty(
+                values =
+                    context.recentlyDismissedScenarioTypes,
+
+                target =
+                    scenario.type,
+
+                maximumPenalty =
+                    RECENT_DISMISSAL_PENALTY,
+
+                reductionPerPosition =
+                    DISMISSAL_DISTANCE_REDUCTION
+            )
+
+        val categoryPenalty =
+            recencyPenalty(
+                values =
+                    context.recentlyDismissedContextCategories,
+
+                target =
+                    scenario.type.contextCategory,
+
+                maximumPenalty =
+                    RECENT_DISMISSED_CONTEXT_PENALTY,
+
+                reductionPerPosition =
+                    DISMISSED_CONTEXT_DISTANCE_REDUCTION
+            )
+
+        return scenarioPenalty +
+                categoryPenalty
+    }
+
+    private fun calculateMasteredCapabilityPenalty(
+        scenario:
+        MissionScenarioDefinition,
+
+        normalizedMasteredCapabilities:
+        List<String>
+    ): Int {
+
+        if (normalizedMasteredCapabilities.isEmpty()) {
+            return 0
+        }
+
+        val scenarioSignals =
+            scenario.normalizedLearningSignals()
+
+        val masteredMatchCount =
+            normalizedMasteredCapabilities.count { mastered ->
+                scenarioSignals.any { signal ->
+                    signalsOverlap(
+                        first =
+                            mastered,
+
+                        second =
+                            signal
+                    )
+                }
+            }
+
+        return (
+                masteredMatchCount *
+                        MASTERED_SIGNAL_PENALTY
+                )
+            .coerceAtMost(
+                maximumValue =
+                    MAXIMUM_MASTERED_PENALTY
+            )
     }
 
     private fun calculateConversationScore(
-        scenario: MissionScenarioDefinition,
-        normalizedConversation: String
+        scenario:
+        MissionScenarioDefinition,
+
+        normalizedConversation:
+        String
     ): Int {
+
         if (normalizedConversation.isBlank()) {
             return 0
         }
@@ -312,21 +488,13 @@ class SelectMissionScenarioUseCase
                 .topicKeywords
                 .count { keyword ->
                     normalizedConversation.contains(
-                        other =
-                            normalize(
-                                value =
-                                    keyword
-                            )
+                        normalize(
+                            value =
+                                keyword
+                        )
                     )
                 }
 
-        /*
-         * Conversation relevance is intentionally capped.
-         *
-         * Even if "Kaffee" is mentioned repeatedly, café
-         * ordering cannot overpower diversity and the CEFR
-         * curriculum.
-         */
         return (
                 keywordMatches *
                         CONVERSATION_KEYWORD_SCORE
@@ -337,103 +505,260 @@ class SelectMissionScenarioUseCase
             )
     }
 
-    private fun calculateRepetitionPenalty(
-        scenario: MissionScenarioDefinition,
-        context: MissionRecommendationContext
-    ): Int {
-        val offeredDistance =
-            reverseDistanceFromEnd(
-                values =
-                    context
-                        .recentlyOfferedScenarioTypes,
-                target =
-                    scenario.type
-            )
+    private fun MissionScenarioDefinition
+            .normalizedLearningSignals():
+            Set<String> {
 
-        val completedDistance =
-            reverseDistanceFromEnd(
-                values =
-                    context
-                        .recentlyCompletedScenarioTypes,
-                target =
-                    scenario.type
-            )
-
-        val offeredPenalty =
-            offeredDistance
-                ?.let { distance ->
-                    (
-                            RECENT_OFFER_PENALTY -
-                                    distance *
-                                    OFFER_DISTANCE_REDUCTION
-                            )
-                        .coerceAtLeast(
-                            minimumValue =
-                                0
+        return (
+                targetSkills +
+                        objectiveBlueprints +
+                        setOf(
+                            title,
+                            description,
+                            type.name
                         )
-                }
-                ?: 0
-
-        val completedPenalty =
-            completedDistance
-                ?.let { distance ->
-                    (
-                            RECENT_COMPLETION_PENALTY -
-                                    distance *
-                                    COMPLETION_DISTANCE_REDUCTION
-                            )
-                        .coerceAtLeast(
-                            minimumValue =
-                                0
-                        )
-                }
-                ?: 0
-
-        return offeredPenalty +
-                completedPenalty
+                )
+            .asSequence()
+            .map(
+                ::normalize
+            )
+            .filter(
+                String::isNotBlank
+            )
+            .toSet()
     }
 
-    private fun reverseDistanceFromEnd(
-        values: List<MissionScenarioType>,
-        target: MissionScenarioType
+    private fun signalsOverlap(
+        first: String,
+        second: String
+    ): Boolean {
+
+        val firstTokens =
+            meaningfulTokens(
+                value =
+                    first
+            )
+
+        val secondTokens =
+            meaningfulTokens(
+                value =
+                    second
+            )
+
+        if (
+            firstTokens.isEmpty() ||
+            secondTokens.isEmpty()
+        ) {
+            return false
+        }
+
+        return firstTokens
+            .intersect(
+                secondTokens
+            )
+            .isNotEmpty()
+    }
+
+    private fun meaningfulTokens(
+        value: String
+    ): Set<String> {
+
+        return normalize(
+            value =
+                value
+        )
+            .split(
+                " "
+            )
+            .asSequence()
+            .filter { token ->
+                token.length >=
+                        MINIMUM_SIGNAL_TOKEN_LENGTH
+            }
+            .filterNot { token ->
+                token in
+                        SIGNAL_STOP_WORDS
+            }
+            .toSet()
+    }
+
+    private fun adaptiveScenarioMatches(
+        scenario:
+        MissionScenarioDefinition,
+
+        normalizedFocus:
+        String
+    ): Boolean {
+
+        return when {
+            normalizedFocus.containsAny(
+                "giving reasons",
+                "give simple reason",
+                "develop opinion",
+                "justify decision",
+                "cause consequence",
+                "begrund",
+                "reason"
+            ) ->
+                scenario.type in
+                        REASONING_SCENARIOS
+
+            normalizedFocus.containsAny(
+                "expressing opinions",
+                "qualify opinion",
+                "support claim",
+                "counterargument",
+                "meinung",
+                "opinion"
+            ) ->
+                scenario.type in
+                        OPINION_SCENARIOS
+
+            normalizedFocus.containsAny(
+                "comparing options",
+                "contrast perspectives",
+                "evaluate alternatives",
+                "advantages disadvantages",
+                "vergleich",
+                "compare"
+            ) ->
+                scenario.type in
+                        COMPARISON_SCENARIOS
+
+            normalizedFocus.containsAny(
+                "storytelling",
+                "describing experiences",
+                "narrate connected events",
+                "sequence events",
+                "geschichte",
+                "erzahlen"
+            ) ->
+                scenario.type in
+                        STORYTELLING_SCENARIOS
+
+            normalizedFocus.containsAny(
+                "polite interaction",
+                "handle disagreement",
+                "negotiate disagreement",
+                "express reservation",
+                "hoflich",
+                "polite"
+            ) ->
+                scenario.type in
+                        POLITE_INTERACTION_SCENARIOS
+
+            normalizedFocus.contains(
+                other =
+                    "dative",
+                ignoreCase =
+                    true
+            ) ->
+                scenario.type in
+                        LOCATION_AND_SERVICE_SCENARIOS
+
+            else ->
+                false
+        }
+    }
+
+    private fun <T> recencyPenalty(
+        values: List<T>,
+        target: T,
+        maximumPenalty: Int,
+        reductionPerPosition: Int
+    ): Int {
+
+        val distance =
+            reverseDistanceFromEnd(
+                values =
+                    values,
+
+                target =
+                    target
+            )
+                ?: return 0
+
+        return (
+                maximumPenalty -
+                        distance *
+                        reductionPerPosition
+                )
+            .coerceAtLeast(
+                minimumValue =
+                    0
+            )
+    }
+
+    private fun <T> reverseDistanceFromEnd(
+        values: List<T>,
+        target: T
     ): Int? {
-        val reversedIndex =
+
+        val index =
             values
                 .asReversed()
                 .indexOf(
                     target
                 )
 
-        return reversedIndex.takeIf { index ->
-            index >= 0
+        return index.takeIf { value ->
+            value >=
+                    0
         }
     }
 
     private fun stableVarietyValue(
-        scenario: MissionScenarioDefinition,
-        context: MissionRecommendationContext
+        scenario:
+        MissionScenarioDefinition,
+
+        context:
+        MissionRecommendationContext
     ): Int {
+
         val seed =
             buildString {
                 append(
                     context.cefrLevel.name
                 )
-                append(":")
+
                 append(
-                    normalize(
-                        context.recentConversationText
-                    )
-                        .take(
-                            VARIETY_SEED_TEXT_LENGTH
-                        )
+                    ":"
                 )
-                append(":")
+
                 append(
                     context
                         .recentlyOfferedScenarioTypes
-                        .size
+                        .joinToString(
+                            separator =
+                                ","
+                        )
                 )
-                append(":")
+
+                append(
+                    ":"
+                )
+
+                append(
+                    context
+                        .recentlyDismissedScenarioTypes
+                        .joinToString(
+                            separator =
+                                ","
+                        )
+                )
+
+                append(
+                    ":"
+                )
+
+                append(
+                    context.freshnessFingerprint
+                )
+
+                append(
+                    ":"
+                )
+
                 append(
                     scenario.type.name
                 )
@@ -447,9 +772,26 @@ class SelectMissionScenarioUseCase
     private fun normalize(
         value: String
     ): String {
+
         return value
             .trim()
             .lowercase()
+            .replace(
+                UMLAUT_A_REGEX,
+                "ae"
+            )
+            .replace(
+                UMLAUT_O_REGEX,
+                "oe"
+            )
+            .replace(
+                UMLAUT_U_REGEX,
+                "ue"
+            )
+            .replace(
+                SHARP_S_REGEX,
+                "ss"
+            )
             .replace(
                 NON_ALPHANUMERIC_REGEX,
                 " "
@@ -461,53 +803,106 @@ class SelectMissionScenarioUseCase
             .trim()
     }
 
+    private fun String.containsAny(
+        vararg values: String
+    ): Boolean {
+
+        return values.any { value ->
+            contains(
+                other =
+                    value,
+
+                ignoreCase =
+                    true
+            )
+        }
+    }
+
     private data class ScoredScenario(
         val scenario:
         MissionScenarioDefinition,
-        val score: Int
+
+        val score: Int,
+
+        val tieBreaker: Int
     )
 
     private companion object {
-        const val RECENT_OFFER_EXCLUSION_COUNT =
+
+        const val DEFAULT_RANKED_CANDIDATE_LIMIT =
             6
 
-        const val RECENT_COMPLETION_EXCLUSION_COUNT =
-            4
+        const val HARD_RECENT_OFFER_EXCLUSION_COUNT =
+            2
+
+        const val HARD_RECENT_DISMISSAL_EXCLUSION_COUNT =
+            6
+
+        const val CONTEXT_HISTORY_WINDOW =
+            8
 
         const val CEFR_CURRICULUM_SCORE =
             40
 
-        const val ADAPTIVE_SIGNAL_SCORE =
-            15
+        const val LEARNING_SIGNAL_SCORE =
+            18
 
-        const val MAXIMUM_ADAPTIVE_SCORE =
-            30
+        const val MAXIMUM_LEARNING_RELEVANCE_SCORE =
+            54
+
+        const val UNUSED_CONTEXT_BONUS =
+            24
+
+        const val CONTEXT_DISTANCE_BONUS =
+            4
+
+        const val MAXIMUM_CONTEXT_DISTANCE_BONUS =
+            20
+
+        const val MASTERED_SIGNAL_PENALTY =
+            14
+
+        const val MAXIMUM_MASTERED_PENALTY =
+            42
 
         const val CONVERSATION_KEYWORD_SCORE =
-            3
+            2
 
-        /*
-         * Conversation context can contribute at most ten
-         * points. It cannot defeat the forty-point CEFR
-         * curriculum baseline or diversity exclusions.
-         */
         const val MAXIMUM_CONVERSATION_SCORE =
-            10
+            6
 
         const val RECENT_OFFER_PENALTY =
             100
 
         const val OFFER_DISTANCE_REDUCTION =
-            12
+            14
 
         const val RECENT_COMPLETION_PENALTY =
-            60
+            72
 
         const val COMPLETION_DISTANCE_REDUCTION =
             10
 
-        const val VARIETY_SEED_TEXT_LENGTH =
-            120
+        const val RECENT_CONTEXT_PENALTY =
+            48
+
+        const val CONTEXT_DISTANCE_REDUCTION =
+            7
+
+        const val RECENT_DISMISSAL_PENALTY =
+            140
+
+        const val DISMISSAL_DISTANCE_REDUCTION =
+            16
+
+        const val RECENT_DISMISSED_CONTEXT_PENALTY =
+            56
+
+        const val DISMISSED_CONTEXT_DISTANCE_REDUCTION =
+            8
+
+        const val MINIMUM_SIGNAL_TOKEN_LENGTH =
+            4
 
         val NON_ALPHANUMERIC_REGEX =
             Regex(
@@ -519,92 +914,103 @@ class SelectMissionScenarioUseCase
                 "\\s+"
             )
 
+        val UMLAUT_A_REGEX =
+            Regex(
+                "ä"
+            )
+
+        val UMLAUT_O_REGEX =
+            Regex(
+                "ö"
+            )
+
+        val UMLAUT_U_REGEX =
+            Regex(
+                "ü"
+            )
+
+        val SHARP_S_REGEX =
+            Regex(
+                "ß"
+            )
+
+        val SIGNAL_STOP_WORDS =
+            setOf(
+                "next",
+                "step",
+                "progression",
+                "ready",
+                "developing",
+                "mastered",
+                "category",
+                "cefr",
+                "score",
+                "communication",
+                "capability",
+                "skill",
+                "learner",
+                "natural",
+                "moment"
+            )
+
         val REASONING_SCENARIOS =
             setOf(
-                MissionScenarioType
-                    .MAKING_A_DECISION,
-                MissionScenarioType
-                    .JOB_INTERVIEW,
-                MissionScenarioType
-                    .DEFENDING_AN_OPINION,
-                MissionScenarioType
-                    .NEGOTIATION,
-                MissionScenarioType
-                    .STRATEGIC_DISCUSSION,
-                MissionScenarioType
-                    .ACADEMIC_DEBATE
+                MissionScenarioType.PLANNING_A_TRIP,
+                MissionScenarioType.MAKING_SOCIAL_PLANS,
+                MissionScenarioType.JOB_INTERVIEW,
+                MissionScenarioType.GIVING_REASONS,
+                MissionScenarioType.MAKING_A_DECISION,
+                MissionScenarioType.NEGOTIATION,
+                MissionScenarioType.DEFENDING_AN_OPINION,
+                MissionScenarioType.STRATEGIC_DISCUSSION,
+                MissionScenarioType.ACADEMIC_DEBATE
             )
 
         val OPINION_SCENARIOS =
             setOf(
-                MissionScenarioType
-                    .EXPRESSING_AN_OPINION,
-                MissionScenarioType
-                    .MAKING_A_DECISION,
-                MissionScenarioType
-                    .DEFENDING_AN_OPINION,
-                MissionScenarioType
-                    .DISCUSSING_A_SOCIAL_TOPIC,
-                MissionScenarioType
-                    .PARTICIPATING_IN_A_DEBATE,
-                MissionScenarioType
-                    .ACADEMIC_DEBATE
+                MissionScenarioType.EXPRESSING_AN_OPINION,
+                MissionScenarioType.MAKING_A_DECISION,
+                MissionScenarioType.DEFENDING_AN_OPINION,
+                MissionScenarioType.DISCUSSING_A_SOCIAL_TOPIC,
+                MissionScenarioType.PARTICIPATING_IN_A_DEBATE,
+                MissionScenarioType.ACADEMIC_DEBATE
             )
 
         val COMPARISON_SCENARIOS =
             setOf(
-                MissionScenarioType
-                    .COMPARING_OPTIONS,
-                MissionScenarioType
-                    .MAKING_A_DECISION,
-                MissionScenarioType
-                    .EXPLAINING_ADVANTAGES_AND_DISADVANTAGES,
-                MissionScenarioType
-                    .COMPARING_VIEWPOINTS,
-                MissionScenarioType
-                    .STRATEGIC_DISCUSSION
+                MissionScenarioType.COMPARING_OPTIONS,
+                MissionScenarioType.MAKING_A_DECISION,
+                MissionScenarioType.EXPLAINING_ADVANTAGES_AND_DISADVANTAGES,
+                MissionScenarioType.COMPARING_VIEWPOINTS,
+                MissionScenarioType.STRATEGIC_DISCUSSION
             )
 
         val STORYTELLING_SCENARIOS =
             setOf(
-                MissionScenarioType
-                    .TELLING_A_STORY,
-                MissionScenarioType
-                    .DESCRIBING_A_WEEKEND,
-                MissionScenarioType
-                    .DISCUSSING_TRAVEL_EXPERIENCES,
-                MissionScenarioType
-                    .TALKING_ABOUT_PAST_EXPERIENCES
+                MissionScenarioType.TELLING_A_STORY,
+                MissionScenarioType.DESCRIBING_A_WEEKEND,
+                MissionScenarioType.DISCUSSING_TRAVEL_EXPERIENCES,
+                MissionScenarioType.TALKING_ABOUT_PAST_EXPERIENCES
             )
 
         val POLITE_INTERACTION_SCENARIOS =
             setOf(
-                MissionScenarioType
-                    .RESTAURANT_ORDERING,
-                MissionScenarioType
-                    .HOTEL_CHECK_IN,
-                MissionScenarioType
-                    .RETURNING_A_PRODUCT,
-                MissionScenarioType
-                    .MAKING_A_COMPLAINT,
-                MissionScenarioType
-                    .FORMAL_COMPLAINT,
-                MissionScenarioType
-                    .FORMAL_INTERVIEW
+                MissionScenarioType.HOTEL_CHECK_IN,
+                MissionScenarioType.RETURNING_A_PRODUCT,
+                MissionScenarioType.MAKING_A_COMPLAINT,
+                MissionScenarioType.FORMAL_COMPLAINT,
+                MissionScenarioType.FORMAL_INTERVIEW,
+                MissionScenarioType.NEGOTIATION,
+                MissionScenarioType.DEALING_WITH_A_MISUNDERSTANDING
             )
 
         val LOCATION_AND_SERVICE_SCENARIOS =
             setOf(
-                MissionScenarioType
-                    .ASKING_FOR_DIRECTIONS,
-                MissionScenarioType
-                    .HOTEL_CHECK_IN,
-                MissionScenarioType
-                    .RESTAURANT_ORDERING,
-                MissionScenarioType
-                    .DOCTOR_APPOINTMENT,
-                MissionScenarioType
-                    .ARRANGING_A_SERVICE
+                MissionScenarioType.ASKING_FOR_DIRECTIONS,
+                MissionScenarioType.HOTEL_CHECK_IN,
+                MissionScenarioType.DOCTOR_APPOINTMENT,
+                MissionScenarioType.ARRANGING_A_SERVICE,
+                MissionScenarioType.PUBLIC_TRANSPORT
             )
     }
 }

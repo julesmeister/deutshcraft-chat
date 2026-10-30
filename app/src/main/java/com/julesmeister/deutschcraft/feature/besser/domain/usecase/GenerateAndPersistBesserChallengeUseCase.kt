@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/besser/domain/usecase/GenerateAndPersistBesserChallengeUseCase.kt
+
 package com.julesmeister.deutschcraft.feature.besser.domain.usecase
 
 import com.julesmeister.deutschcraft.feature.besser.domain.AssistanceLevel
@@ -9,14 +11,8 @@ import com.julesmeister.deutschcraft.feature.besser.domain.repository.BesserChal
 import java.util.UUID
 import javax.inject.Inject
 
-/*
- * Runs contextual Besser selection and persists the resulting
- * challenge.
- *
- * NO_CHALLENGE remains silent and does not create a database
- * row.
- */
-class GenerateAndPersistBesserChallengeUseCase @Inject constructor(
+class GenerateAndPersistBesserChallengeUseCase
+@Inject constructor(
     private val generateContextualChallenge:
     GenerateContextualBesserChallengeUseCase,
 
@@ -30,8 +26,10 @@ class GenerateAndPersistBesserChallengeUseCase @Inject constructor(
         learnerMessage: String,
         currentCefrLevel: String,
         targetCefrLevel: String,
-        missionTitle: String? = null,
-        missionObjective: String? = null,
+        missionTitle: String? =
+            null,
+        missionObjective: String? =
+            null,
         detectedCategories: Set<String> =
             emptySet(),
         recentlyChallengedCapabilityIds: Set<String> =
@@ -39,6 +37,7 @@ class GenerateAndPersistBesserChallengeUseCase @Inject constructor(
         createdAt: Long =
             System.currentTimeMillis()
     ): BesserChallenge? {
+
         require(
             conversationId.isNotBlank()
         ) {
@@ -58,16 +57,13 @@ class GenerateAndPersistBesserChallengeUseCase @Inject constructor(
             return null
         }
 
-        /*
-         * Never attach more than one active Besser challenge to
-         * the same learner message.
-         */
         if (
             besserChallengeRepository
                 .countActiveForMessage(
                     messageId =
                         messageId
-                ) > 0
+                ) >
+            0
         ) {
             return besserChallengeRepository
                 .getActiveForMessages(
@@ -79,22 +75,39 @@ class GenerateAndPersistBesserChallengeUseCase @Inject constructor(
                 .firstOrNull()
         }
 
+        val normalizedRecentCapabilityIds =
+            recentlyChallengedCapabilityIds
+                .asSequence()
+                .map(
+                    String::trim
+                )
+                .filter(
+                    String::isNotBlank
+                )
+                .toSet()
+
         val selectionResult =
             generateContextualChallenge(
                 learnerMessage =
                     cleanMessage,
+
                 currentCefrLevel =
                     currentCefrLevel,
+
                 targetCefrLevel =
                     targetCefrLevel,
+
                 missionTitle =
                     missionTitle,
+
                 missionObjective =
                     missionObjective,
+
                 detectedCategories =
                     detectedCategories,
+
                 recentlyChallengedCapabilityIds =
-                    recentlyChallengedCapabilityIds
+                    normalizedRecentCapabilityIds
             )
 
         return when (selectionResult) {
@@ -107,10 +120,13 @@ class GenerateAndPersistBesserChallengeUseCase @Inject constructor(
                     selectionResult.toPersistedChallenge(
                         conversationId =
                             conversationId,
+
                         messageId =
                             messageId,
+
                         originalMessageContent =
                             cleanMessage,
+
                         createdAt =
                             createdAt
                     )
@@ -133,6 +149,7 @@ private fun BesserChallengeSelectionResult.Selected
     originalMessageContent: String,
     createdAt: Long
 ): BesserChallenge {
+
     val cleanHints =
         hints
             .asSequence()
@@ -163,25 +180,12 @@ private fun BesserChallengeSelectionResult.Selected
         capabilityId =
             capability.capabilityId,
 
-        /*
-         * The current selector represents contextual growth.
-         *
-         * CORRECTION_NEEDED and MISSION_GAP can be introduced
-         * when the selector result explicitly exposes them.
-         */
         outcome =
             BesserChallengeOutcome.GROWTH_OPPORTUNITY,
 
         instruction =
             instruction.trim(),
 
-        /*
-         * BesserChallenge currently stores a reason code rather
-         * than a separate rationale field.
-         *
-         * Preserve the contextual rationale here so the
-         * observer can restore it into the UI model.
-         */
         reasonCode =
             rationale
                 .trim()
@@ -198,10 +202,6 @@ private fun BesserChallengeSelectionResult.Selected
                     1f
             ),
 
-        /*
-         * The challenge itself is a prompt. Additional revealed
-         * hints increase the actual assistance later.
-         */
         recommendedAssistanceLevel =
             AssistanceLevel.PROMPTED,
 
@@ -221,6 +221,15 @@ private fun BesserChallengeSelectionResult.Selected
             originalMessageContent,
 
         refinedMessageContent =
+            null,
+
+        evaluationScore =
+            null,
+
+        evaluationFeedback =
+            null,
+
+        evaluationEvidence =
             null,
 
         createdAt =

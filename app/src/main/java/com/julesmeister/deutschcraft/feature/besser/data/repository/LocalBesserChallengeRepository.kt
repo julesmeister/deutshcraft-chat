@@ -1,6 +1,11 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/besser/data/repository/LocalBesserChallengeRepository.kt
+
 package com.julesmeister.deutschcraft.feature.besser.data.repository
 
+import androidx.room.withTransaction
+import com.julesmeister.deutschcraft.core.database.DeutschCraftDatabase
 import com.julesmeister.deutschcraft.core.database.dao.BesserChallengeDao
+import com.julesmeister.deutschcraft.core.database.dao.MessageDao
 import com.julesmeister.deutschcraft.feature.besser.data.mapper.toDomain
 import com.julesmeister.deutschcraft.feature.besser.data.mapper.toEntity
 import com.julesmeister.deutschcraft.feature.besser.data.mapper.toHintEntities
@@ -11,9 +16,16 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class LocalBesserChallengeRepository @Inject constructor(
+class LocalBesserChallengeRepository
+@Inject constructor(
+    private val database:
+    DeutschCraftDatabase,
+
     private val besserChallengeDao:
-    BesserChallengeDao
+    BesserChallengeDao,
+
+    private val messageDao:
+    MessageDao
 ) : BesserChallengeRepository {
 
     override suspend fun save(
@@ -52,6 +64,7 @@ class LocalBesserChallengeRepository @Inject constructor(
         besserChallengeDao.upsertChallengeWithHints(
             challenge =
                 challenge.toEntity(),
+
             hints =
                 challenge.toHintEntities()
         )
@@ -60,6 +73,7 @@ class LocalBesserChallengeRepository @Inject constructor(
     override suspend fun getById(
         challengeId: String
     ): BesserChallenge? {
+
         return besserChallengeDao
             .getById(
                 challengeId =
@@ -71,6 +85,7 @@ class LocalBesserChallengeRepository @Inject constructor(
     override fun observeById(
         challengeId: String
     ): Flow<BesserChallenge?> {
+
         return besserChallengeDao
             .observeById(
                 challengeId =
@@ -84,6 +99,7 @@ class LocalBesserChallengeRepository @Inject constructor(
     override fun observeForMessage(
         messageId: String
     ): Flow<List<BesserChallenge>> {
+
         return besserChallengeDao
             .observeForMessage(
                 messageId =
@@ -99,6 +115,7 @@ class LocalBesserChallengeRepository @Inject constructor(
     override fun observeActiveForMessage(
         messageId: String
     ): Flow<BesserChallenge?> {
+
         return besserChallengeDao
             .observeActiveForMessage(
                 messageId =
@@ -112,6 +129,7 @@ class LocalBesserChallengeRepository @Inject constructor(
     override fun observeForConversation(
         conversationId: String
     ): Flow<List<BesserChallenge>> {
+
         return besserChallengeDao
             .observeForConversation(
                 conversationId =
@@ -127,6 +145,7 @@ class LocalBesserChallengeRepository @Inject constructor(
     override fun observeActiveForConversation(
         conversationId: String
     ): Flow<List<BesserChallenge>> {
+
         return besserChallengeDao
             .observeActiveForConversation(
                 conversationId =
@@ -142,8 +161,12 @@ class LocalBesserChallengeRepository @Inject constructor(
     override suspend fun getActiveForMessages(
         messageIds: List<String>
     ): List<BesserChallenge> {
+
         val normalizedMessageIds =
             messageIds
+                .map(
+                    String::trim
+                )
                 .filter(
                     String::isNotBlank
                 )
@@ -169,6 +192,7 @@ class LocalBesserChallengeRepository @Inject constructor(
     override fun observeForCapability(
         capabilityId: String
     ): Flow<List<BesserChallenge>> {
+
         return besserChallengeDao
             .observeForCapability(
                 capabilityId =
@@ -188,9 +212,11 @@ class LocalBesserChallengeRepository @Inject constructor(
         challengeId: String,
         acceptedAt: Long
     ): Boolean {
+
         return besserChallengeDao.accept(
             challengeId =
                 challengeId,
+
             acceptedAt =
                 acceptedAt
         ) == 1
@@ -200,9 +226,11 @@ class LocalBesserChallengeRepository @Inject constructor(
         challengeId: String,
         skippedAt: Long
     ): Boolean {
+
         return besserChallengeDao.skip(
             challengeId =
                 challengeId,
+
             skippedAt =
                 skippedAt
         ) == 1
@@ -212,64 +240,164 @@ class LocalBesserChallengeRepository @Inject constructor(
         challengeId: String,
         refinedMessageContent: String,
         actualAssistanceLevel: AssistanceLevel,
+        evaluationScore: Int?,
+        evaluationFeedback: String?,
+        evaluationEvidence: String?,
         completedAt: Long
     ): Boolean {
+
         require(
-            refinedMessageContent.isNotBlank()
+            challengeId.isNotBlank()
+        ) {
+            "Challenge ID cannot be blank."
+        }
+
+        val normalizedRefinedContent =
+            refinedMessageContent.trim()
+
+        require(
+            normalizedRefinedContent.isNotBlank()
         ) {
             "Refined message content cannot be blank."
         }
 
-        return besserChallengeDao.complete(
-            challengeId =
-                challengeId,
-            refinedMessageContent =
-                refinedMessageContent.trim(),
-            actualAssistanceLevel =
-                actualAssistanceLevel.name,
-            completedAt =
-                completedAt
-        ) == 1
+        val normalizedEvaluationScore =
+            evaluationScore
+                ?.coerceIn(
+                    minimumValue =
+                        0,
+                    maximumValue =
+                        100
+                )
+
+        val normalizedEvaluationFeedback =
+            evaluationFeedback
+                ?.trim()
+                ?.takeIf(
+                    String::isNotBlank
+                )
+
+        val normalizedEvaluationEvidence =
+            evaluationEvidence
+                ?.trim()
+                ?.takeIf(
+                    String::isNotBlank
+                )
+
+        return database.withTransaction {
+            val challenge =
+                besserChallengeDao
+                    .getById(
+                        challengeId =
+                            challengeId
+                    )
+                    ?.toDomain()
+                    ?: return@withTransaction false
+
+            if (!challenge.canComplete) {
+                return@withTransaction false
+            }
+
+            val updatedMessageRows =
+                messageDao
+                    .replaceLearnerMessageContent(
+                        messageId =
+                            challenge.messageId,
+
+                        refinedContent =
+                            normalizedRefinedContent
+                    )
+
+            check(
+                updatedMessageRows ==
+                        1
+            ) {
+                "The source learner message could not be updated."
+            }
+
+            val completedChallengeRows =
+                besserChallengeDao.complete(
+                    challengeId =
+                        challengeId,
+
+                    refinedMessageContent =
+                        normalizedRefinedContent,
+
+                    actualAssistanceLevel =
+                        actualAssistanceLevel.name,
+
+                    evaluationScore =
+                        normalizedEvaluationScore,
+
+                    evaluationFeedback =
+                        normalizedEvaluationFeedback,
+
+                    evaluationEvidence =
+                        normalizedEvaluationEvidence,
+
+                    completedAt =
+                        completedAt
+                )
+
+            check(
+                completedChallengeRows ==
+                        1
+            ) {
+                "The Besser challenge could not be completed."
+            }
+
+            true
+        }
     }
 
     override suspend fun revealNextHint(
         challengeId: String,
         updatedAt: Long
     ): Boolean {
+
         val beforeReveal =
-            besserChallengeDao.getRevealedHintCount(
-                challengeId =
-                    challengeId
-            ) ?: return false
+            besserChallengeDao
+                .getRevealedHintCount(
+                    challengeId =
+                        challengeId
+                )
+                ?: return false
 
         val changedRows =
-            besserChallengeDao.revealNextHint(
-                challengeId =
-                    challengeId,
-                updatedAt =
-                    updatedAt
-            )
+            besserChallengeDao
+                .revealNextHint(
+                    challengeId =
+                        challengeId,
+
+                    updatedAt =
+                        updatedAt
+                )
 
         if (changedRows != 1) {
             return false
         }
 
         val afterReveal =
-            besserChallengeDao.getRevealedHintCount(
-                challengeId =
-                    challengeId
-            ) ?: return false
+            besserChallengeDao
+                .getRevealedHintCount(
+                    challengeId =
+                        challengeId
+                )
+                ?: return false
 
-        return afterReveal > beforeReveal
+        return afterReveal >
+                beforeReveal
     }
 
     override suspend fun countActiveForMessage(
         messageId: String
     ): Int {
-        return besserChallengeDao.countActiveForMessage(
-            messageId =
-                messageId
-        )
+
+        return besserChallengeDao
+            .countActiveForMessage(
+                messageId =
+                    messageId
+            )
     }
 
     override suspend fun deleteForMessage(

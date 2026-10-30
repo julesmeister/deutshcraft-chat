@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/besser/data/mapper/BesserChallengeMapper.kt
+
 package com.julesmeister.deutschcraft.feature.besser.data.mapper
 
 import com.julesmeister.deutschcraft.core.database.entity.besser.BesserChallengeEntity
@@ -10,6 +12,7 @@ import com.julesmeister.deutschcraft.feature.besser.domain.ChallengeStatus
 
 fun BesserChallengeWithHints.toDomain():
         BesserChallenge {
+
     return challenge.toDomain(
         hints =
             orderedHints.map { hint ->
@@ -21,24 +24,32 @@ fun BesserChallengeWithHints.toDomain():
 fun BesserChallengeEntity.toDomain(
     hints: List<String>
 ): BesserChallenge {
+
     return BesserChallenge(
         id =
             id,
+
         messageId =
             messageId,
+
         conversationId =
             conversationId,
+
         capabilityId =
             capabilityId,
+
         outcome =
             BesserChallengeOutcome.fromStorage(
                 value =
                     outcome
             ),
+
         instruction =
             instruction,
+
         reasonCode =
             reasonCode,
+
         confidence =
             confidence.coerceIn(
                 minimumValue =
@@ -46,23 +57,28 @@ fun BesserChallengeEntity.toDomain(
                 maximumValue =
                     1f
             ),
+
         recommendedAssistanceLevel =
             AssistanceLevel.fromStorage(
                 value =
                     recommendedAssistanceLevel
             ) ?: AssistanceLevel.PROMPTED,
+
         actualAssistanceLevel =
             AssistanceLevel.fromStorage(
                 value =
                     actualAssistanceLevel
             ),
+
         status =
             ChallengeStatus.fromStorage(
                 value =
                     status
             ),
+
         hints =
             hints,
+
         revealedHintCount =
             revealedHintCount.coerceIn(
                 minimumValue =
@@ -70,18 +86,48 @@ fun BesserChallengeEntity.toDomain(
                 maximumValue =
                     hints.size
             ),
+
         originalMessageContent =
             originalMessageContent,
+
         refinedMessageContent =
             refinedMessageContent,
+
+        evaluationScore =
+            evaluationScore
+                ?.coerceIn(
+                    minimumValue =
+                        0,
+                    maximumValue =
+                        100
+                ),
+
+        evaluationFeedback =
+            evaluationFeedback
+                ?.trim()
+                ?.takeIf(
+                    String::isNotBlank
+                ),
+
+        evaluationEvidence =
+            evaluationEvidence
+                ?.trim()
+                ?.takeIf(
+                    String::isNotBlank
+                ),
+
         createdAt =
             createdAt,
+
         acceptedAt =
             acceptedAt,
+
         skippedAt =
             skippedAt,
+
         completedAt =
             completedAt,
+
         updatedAt =
             updatedAt
     )
@@ -89,21 +135,29 @@ fun BesserChallengeEntity.toDomain(
 
 fun BesserChallenge.toEntity():
         BesserChallengeEntity {
+
     return BesserChallengeEntity(
         id =
             id,
+
         messageId =
             messageId,
+
         conversationId =
             conversationId,
+
         capabilityId =
             capabilityId,
+
         outcome =
             outcome.name,
+
         instruction =
             instruction,
+
         reasonCode =
             reasonCode,
+
         confidence =
             confidence.coerceIn(
                 minimumValue =
@@ -111,12 +165,16 @@ fun BesserChallenge.toEntity():
                 maximumValue =
                     1f
             ),
+
         recommendedAssistanceLevel =
             recommendedAssistanceLevel.name,
+
         actualAssistanceLevel =
             actualAssistanceLevel?.name,
+
         status =
             status.name,
+
         revealedHintCount =
             revealedHintCount.coerceIn(
                 minimumValue =
@@ -124,18 +182,52 @@ fun BesserChallenge.toEntity():
                 maximumValue =
                     hints.size
             ),
+
         originalMessageContent =
             originalMessageContent,
+
         refinedMessageContent =
-            refinedMessageContent,
+            refinedMessageContent
+                ?.trim()
+                ?.takeIf(
+                    String::isNotBlank
+                ),
+
+        evaluationScore =
+            evaluationScore
+                ?.coerceIn(
+                    minimumValue =
+                        0,
+                    maximumValue =
+                        100
+                ),
+
+        evaluationFeedback =
+            evaluationFeedback
+                ?.trim()
+                ?.takeIf(
+                    String::isNotBlank
+                ),
+
+        evaluationEvidence =
+            evaluationEvidence
+                ?.trim()
+                ?.takeIf(
+                    String::isNotBlank
+                ),
+
         createdAt =
             createdAt,
+
         acceptedAt =
             acceptedAt,
+
         skippedAt =
             skippedAt,
+
         completedAt =
             completedAt,
+
         updatedAt =
             updatedAt
     )
@@ -143,14 +235,18 @@ fun BesserChallenge.toEntity():
 
 fun BesserChallenge.toHintEntities():
         List<BesserChallengeHintEntity> {
+
     return hints.mapIndexed { index, hint ->
         BesserChallengeHintEntity(
             id =
                 "$id-hint-${index + 1}",
+
             challengeId =
                 id,
+
             position =
                 index,
+
             content =
                 hint
         )

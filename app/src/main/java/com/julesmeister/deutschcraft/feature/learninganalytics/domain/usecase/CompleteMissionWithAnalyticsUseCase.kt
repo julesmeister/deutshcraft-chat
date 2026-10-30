@@ -1,34 +1,41 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/learninganalytics/domain/usecase/CompleteMissionWithAnalyticsUseCase.kt
+
 package com.julesmeister.deutschcraft.feature.learninganalytics.domain.usecase
 
 import android.util.Log
 import com.julesmeister.deutschcraft.feature.learninganalytics.domain.MissionAnalytics
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionStatus
 import com.julesmeister.deutschcraft.feature.mission.domain.repository.MissionRepository
+import com.julesmeister.deutschcraft.feature.mission.domain.usecase.LoadMissionThreadRecommendationUseCase
+import com.julesmeister.deutschcraft.feature.mission.domain.usecase.RefreshMissionRecommendationFreshnessUseCase
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/*
- * Explicitly completes a mission and finalizes its analytics.
- *
- * Use this when code intentionally completes the complete
- * mission rather than completing an individual objective.
- */
 class CompleteMissionWithAnalyticsUseCase
 @Inject constructor(
     private val missionRepository:
     MissionRepository,
+
     private val finalizeCompletedMissionAnalytics:
-    FinalizeCompletedMissionAnalyticsUseCase
+    FinalizeCompletedMissionAnalyticsUseCase,
+
+    private val loadMissionThreadRecommendation:
+    LoadMissionThreadRecommendationUseCase,
+
+    private val refreshMissionRecommendationFreshness:
+    RefreshMissionRecommendationFreshnessUseCase
 ) {
 
     private val completionMutex =
         Mutex()
 
     suspend operator fun invoke(
-        conversationMissionId: String
+        conversationMissionId:
+        String
     ): MissionAnalytics {
+
         require(
             conversationMissionId.isNotBlank()
         ) {
@@ -48,10 +55,6 @@ class CompleteMissionWithAnalyticsUseCase
                                     conversationMissionId
                         )
 
-                /*
-                 * Avoid rewriting the completion timestamp when
-                 * the mission is already complete.
-                 */
                 if (
                     missionBeforeCompletion.status !=
                     MissionStatus.COMPLETED
@@ -68,21 +71,43 @@ class CompleteMissionWithAnalyticsUseCase
                             conversationMissionId
                     )
 
+                loadMissionThreadRecommendation.markCompleted(
+                    conversationMissionId =
+                        conversationMissionId
+                )
+
+                val invalidatedRecommendationCount =
+                    refreshMissionRecommendationFreshness()
+
                 Log.d(
                     USE_CASE_TAG,
                     buildString {
                         append(
-                            "Explicit mission completion "
+                            "Mission completion finalized. "
                         )
+
                         append(
-                            "analytics finalized. missionId="
+                            "missionId="
                         )
+
                         append(
                             conversationMissionId
                         )
-                        append(", overall=")
+
+                        append(
+                            ", overall="
+                        )
+
                         append(
                             analytics.overallScore
+                        )
+
+                        append(
+                            ", invalidatedRecommendations="
+                        )
+
+                        append(
+                            invalidatedRecommendationCount
                         )
                     }
                 )
@@ -106,6 +131,7 @@ class CompleteMissionWithAnalyticsUseCase
     }
 
     private companion object {
+
         const val USE_CASE_TAG =
             "CompleteMissionAnalytics"
     }
