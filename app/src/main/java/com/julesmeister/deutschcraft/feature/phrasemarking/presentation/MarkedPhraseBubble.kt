@@ -76,8 +76,12 @@ fun MarkedPhraseBubble(
     modifier: Modifier = Modifier,
     isLast: Boolean = true
 ) {
-    val colorScheme =
+    val colors =
         MaterialTheme.colorScheme
+
+    val isLightTheme =
+        colors.background.luminance() >=
+                LIGHT_THEME_LUMINANCE_THRESHOLD
 
     var isExpanded by
     rememberSaveable(
@@ -111,20 +115,16 @@ fun MarkedPhraseBubble(
             DeutschTextOnSky
         }
 
-    val isLightTheme =
-        colorScheme.background.luminance() >=
-                LIGHT_THEME_LUMINANCE_THRESHOLD
-
     val readableAccent =
         when {
             !isLightTheme ->
                 accent
 
             isUserMessage ->
-                colorScheme.primary
+                colors.primary
 
             else ->
-                LIGHT_MODE_ASSISTANT_READABLE_ACCENT
+                LIGHT_MODE_ASSISTANT_ACCENT
         }
 
     val bottomCorner =
@@ -136,34 +136,24 @@ fun MarkedPhraseBubble(
 
     val shape =
         RoundedCornerShape(
-            topStart =
-                0.dp,
-
-            topEnd =
-                0.dp,
-
-            bottomStart =
-                bottomCorner,
-
-            bottomEnd =
-                bottomCorner
+            topStart = 0.dp,
+            topEnd = 0.dp,
+            bottomStart = bottomCorner,
+            bottomEnd = bottomCorner
         )
-
-    val containerTintAlpha =
-        if (isLightTheme) {
-            LIGHT_CONTAINER_TINT_ALPHA
-        } else {
-            DARK_CONTAINER_TINT_ALPHA
-        }
 
     val containerColor =
         accent
             .copy(
                 alpha =
-                    containerTintAlpha
+                    if (isLightTheme) {
+                        LIGHT_CONTAINER_TINT_ALPHA
+                    } else {
+                        DARK_CONTAINER_TINT_ALPHA
+                    }
             )
             .compositeOver(
-                colorScheme.surfaceContainerHigh
+                colors.surfaceContainerHigh
             )
 
     val maxWidth =
@@ -196,8 +186,11 @@ fun MarkedPhraseBubble(
             onAccent =
                 onAccent,
 
-            isUserMessage =
-                isUserMessage,
+            readableAccent =
+                readableAccent,
+
+            isLightTheme =
+                isLightTheme,
 
             onConfirm = {
                 showRemoveDialog =
@@ -303,9 +296,7 @@ fun MarkedPhraseBubble(
                             }
 
                             val secondary =
-                                when (
-                                    phrase.status
-                                ) {
+                                when (phrase.status) {
                                     ExplanationStatus.PENDING ->
                                         "…"
 
@@ -318,14 +309,11 @@ fun MarkedPhraseBubble(
                                             .orEmpty()
                                 }
 
-                            if (
-                                secondary.isNotBlank()
-                            ) {
+                            if (secondary.isNotBlank()) {
                                 withStyle(
                                     SpanStyle(
                                         color =
-                                            colorScheme
-                                                .onSurfaceVariant
+                                            colors.onSurfaceVariant
                                     )
                                 ) {
                                     append(
@@ -341,11 +329,8 @@ fun MarkedPhraseBubble(
 
                     modifier =
                         Modifier.weight(
-                            weight =
-                                1f,
-
-                            fill =
-                                false
+                            weight = 1f,
+                            fill = false
                         ),
 
                     style =
@@ -361,7 +346,7 @@ fun MarkedPhraseBubble(
                             ),
 
                     color =
-                        colorScheme.onSurface,
+                        colors.onSurface,
 
                     maxLines =
                         if (isExpanded) {
@@ -411,7 +396,7 @@ fun MarkedPhraseBubble(
                             ),
 
                         tint =
-                            colorScheme
+                            colors
                                 .onSurfaceVariant
                                 .copy(
                                     alpha =
@@ -428,34 +413,26 @@ fun MarkedPhraseBubble(
 
                 enter =
                     fadeIn(
-                        animationSpec =
-                            tween(
-                                durationMillis =
-                                    DETAILS_FADE_IN_MILLIS
-                            )
+                        tween(
+                            DETAILS_FADE_IN_MILLIS
+                        )
                     ) +
                             expandVertically(
-                                animationSpec =
-                                    tween(
-                                        durationMillis =
-                                            DETAILS_EXPAND_MILLIS
-                                    )
+                                tween(
+                                    DETAILS_EXPAND_MILLIS
+                                )
                             ),
 
                 exit =
                     fadeOut(
-                        animationSpec =
-                            tween(
-                                durationMillis =
-                                    DETAILS_FADE_OUT_MILLIS
-                            )
+                        tween(
+                            DETAILS_FADE_OUT_MILLIS
+                        )
                     ) +
                             shrinkVertically(
-                                animationSpec =
-                                    tween(
-                                        durationMillis =
-                                            DETAILS_SHRINK_MILLIS
-                                    )
+                                tween(
+                                    DETAILS_SHRINK_MILLIS
+                                )
                             )
             ) {
                 ExpandedDetails(
@@ -478,76 +455,13 @@ private fun RemoveMarkedPhraseDialog(
     phrase: String,
     accent: Color,
     onAccent: Color,
-    isUserMessage: Boolean,
+    readableAccent: Color,
+    isLightTheme: Boolean,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val colorScheme =
+    val colors =
         MaterialTheme.colorScheme
-
-    val isLightTheme =
-        colorScheme.background.luminance() >=
-                LIGHT_THEME_LUMINANCE_THRESHOLD
-
-    val readableAccent =
-        when {
-            !isLightTheme ->
-                accent
-
-            isUserMessage ->
-                colorScheme.primary
-
-            else ->
-                LIGHT_MODE_ASSISTANT_READABLE_ACCENT
-        }
-
-    val phraseChipColor =
-        when {
-            !isLightTheme ->
-                accent
-
-            isUserMessage ->
-                colorScheme.primary
-
-            else ->
-                LIGHT_MODE_ASSISTANT_READABLE_ACCENT
-        }
-
-    val phraseChipContentColor =
-        when {
-            !isLightTheme ->
-                onAccent
-
-            isUserMessage ->
-                colorScheme.onPrimary
-
-            else ->
-                Color.White
-        }
-
-    val dialogContainerColor =
-        if (isLightTheme) {
-            colorScheme.surfaceContainerLow
-        } else {
-            colorScheme.surfaceContainerHigh
-        }
-
-    val deleteIconBackground =
-        colorScheme.error.copy(
-            alpha =
-                if (isLightTheme) {
-                    LIGHT_DELETE_ICON_BACKGROUND_ALPHA
-                } else {
-                    DARK_DELETE_ICON_BACKGROUND_ALPHA
-                }
-        )
-
-    val cancelContainerColor =
-        if (isLightTheme) {
-            colorScheme.surfaceContainerHigh
-        } else {
-            colorScheme.surfaceContainerHighest
-        }
 
     var animationStarted by
     remember {
@@ -604,6 +518,54 @@ private fun RemoveMarkedPhraseDialog(
             "MarkedPhraseDialogAlpha"
     )
 
+    val dialogContainerColor =
+        if (isLightTheme) {
+            colors.surfaceContainer
+        } else {
+            colors.surfaceContainerHigh
+        }
+
+    val iconContainerColor =
+        if (isLightTheme) {
+            colors.error.copy(
+                alpha =
+                    LIGHT_ERROR_CONTAINER_ALPHA
+            )
+        } else {
+            colors.error.copy(
+                alpha =
+                    DARK_ERROR_CONTAINER_ALPHA
+            )
+        }
+
+    val phraseContainerColor =
+        if (isLightTheme) {
+            readableAccent
+                .copy(
+                    alpha =
+                        LIGHT_PHRASE_CONTAINER_ALPHA
+                )
+                .compositeOver(
+                    colors.primaryContainer
+                )
+        } else {
+            accent
+        }
+
+    val phraseContentColor =
+        if (isLightTheme) {
+            colors.onPrimaryContainer
+        } else {
+            onAccent
+        }
+
+    val cancelContainerColor =
+        if (isLightTheme) {
+            colors.surfaceContainerHigh
+        } else {
+            colors.surfaceContainerHighest
+        }
+
     Dialog(
         onDismissRequest =
             onDismiss,
@@ -639,20 +601,9 @@ private fun RemoveMarkedPhraseDialog(
                         dialogContainerColor
                     )
                     .padding(
-                        horizontal =
-                            DIALOG_HORIZONTAL_PADDING,
-
-                        vertical =
-                            DIALOG_VERTICAL_PADDING
+                        DIALOG_CONTENT_PADDING
                     )
         ) {
-            /*
-             * Compact flat header.
-             *
-             * The delete icon no longer sits inside a large
-             * ornamental circle. The icon receives only a small,
-             * flat error-tinted container.
-             */
             Row(
                 modifier =
                     Modifier.fillMaxWidth(),
@@ -670,7 +621,7 @@ private fun RemoveMarkedPhraseDialog(
                                 DIALOG_ICON_SHAPE
                             )
                             .background(
-                                deleteIconBackground
+                                iconContainerColor
                             ),
 
                     contentAlignment =
@@ -689,14 +640,14 @@ private fun RemoveMarkedPhraseDialog(
                             ),
 
                         tint =
-                            colorScheme.error
+                            colors.error
                     )
                 }
 
                 Spacer(
                     modifier =
                         Modifier.width(
-                            DIALOG_HEADER_HORIZONTAL_SPACING
+                            DIALOG_HEADER_SPACING
                         )
                 )
 
@@ -719,7 +670,7 @@ private fun RemoveMarkedPhraseDialog(
                             FontWeight.Bold,
 
                         color =
-                            colorScheme.onSurface,
+                            colors.onSurface,
 
                         maxLines =
                             1,
@@ -731,7 +682,7 @@ private fun RemoveMarkedPhraseDialog(
                     Spacer(
                         modifier =
                             Modifier.height(
-                                DIALOG_TITLE_DESCRIPTION_SPACING
+                                DIALOG_TITLE_SPACING
                             )
                     )
 
@@ -745,7 +696,7 @@ private fun RemoveMarkedPhraseDialog(
                                 .bodySmall,
 
                         color =
-                            colorScheme.onSurfaceVariant,
+                            colors.onSurfaceVariant,
 
                         maxLines =
                             1,
@@ -763,39 +714,22 @@ private fun RemoveMarkedPhraseDialog(
                     )
             )
 
-            /*
-             * Flat phrase section.
-             *
-             * No outline, no surrounding card border and no
-             * nested decorative frame.
-             */
             Row(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .clip(
-                            DIALOG_PHRASE_ROW_SHAPE
+                            DIALOG_PHRASE_SHAPE
                         )
                         .background(
-                            readableAccent
-                                .copy(
-                                    alpha =
-                                        if (isLightTheme) {
-                                            LIGHT_PHRASE_ROW_ALPHA
-                                        } else {
-                                            DARK_PHRASE_ROW_ALPHA
-                                        }
-                                )
-                                .compositeOver(
-                                    dialogContainerColor
-                                )
+                            phraseContainerColor
                         )
                         .padding(
                             horizontal =
-                                DIALOG_PHRASE_ROW_HORIZONTAL_PADDING,
+                                DIALOG_PHRASE_HORIZONTAL_PADDING,
 
                             vertical =
-                                DIALOG_PHRASE_ROW_VERTICAL_PADDING
+                                DIALOG_PHRASE_VERTICAL_PADDING
                         ),
 
                 verticalAlignment =
@@ -805,20 +739,24 @@ private fun RemoveMarkedPhraseDialog(
                     modifier =
                         Modifier
                             .size(
-                                DIALOG_PHRASE_ACCENT_DOT_SIZE
+                                DIALOG_PHRASE_DOT_SIZE
                             )
                             .clip(
                                 CircleShape
                             )
                             .background(
-                                readableAccent
+                                if (isLightTheme) {
+                                    readableAccent
+                                } else {
+                                    phraseContentColor
+                                }
                             )
                 )
 
                 Spacer(
                     modifier =
                         Modifier.width(
-                            DIALOG_PHRASE_ACCENT_SPACING
+                            DIALOG_PHRASE_DOT_SPACING
                         )
                 )
 
@@ -840,7 +778,7 @@ private fun RemoveMarkedPhraseDialog(
                         FontWeight.SemiBold,
 
                     color =
-                        readableAccent,
+                        phraseContentColor,
 
                     maxLines =
                         DIALOG_PHRASE_MAX_LINES,
@@ -868,7 +806,7 @@ private fun RemoveMarkedPhraseDialog(
                         .bodySmall,
 
                 color =
-                    colorScheme.onSurfaceVariant,
+                    colors.onSurfaceVariant,
 
                 lineHeight =
                     DIALOG_DESCRIPTION_LINE_HEIGHT
@@ -881,14 +819,6 @@ private fun RemoveMarkedPhraseDialog(
                     )
             )
 
-            /*
-             * Flat side-by-side actions.
-             *
-             * Cancel remains a neutral filled surface.
-             * Delete uses the semantic error color.
-             *
-             * Neither button has a border.
-             */
             Row(
                 modifier =
                     Modifier.fillMaxWidth(),
@@ -934,7 +864,7 @@ private fun RemoveMarkedPhraseDialog(
                             FontWeight.SemiBold,
 
                         color =
-                            colorScheme.onSurface
+                            colors.onSurface
                     )
                 }
 
@@ -951,7 +881,7 @@ private fun RemoveMarkedPhraseDialog(
                                 DIALOG_ACTION_SHAPE
                             )
                             .background(
-                                colorScheme.error
+                                colors.error
                             )
                             .clickable(
                                 onClick =
@@ -979,11 +909,11 @@ private fun RemoveMarkedPhraseDialog(
 
                             modifier =
                                 Modifier.size(
-                                    DIALOG_DELETE_ACTION_ICON_SIZE
+                                    DIALOG_DELETE_ICON_SIZE
                                 ),
 
                             tint =
-                                colorScheme.onError
+                                colors.onError
                         )
 
                         Text(
@@ -999,7 +929,7 @@ private fun RemoveMarkedPhraseDialog(
                                 FontWeight.Bold,
 
                             color =
-                                colorScheme.onError
+                                colors.onError
                         )
                     }
                 }
@@ -1014,7 +944,7 @@ private fun ExpandedDetails(
     example: String?,
     accent: Color
 ) {
-    val colorScheme =
+    val colors =
         MaterialTheme.colorScheme
 
     Column(
@@ -1054,7 +984,7 @@ private fun ExpandedDetails(
                             ),
 
                     color =
-                        colorScheme.onSurfaceVariant
+                        colors.onSurfaceVariant
                 )
             }
 
@@ -1116,7 +1046,7 @@ private fun ExpandedDetails(
                             FontStyle.Italic,
 
                         color =
-                            colorScheme
+                            colors
                                 .onSurface
                                 .copy(
                                     alpha =
@@ -1128,7 +1058,7 @@ private fun ExpandedDetails(
     }
 }
 
-private val LIGHT_MODE_ASSISTANT_READABLE_ACCENT =
+private val LIGHT_MODE_ASSISTANT_ACCENT =
     Color(
         0xFF176B91
     )
@@ -1226,12 +1156,6 @@ private const val DETAILS_FADE_OUT_MILLIS =
 private const val DETAILS_SHRINK_MILLIS =
     180
 
-/*
- * ============================================================
- * COMPACT FLAT REMOVE DIALOG
- * ============================================================
- */
-
 private val DIALOG_SHAPE =
     RoundedCornerShape(
         24.dp
@@ -1240,10 +1164,7 @@ private val DIALOG_SHAPE =
 private val DIALOG_OUTER_HORIZONTAL_PADDING =
     36.dp
 
-private val DIALOG_HORIZONTAL_PADDING =
-    18.dp
-
-private val DIALOG_VERTICAL_PADDING =
+private val DIALOG_CONTENT_PADDING =
     18.dp
 
 private val DIALOG_ICON_CONTAINER_SIZE =
@@ -1257,42 +1178,39 @@ private val DIALOG_ICON_SHAPE =
         12.dp
     )
 
-private val DIALOG_HEADER_HORIZONTAL_SPACING =
+private val DIALOG_HEADER_SPACING =
     12.dp
 
-private val DIALOG_TITLE_DESCRIPTION_SPACING =
+private val DIALOG_TITLE_SPACING =
     2.dp
 
-private const val LIGHT_DELETE_ICON_BACKGROUND_ALPHA =
+private const val LIGHT_ERROR_CONTAINER_ALPHA =
     0.09f
 
-private const val DARK_DELETE_ICON_BACKGROUND_ALPHA =
-    0.15f
+private const val DARK_ERROR_CONTAINER_ALPHA =
+    0.14f
 
 private val DIALOG_PHRASE_TOP_SPACING =
     16.dp
 
-private val DIALOG_PHRASE_ROW_SHAPE =
+private val DIALOG_PHRASE_SHAPE =
     RoundedCornerShape(
         14.dp
     )
 
-private val DIALOG_PHRASE_ROW_HORIZONTAL_PADDING =
+private val DIALOG_PHRASE_HORIZONTAL_PADDING =
     12.dp
 
-private val DIALOG_PHRASE_ROW_VERTICAL_PADDING =
+private val DIALOG_PHRASE_VERTICAL_PADDING =
     10.dp
 
-private const val LIGHT_PHRASE_ROW_ALPHA =
+private const val LIGHT_PHRASE_CONTAINER_ALPHA =
     0.08f
 
-private const val DARK_PHRASE_ROW_ALPHA =
-    0.10f
-
-private val DIALOG_PHRASE_ACCENT_DOT_SIZE =
+private val DIALOG_PHRASE_DOT_SIZE =
     7.dp
 
-private val DIALOG_PHRASE_ACCENT_SPACING =
+private val DIALOG_PHRASE_DOT_SPACING =
     9.dp
 
 private const val DIALOG_PHRASE_MAX_LINES =
@@ -1321,7 +1239,7 @@ private val DIALOG_ACTION_SHAPE =
 private val DIALOG_DELETE_CONTENT_SPACING =
     6.dp
 
-private val DIALOG_DELETE_ACTION_ICON_SIZE =
+private val DIALOG_DELETE_ICON_SIZE =
     16.dp
 
 private const val DIALOG_INITIAL_SCALE =
