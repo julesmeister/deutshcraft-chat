@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,18 +53,12 @@ internal fun AnimatedChatTopBarTitle(
     currentMissionObjective: String?,
     currentMissionGuidance: String?,
     missionProgressPercentage: Int,
-    objectiveCompletionEvent:
-    MissionObjectiveCompletionEvent?,
-    adaptiveLearningFeedbackEvent:
-    AdaptiveLearningFeedbackEvent?,
-    onObjectiveCompletionShown:
-        (String) -> Unit,
-    onAdaptiveLearningFeedbackShown:
-        (String) -> Unit,
-    onMissionGuidanceClick:
-        () -> Unit,
-    modifier: Modifier =
-        Modifier
+    objectiveCompletionEvent: MissionObjectiveCompletionEvent?,
+    adaptiveLearningFeedbackEvent: AdaptiveLearningFeedbackEvent?,
+    onObjectiveCompletionShown: (String) -> Unit,
+    onAdaptiveLearningFeedbackShown: (String) -> Unit,
+    onMissionGuidanceClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val missionTitle =
         activeMissionTitle
@@ -110,10 +105,7 @@ internal fun AnimatedChatTopBarTitle(
             adaptiveLearningFeedbackEvent
                 ?: return@LaunchedEffect
 
-        if (
-            objectiveCompletionEvent !=
-            null
-        ) {
+        if (objectiveCompletionEvent != null) {
             return@LaunchedEffect
         }
 
@@ -128,44 +120,38 @@ internal fun AnimatedChatTopBarTitle(
 
     val temporaryStatus =
         when {
-            objectiveCompletionEvent !=
-                    null -> {
-                ChatTopBarTemporaryStatus
-                    .ObjectiveCompleted(
-                        eventId =
-                            objectiveCompletionEvent.eventId,
+            objectiveCompletionEvent != null -> {
+                ChatTopBarTemporaryStatus.ObjectiveCompleted(
+                    eventId =
+                        objectiveCompletionEvent.eventId,
 
-                        objectiveTitle =
-                            objectiveCompletionEvent.objectiveTitle
-                    )
+                    objectiveTitle =
+                        objectiveCompletionEvent.objectiveTitle
+                )
             }
 
-            adaptiveLearningFeedbackEvent !=
-                    null -> {
-                ChatTopBarTemporaryStatus
-                    .AdaptiveLearningFeedback(
-                        eventId =
-                            adaptiveLearningFeedbackEvent.eventId,
+            adaptiveLearningFeedbackEvent != null -> {
+                ChatTopBarTemporaryStatus.AdaptiveLearningFeedback(
+                    eventId =
+                        adaptiveLearningFeedbackEvent.eventId,
 
-                        type =
-                            adaptiveLearningFeedbackEvent.type,
+                    type =
+                        adaptiveLearningFeedbackEvent.type,
 
-                        message =
-                            adaptiveLearningFeedbackEvent.message,
+                    message =
+                        adaptiveLearningFeedbackEvent.message,
 
-                        focusTitle =
-                            adaptiveLearningFeedbackEvent.focusTitle
-                    )
+                    focusTitle =
+                        adaptiveLearningFeedbackEvent.focusTitle
+                )
             }
 
             isAssistantTyping -> {
-                ChatTopBarTemporaryStatus
-                    .AssistantTyping
+                ChatTopBarTemporaryStatus.AssistantTyping
             }
 
             isAssessing -> {
-                ChatTopBarTemporaryStatus
-                    .Assessing
+                ChatTopBarTemporaryStatus.Assessing
             }
 
             else -> {
@@ -209,8 +195,7 @@ internal fun AnimatedChatTopBarTitle(
                 ) +
                         slideInVertically(
                             initialOffsetY = { height ->
-                                height /
-                                        5
+                                height / 5
                             },
 
                             animationSpec =
@@ -237,8 +222,7 @@ internal fun AnimatedChatTopBarTitle(
                 ) +
                         slideOutVertically(
                             targetOffsetY = { height ->
-                                -height /
-                                        5
+                                -height / 5
                             },
 
                             animationSpec =
@@ -264,10 +248,7 @@ internal fun AnimatedChatTopBarTitle(
     ) { displayedStatus ->
         when (displayedStatus) {
             null -> {
-                if (
-                    missionTitle ==
-                    null
-                ) {
+                if (missionTitle == null) {
                     NormalStatus()
                 } else {
                     MissionTopBarPager(
@@ -292,8 +273,7 @@ internal fun AnimatedChatTopBarTitle(
                 }
             }
 
-            ChatTopBarTemporaryStatus
-                .AssistantTyping -> {
+            ChatTopBarTemporaryStatus.AssistantTyping -> {
                 SimpleStatus(
                     icon =
                         "•••",
@@ -306,8 +286,7 @@ internal fun AnimatedChatTopBarTitle(
                 )
             }
 
-            ChatTopBarTemporaryStatus
-                .Assessing -> {
+            ChatTopBarTemporaryStatus.Assessing -> {
                 SimpleStatus(
                     icon =
                         "🧠",
@@ -320,8 +299,7 @@ internal fun AnimatedChatTopBarTitle(
                 )
             }
 
-            is ChatTopBarTemporaryStatus
-            .ObjectiveCompleted -> {
+            is ChatTopBarTemporaryStatus.ObjectiveCompleted -> {
                 MissionObjectiveCompletedStatus(
                     eventId =
                         displayedStatus.eventId,
@@ -331,8 +309,7 @@ internal fun AnimatedChatTopBarTitle(
                 )
             }
 
-            is ChatTopBarTemporaryStatus
-            .AdaptiveLearningFeedback -> {
+            is ChatTopBarTemporaryStatus.AdaptiveLearningFeedback -> {
                 AdaptiveLearningStatus(
                     type =
                         displayedStatus.type,
@@ -379,13 +356,8 @@ private fun AdaptiveLearningStatus(
                         )
                     )
                     .background(
-                        color =
-                            presentation
-                                .accentColor
-                                .copy(
-                                    alpha =
-                                        ADAPTIVE_ICON_BACKGROUND_ALPHA
-                                )
+                        presentation
+                            .containerColor
                     ),
 
             contentAlignment =
@@ -394,6 +366,9 @@ private fun AdaptiveLearningStatus(
             Text(
                 text =
                     presentation.icon,
+
+                color =
+                    presentation.iconContentColor,
 
                 textAlign =
                     TextAlign.Center
@@ -436,7 +411,7 @@ private fun AdaptiveLearningStatus(
                     FontWeight.SemiBold,
 
                 color =
-                    presentation.accentColor,
+                    presentation.titleColor,
 
                 textAlign =
                     TextAlign.Start,
@@ -460,9 +435,61 @@ private fun AdaptiveLearningStatus(
 private fun adaptiveFeedbackPresentation(
     type: AdaptiveLearningFeedbackType
 ): AdaptiveFeedbackPresentation {
+    val colorScheme =
+        MaterialTheme.colorScheme
+
+    val isLightTheme =
+        colorScheme
+            .background
+            .luminance() >=
+                LIGHT_THEME_LUMINANCE_THRESHOLD
+
+    val limeTitleColor =
+        if (isLightTheme) {
+            colorScheme.primary
+        } else {
+            DeutschLime
+        }
+
+    val limeContainerColor =
+        if (isLightTheme) {
+            colorScheme.primaryContainer
+        } else {
+            DeutschLime.copy(
+                alpha =
+                    ADAPTIVE_ICON_BACKGROUND_ALPHA
+            )
+        }
+
+    val limeIconContentColor =
+        if (isLightTheme) {
+            colorScheme.onPrimaryContainer
+        } else {
+            DeutschLime
+        }
+
+    val tertiaryTitleColor =
+        colorScheme.tertiary
+
+    val tertiaryContainerColor =
+        colorScheme.tertiary.copy(
+            alpha =
+                if (isLightTheme) {
+                    LIGHT_TERTIARY_CONTAINER_ALPHA
+                } else {
+                    ADAPTIVE_ICON_BACKGROUND_ALPHA
+                }
+        )
+
+    val tertiaryIconContentColor =
+        if (isLightTheme) {
+            colorScheme.onSurface
+        } else {
+            colorScheme.tertiary
+        }
+
     return when (type) {
-        AdaptiveLearningFeedbackType
-            .GENTLE_REMINDER -> {
+        AdaptiveLearningFeedbackType.GENTLE_REMINDER -> {
             AdaptiveFeedbackPresentation(
                 icon =
                     "💡",
@@ -470,13 +497,18 @@ private fun adaptiveFeedbackPresentation(
                 title =
                     "Learning focus",
 
-                accentColor =
-                    DeutschLime
+                titleColor =
+                    limeTitleColor,
+
+                containerColor =
+                    limeContainerColor,
+
+                iconContentColor =
+                    limeIconContentColor
             )
         }
 
-        AdaptiveLearningFeedbackType
-            .REPEATED_MISTAKE -> {
+        AdaptiveLearningFeedbackType.REPEATED_MISTAKE -> {
             AdaptiveFeedbackPresentation(
                 icon =
                     "↻",
@@ -484,15 +516,18 @@ private fun adaptiveFeedbackPresentation(
                 title =
                     "Still practicing",
 
-                accentColor =
-                    MaterialTheme
-                        .colorScheme
-                        .tertiary
+                titleColor =
+                    tertiaryTitleColor,
+
+                containerColor =
+                    tertiaryContainerColor,
+
+                iconContentColor =
+                    tertiaryIconContentColor
             )
         }
 
-        AdaptiveLearningFeedbackType
-            .PARTIAL_SUCCESS -> {
+        AdaptiveLearningFeedbackType.PARTIAL_SUCCESS -> {
             AdaptiveFeedbackPresentation(
                 icon =
                     "◐",
@@ -500,13 +535,18 @@ private fun adaptiveFeedbackPresentation(
                 title =
                     "Almost there",
 
-                accentColor =
-                    DeutschLime
+                titleColor =
+                    limeTitleColor,
+
+                containerColor =
+                    limeContainerColor,
+
+                iconContentColor =
+                    limeIconContentColor
             )
         }
 
-        AdaptiveLearningFeedbackType
-            .SUCCESS -> {
+        AdaptiveLearningFeedbackType.SUCCESS -> {
             AdaptiveFeedbackPresentation(
                 icon =
                     "✓",
@@ -514,13 +554,18 @@ private fun adaptiveFeedbackPresentation(
                 title =
                     "Nice use",
 
-                accentColor =
-                    DeutschLime
+                titleColor =
+                    limeTitleColor,
+
+                containerColor =
+                    limeContainerColor,
+
+                iconContentColor =
+                    limeIconContentColor
             )
         }
 
-        AdaptiveLearningFeedbackType
-            .IMPROVING -> {
+        AdaptiveLearningFeedbackType.IMPROVING -> {
             AdaptiveFeedbackPresentation(
                 icon =
                     "✨",
@@ -528,13 +573,18 @@ private fun adaptiveFeedbackPresentation(
                 title =
                     "Improving",
 
-                accentColor =
-                    DeutschLime
+                titleColor =
+                    limeTitleColor,
+
+                containerColor =
+                    limeContainerColor,
+
+                iconContentColor =
+                    limeIconContentColor
             )
         }
 
-        AdaptiveLearningFeedbackType
-            .MASTERED -> {
+        AdaptiveLearningFeedbackType.MASTERED -> {
             AdaptiveFeedbackPresentation(
                 icon =
                     "🏆",
@@ -542,13 +592,18 @@ private fun adaptiveFeedbackPresentation(
                 title =
                     "Skill mastered",
 
-                accentColor =
-                    DeutschLime
+                titleColor =
+                    limeTitleColor,
+
+                containerColor =
+                    limeContainerColor,
+
+                iconContentColor =
+                    limeIconContentColor
             )
         }
 
-        AdaptiveLearningFeedbackType
-            .NEEDS_REVIEW -> {
+        AdaptiveLearningFeedbackType.NEEDS_REVIEW -> {
             AdaptiveFeedbackPresentation(
                 icon =
                     "↺",
@@ -556,10 +611,14 @@ private fun adaptiveFeedbackPresentation(
                 title =
                     "Quick review",
 
-                accentColor =
-                    MaterialTheme
-                        .colorScheme
-                        .tertiary
+                titleColor =
+                    tertiaryTitleColor,
+
+                containerColor =
+                    tertiaryContainerColor,
+
+                iconContentColor =
+                    tertiaryIconContentColor
             )
         }
     }
@@ -650,6 +709,9 @@ private fun SimpleStatus(
     title: String,
     subtitle: String
 ) {
+    val colorScheme =
+        MaterialTheme.colorScheme
+
     Row(
         modifier =
             Modifier.fillMaxWidth(),
@@ -669,10 +731,7 @@ private fun SimpleStatus(
                         )
                     )
                     .background(
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .primaryContainer
+                        colorScheme.primaryContainer
                     ),
 
             contentAlignment =
@@ -681,6 +740,9 @@ private fun SimpleStatus(
             Text(
                 text =
                     icon,
+
+                color =
+                    colorScheme.onPrimaryContainer,
 
                 textAlign =
                     TextAlign.Center
@@ -718,6 +780,9 @@ private fun SimpleStatus(
                 fontWeight =
                     FontWeight.SemiBold,
 
+                color =
+                    colorScheme.onBackground,
+
                 textAlign =
                     TextAlign.Start,
 
@@ -739,8 +804,7 @@ private fun SimpleStatus(
 @Composable
 private fun MarqueeSubtitle(
     text: String,
-    modifier: Modifier =
-        Modifier
+    modifier: Modifier = Modifier
 ) {
     Text(
         text =
@@ -781,7 +845,9 @@ private fun MarqueeSubtitle(
 private data class AdaptiveFeedbackPresentation(
     val icon: String,
     val title: String,
-    val accentColor: Color
+    val titleColor: Color,
+    val containerColor: Color,
+    val iconContentColor: Color
 )
 
 private sealed interface ChatTopBarTemporaryStatus {
@@ -799,8 +865,7 @@ private sealed interface ChatTopBarTemporaryStatus {
 
     data class AdaptiveLearningFeedback(
         val eventId: String,
-        val type:
-        AdaptiveLearningFeedbackType,
+        val type: AdaptiveLearningFeedbackType,
         val message: String,
         val focusTitle: String?
     ) : ChatTopBarTemporaryStatus
@@ -832,6 +897,12 @@ private val STATUS_CONTENT_SPACING =
 
 private const val ADAPTIVE_ICON_BACKGROUND_ALPHA =
     0.15f
+
+private const val LIGHT_TERTIARY_CONTAINER_ALPHA =
+    0.12f
+
+private const val LIGHT_THEME_LUMINANCE_THRESHOLD =
+    0.5f
 
 private const val STATUS_SIZE_ANIMATION_MILLIS =
     380
