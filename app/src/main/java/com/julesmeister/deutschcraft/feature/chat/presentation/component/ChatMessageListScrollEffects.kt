@@ -1,14 +1,21 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/presentation/component/ChatMessageListScrollEffects.kt
+
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 internal fun ChatMessageListScrollEffects(
@@ -18,28 +25,10 @@ internal fun ChatMessageListScrollEffects(
     isSending: Boolean,
     hasTypingIndicator: Boolean,
     keyboardBottom: Int,
-
-    /*
-     * Actual measured height of ChatBottomBar, including:
-     *
-     * - composer
-     * - reply suggestions
-     * - any additional floating bottom content
-     *
-     * This is the authoritative signal that the visible chat
-     * viewport has become smaller.
-     */
     bottomOverlayHeight: Dp,
-
     bottomAnchorIndex: Int,
     scrollRequestKey: Int
 ) {
-    /*
-     * Initialize with the current count.
-     *
-     * Saved messages already present when the conversation
-     * opens must not be mistaken for newly-arrived messages.
-     */
     val previousMessageCount =
         remember {
             mutableIntStateOf(
@@ -47,12 +36,6 @@ internal fun ChatMessageListScrollEffects(
             )
         }
 
-    /*
-     * Suggestions may load after the conversation opens.
-     *
-     * Tracking their previous count lets us react specifically
-     * when suggestions appear or increase.
-     */
     val previousSuggestionCount =
         remember {
             mutableIntStateOf(
@@ -60,37 +43,101 @@ internal fun ChatMessageListScrollEffects(
             )
         }
 
+    val initialBottomSettled =
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
+    val shouldFollowBottom =
+        remember {
+            mutableStateOf(
+                true
+            )
+        }
+
+    InitialBottomSettlementEffect(
+        listState =
+            listState,
+
+        messageCount =
+            messageCount,
+
+        bottomOverlayHeight =
+            bottomOverlayHeight,
+
+        bottomAnchorIndex =
+            bottomAnchorIndex,
+
+        initialBottomSettled =
+            initialBottomSettled,
+
+        shouldFollowBottom =
+            shouldFollowBottom
+    )
+
+    BottomFollowingObservationEffect(
+        listState =
+            listState,
+
+        initialBottomSettled =
+            initialBottomSettled,
+
+        shouldFollowBottom =
+            shouldFollowBottom
+    )
+
     FocusScrollEffect(
         listState =
             listState,
+
         messageCount =
             messageCount,
+
         bottomAnchorIndex =
             bottomAnchorIndex,
+
         scrollRequestKey =
-            scrollRequestKey
+            scrollRequestKey,
+
+        shouldFollowBottom =
+            shouldFollowBottom
     )
 
     KeyboardScrollEffect(
         listState =
             listState,
+
         messageCount =
             messageCount,
+
         keyboardBottom =
             keyboardBottom,
+
         bottomAnchorIndex =
-            bottomAnchorIndex
+            bottomAnchorIndex,
+
+        shouldFollowBottom =
+            shouldFollowBottom
     )
 
     NewMessageScrollEffect(
         listState =
             listState,
+
         messageCount =
             messageCount,
+
         previousMessageCount =
             previousMessageCount.intValue,
+
         bottomAnchorIndex =
             bottomAnchorIndex,
+
+        shouldFollowBottom =
+            shouldFollowBottom,
+
         onMessageCountHandled = { handledCount ->
             previousMessageCount.intValue =
                 handledCount
@@ -100,67 +147,175 @@ internal fun ChatMessageListScrollEffects(
     TypingIndicatorScrollEffect(
         listState =
             listState,
+
         messageCount =
             messageCount,
+
         hasTypingIndicator =
             hasTypingIndicator,
+
         bottomAnchorIndex =
-            bottomAnchorIndex
+            bottomAnchorIndex,
+
+        shouldFollowBottom =
+            shouldFollowBottom
     )
 
-    /*
-     * Early scroll when suggestions appear.
-     *
-     * This reacts to the data becoming available.
-     */
     SuggestionScrollEffect(
         listState =
             listState,
+
         messageCount =
             messageCount,
+
         suggestionCount =
             suggestionCount,
+
         previousSuggestionCount =
             previousSuggestionCount.intValue,
+
         bottomAnchorIndex =
             bottomAnchorIndex,
+
+        shouldFollowBottom =
+            shouldFollowBottom,
+
         onSuggestionCountHandled = { handledCount ->
             previousSuggestionCount.intValue =
                 handledCount
         }
     )
 
-    /*
-     * Final authoritative correction.
-     *
-     * This reacts after ChatBottomBar has actually measured
-     * its new height. It covers:
-     *
-     * - suggestions appearing during an active chat
-     * - suggestions loading after reopening a conversation
-     * - suggestion animations changing the overlay height
-     * - keyboard and composer layout adjustments
-     */
     BottomOverlayScrollEffect(
         listState =
             listState,
+
         messageCount =
             messageCount,
+
         bottomOverlayHeight =
             bottomOverlayHeight,
+
         bottomAnchorIndex =
-            bottomAnchorIndex
+            bottomAnchorIndex,
+
+        initialBottomSettled =
+            initialBottomSettled,
+
+        shouldFollowBottom =
+            shouldFollowBottom
     )
 
-    /*
-     * Keep isSending in the function contract.
-     *
-     * Sending alone does not change the visible viewport, so
-     * it does not independently start a scroll animation.
-     */
-    @Suppress("UNUSED_VARIABLE")
-    val ignoredSendingState =
-        isSending
+    SendingScrollEffect(
+        listState =
+            listState,
+
+        messageCount =
+            messageCount,
+
+        isSending =
+            isSending,
+
+        bottomAnchorIndex =
+            bottomAnchorIndex,
+
+        shouldFollowBottom =
+            shouldFollowBottom
+    )
+}
+
+@Composable
+private fun InitialBottomSettlementEffect(
+    listState: LazyListState,
+    messageCount: Int,
+    bottomOverlayHeight: Dp,
+    bottomAnchorIndex: Int,
+    initialBottomSettled: MutableState<Boolean>,
+    shouldFollowBottom: MutableState<Boolean>
+) {
+    LaunchedEffect(
+        messageCount,
+        bottomAnchorIndex,
+        bottomOverlayHeight
+    ) {
+        if (
+            initialBottomSettled.value ||
+            messageCount <= 0 ||
+            bottomOverlayHeight <= 0.dp
+        ) {
+            return@LaunchedEffect
+        }
+
+        awaitChatLayoutFrames()
+
+        scrollToBottomSafely(
+            listState =
+                listState,
+
+            bottomAnchorIndex =
+                bottomAnchorIndex
+        )
+
+        delay(
+            CHAT_INITIAL_BOTTOM_SETTLE_DELAY_MILLIS
+        )
+
+        awaitChatLayoutFrames()
+
+        scrollToBottomSafely(
+            listState =
+                listState,
+
+            bottomAnchorIndex =
+                bottomAnchorIndex
+        )
+
+        awaitChatLayoutFrames()
+
+        scrollToBottomSafely(
+            listState =
+                listState,
+
+            bottomAnchorIndex =
+                bottomAnchorIndex
+        )
+
+        shouldFollowBottom.value =
+            true
+
+        initialBottomSettled.value =
+            true
+    }
+}
+
+@Composable
+private fun BottomFollowingObservationEffect(
+    listState: LazyListState,
+    initialBottomSettled: MutableState<Boolean>,
+    shouldFollowBottom: MutableState<Boolean>
+) {
+    LaunchedEffect(
+        listState
+    ) {
+        snapshotFlow {
+            if (
+                !initialBottomSettled.value
+            ) {
+                true
+            } else {
+                listState.isAtConversationBottom()
+            }
+        }
+            .distinctUntilChanged()
+            .collectLatest { isAtBottom ->
+                if (
+                    initialBottomSettled.value
+                ) {
+                    shouldFollowBottom.value =
+                        isAtBottom
+                }
+            }
+    }
 }
 
 @Composable
@@ -168,7 +323,8 @@ private fun FocusScrollEffect(
     listState: LazyListState,
     messageCount: Int,
     bottomAnchorIndex: Int,
-    scrollRequestKey: Int
+    scrollRequestKey: Int,
+    shouldFollowBottom: MutableState<Boolean>
 ) {
     LaunchedEffect(
         scrollRequestKey
@@ -180,11 +336,15 @@ private fun FocusScrollEffect(
             return@LaunchedEffect
         }
 
+        shouldFollowBottom.value =
+            true
+
         awaitChatLayoutFrames()
 
         animateToBottomSafely(
             listState =
                 listState,
+
             bottomAnchorIndex =
                 bottomAnchorIndex
         )
@@ -196,7 +356,8 @@ private fun KeyboardScrollEffect(
     listState: LazyListState,
     messageCount: Int,
     keyboardBottom: Int,
-    bottomAnchorIndex: Int
+    bottomAnchorIndex: Int,
+    shouldFollowBottom: MutableState<Boolean>
 ) {
     LaunchedEffect(
         keyboardBottom
@@ -208,8 +369,11 @@ private fun KeyboardScrollEffect(
             return@LaunchedEffect
         }
 
+        shouldFollowBottom.value =
+            true
+
         delay(
-            KEYBOARD_SCROLL_DELAY_MILLIS
+            CHAT_KEYBOARD_SCROLL_DELAY_MILLIS
         )
 
         awaitChatLayoutFrames()
@@ -217,6 +381,17 @@ private fun KeyboardScrollEffect(
         animateToBottomSafely(
             listState =
                 listState,
+
+            bottomAnchorIndex =
+                bottomAnchorIndex
+        )
+
+        awaitChatLayoutFrames()
+
+        scrollToBottomSafely(
+            listState =
+                listState,
+
             bottomAnchorIndex =
                 bottomAnchorIndex
         )
@@ -229,14 +404,12 @@ private fun NewMessageScrollEffect(
     messageCount: Int,
     previousMessageCount: Int,
     bottomAnchorIndex: Int,
+    shouldFollowBottom: MutableState<Boolean>,
     onMessageCountHandled: (Int) -> Unit
 ) {
     LaunchedEffect(
         messageCount
     ) {
-        /*
-         * Covers message removal and the initial state.
-         */
         if (
             messageCount <=
             previousMessageCount
@@ -248,12 +421,18 @@ private fun NewMessageScrollEffect(
             return@LaunchedEffect
         }
 
-        /*
-         * Let the message enter composition and begin its
-         * entrance animation.
-         */
+        if (
+            !shouldFollowBottom.value
+        ) {
+            onMessageCountHandled(
+                messageCount
+            )
+
+            return@LaunchedEffect
+        }
+
         delay(
-            CONTENT_SCROLL_DELAY_MILLIS
+            CHAT_CONTENT_SCROLL_DELAY_MILLIS
         )
 
         awaitChatLayoutFrames()
@@ -261,9 +440,28 @@ private fun NewMessageScrollEffect(
         animateToBottomSafely(
             listState =
                 listState,
+
             bottomAnchorIndex =
                 bottomAnchorIndex
         )
+
+        delay(
+            CHAT_MESSAGE_FINAL_CORRECTION_DELAY_MILLIS
+        )
+
+        awaitChatLayoutFrames()
+
+        if (
+            shouldFollowBottom.value
+        ) {
+            scrollToBottomSafely(
+                listState =
+                    listState,
+
+                bottomAnchorIndex =
+                    bottomAnchorIndex
+            )
+        }
 
         onMessageCountHandled(
             messageCount
@@ -276,14 +474,16 @@ private fun TypingIndicatorScrollEffect(
     listState: LazyListState,
     messageCount: Int,
     hasTypingIndicator: Boolean,
-    bottomAnchorIndex: Int
+    bottomAnchorIndex: Int,
+    shouldFollowBottom: MutableState<Boolean>
 ) {
     LaunchedEffect(
         hasTypingIndicator
     ) {
         if (
             messageCount <= 0 ||
-            !hasTypingIndicator
+            !hasTypingIndicator ||
+            !shouldFollowBottom.value
         ) {
             return@LaunchedEffect
         }
@@ -293,6 +493,7 @@ private fun TypingIndicatorScrollEffect(
         animateToBottomSafely(
             listState =
                 listState,
+
             bottomAnchorIndex =
                 bottomAnchorIndex
         )
@@ -306,16 +507,12 @@ private fun SuggestionScrollEffect(
     suggestionCount: Int,
     previousSuggestionCount: Int,
     bottomAnchorIndex: Int,
+    shouldFollowBottom: MutableState<Boolean>,
     onSuggestionCountHandled: (Int) -> Unit
 ) {
     LaunchedEffect(
         suggestionCount
     ) {
-        /*
-         * Suggestions disappeared or no messages exist.
-         *
-         * Update the stored count without forcing a scroll.
-         */
         if (
             suggestionCount <= 0 ||
             messageCount <= 0
@@ -327,9 +524,6 @@ private fun SuggestionScrollEffect(
             return@LaunchedEffect
         }
 
-        /*
-         * Ignore unchanged or reduced suggestion counts.
-         */
         if (
             suggestionCount <=
             previousSuggestionCount
@@ -341,14 +535,18 @@ private fun SuggestionScrollEffect(
             return@LaunchedEffect
         }
 
-        /*
-         * Suggestions normally animate above the composer.
-         *
-         * This delay gives their visibility transition time to
-         * start affecting the layout.
-         */
+        if (
+            !shouldFollowBottom.value
+        ) {
+            onSuggestionCountHandled(
+                suggestionCount
+            )
+
+            return@LaunchedEffect
+        }
+
         delay(
-            SUGGESTION_SCROLL_DELAY_MILLIS
+            CHAT_SUGGESTION_SCROLL_DELAY_MILLIS
         )
 
         awaitChatLayoutFrames()
@@ -356,6 +554,7 @@ private fun SuggestionScrollEffect(
         animateToBottomSafely(
             listState =
                 listState,
+
             bottomAnchorIndex =
                 bottomAnchorIndex
         )
@@ -371,7 +570,9 @@ private fun BottomOverlayScrollEffect(
     listState: LazyListState,
     messageCount: Int,
     bottomOverlayHeight: Dp,
-    bottomAnchorIndex: Int
+    bottomAnchorIndex: Int,
+    initialBottomSettled: MutableState<Boolean>,
+    shouldFollowBottom: MutableState<Boolean>
 ) {
     LaunchedEffect(
         bottomOverlayHeight
@@ -383,47 +584,80 @@ private fun BottomOverlayScrollEffect(
             return@LaunchedEffect
         }
 
-        /*
-         * onSizeChanged has reported the new bottom-bar
-         * measurement.
-         *
-         * Wait for ChatMessageList to receive the new bottom
-         * padding and for LazyColumn to recalculate its
-         * viewport.
-         */
+        if (
+            !initialBottomSettled.value ||
+            !shouldFollowBottom.value
+        ) {
+            return@LaunchedEffect
+        }
+
         awaitChatLayoutFrames()
 
         delay(
-            OVERLAY_SCROLL_SETTLE_DELAY_MILLIS
+            CHAT_OVERLAY_SCROLL_SETTLE_DELAY_MILLIS
         )
 
-        /*
-         * First movement follows the new measured viewport.
-         */
+        if (
+            !shouldFollowBottom.value
+        ) {
+            return@LaunchedEffect
+        }
+
         animateToBottomSafely(
             listState =
                 listState,
+
             bottomAnchorIndex =
                 bottomAnchorIndex
         )
 
-        /*
-         * Suggestion visibility may still be finishing its
-         * animation. Wait for two more layout frames before
-         * making the final correction.
-         */
+        delay(
+            CHAT_OVERLAY_FINAL_CORRECTION_DELAY_MILLIS
+        )
+
         awaitChatLayoutFrames()
 
-        /*
-         * Use an immediate final correction.
-         *
-         * This avoids an assistant bubble remaining partially
-         * hidden behind the suggestion row after reopening a
-         * conversation.
-         */
-        scrollToBottomSafely(
+        if (
+            shouldFollowBottom.value
+        ) {
+            scrollToBottomSafely(
+                listState =
+                    listState,
+
+                bottomAnchorIndex =
+                    bottomAnchorIndex
+            )
+        }
+    }
+}
+
+@Composable
+private fun SendingScrollEffect(
+    listState: LazyListState,
+    messageCount: Int,
+    isSending: Boolean,
+    bottomAnchorIndex: Int,
+    shouldFollowBottom: MutableState<Boolean>
+) {
+    LaunchedEffect(
+        isSending
+    ) {
+        if (
+            !isSending ||
+            messageCount <= 0
+        ) {
+            return@LaunchedEffect
+        }
+
+        shouldFollowBottom.value =
+            true
+
+        awaitChatLayoutFrames()
+
+        animateToBottomSafely(
             listState =
                 listState,
+
             bottomAnchorIndex =
                 bottomAnchorIndex
         )
@@ -438,11 +672,15 @@ private suspend fun animateToBottomSafely(
         listState.safeBottomIndex(
             requestedIndex =
                 bottomAnchorIndex
-        ) ?: return
+        )
+            ?: return
 
     listState.animateScrollToItem(
         index =
-            safeIndex
+            safeIndex,
+
+        scrollOffset =
+            0
     )
 }
 
@@ -454,11 +692,15 @@ private suspend fun scrollToBottomSafely(
         listState.safeBottomIndex(
             requestedIndex =
                 bottomAnchorIndex
-        ) ?: return
+        )
+            ?: return
 
     listState.scrollToItem(
         index =
-            safeIndex
+            safeIndex,
+
+        scrollOffset =
+            0
     )
 }
 
@@ -468,42 +710,110 @@ private fun LazyListState.safeBottomIndex(
     val totalItemCount =
         layoutInfo.totalItemsCount
 
-    if (totalItemCount <= 0) {
+    if (
+        totalItemCount <= 0
+    ) {
         return null
     }
 
     return requestedIndex.coerceIn(
         minimumValue =
             0,
+
         maximumValue =
             totalItemCount - 1
     )
 }
 
+private fun LazyListState.isAtConversationBottom():
+        Boolean {
+
+    val layout =
+        layoutInfo
+
+    val totalItemCount =
+        layout.totalItemsCount
+
+    if (
+        totalItemCount <= 0
+    ) {
+        return true
+    }
+
+    /*
+     * Compose already exposes the most reliable semantic answer
+     * for this question.
+     *
+     * canScrollForward == false means there is no remaining
+     * content below the current viewport.
+     */
+    if (
+        !canScrollForward
+    ) {
+        return true
+    }
+
+    val lastVisibleItem =
+        layout
+            .visibleItemsInfo
+            .lastOrNull()
+            ?: return false
+
+    val finalItemIndex =
+        totalItemCount -
+                1
+
+    if (
+        lastVisibleItem.index !=
+        finalItemIndex
+    ) {
+        return false
+    }
+
+    val finalItemBottom =
+        lastVisibleItem.offset +
+                lastVisibleItem.size
+
+    return finalItemBottom <=
+            layout.viewportEndOffset +
+            CHAT_BOTTOM_VISIBILITY_TOLERANCE_PX
+}
+
 private suspend fun awaitChatLayoutFrames() {
     withFrameNanos {
-        /*
-         * Wait for changed state to enter composition.
-         */
     }
 
     withFrameNanos {
-        /*
-         * Wait for LazyColumn and bottom-overlay measurement.
-         */
     }
 }
 
 /*
- * Allows suggestion chips to enter their visibility animation
- * before the early scroll.
+ * These names intentionally use a Chat-specific prefix.
+ *
+ * The previous build failed because the project already
+ * contained top-level KEYBOARD_SCROLL_DELAY_MILLIS and
+ * CONTENT_SCROLL_DELAY_MILLIS declarations in this package.
  */
-private const val SUGGESTION_SCROLL_DELAY_MILLIS =
+private const val CHAT_INITIAL_BOTTOM_SETTLE_DELAY_MILLIS =
+    120L
+
+private const val CHAT_KEYBOARD_SCROLL_DELAY_MILLIS =
+    80L
+
+private const val CHAT_CONTENT_SCROLL_DELAY_MILLIS =
+    80L
+
+private const val CHAT_MESSAGE_FINAL_CORRECTION_DELAY_MILLIS =
+    120L
+
+private const val CHAT_SUGGESTION_SCROLL_DELAY_MILLIS =
     160L
 
-/*
- * Allows the updated bottom content padding to reach the
- * LazyColumn before scrolling.
- */
-private const val OVERLAY_SCROLL_SETTLE_DELAY_MILLIS =
+private const val CHAT_OVERLAY_SCROLL_SETTLE_DELAY_MILLIS =
     80L
+
+private const val CHAT_OVERLAY_FINAL_CORRECTION_DELAY_MILLIS =
+    120L
+
+private const val CHAT_BOTTOM_VISIBILITY_TOLERANCE_PX =
+    8

@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/core/database/dao/LearnerProfileDao.kt
+
 package com.julesmeister.deutschcraft.core.database.dao
 
 import androidx.room.Dao
@@ -24,6 +26,18 @@ abstract class LearnerProfileDao {
     abstract suspend fun upsertSkillScores(
         skillScores: List<SkillScoreEntity>
     )
+
+    @Query(
+        """
+        SELECT *
+        FROM learner_profiles
+        WHERE id = :profileId
+        LIMIT 1
+        """
+    )
+    abstract fun observeProfile(
+        profileId: String
+    ): Flow<LearnerProfileEntity?>
 
     @Transaction
     @Query(
@@ -89,11 +103,20 @@ abstract class LearnerProfileDao {
         profile: LearnerProfileEntity,
         skillScores: List<SkillScoreEntity>
     ) {
-        upsertProfile(profile)
+        upsertProfile(
+            profile =
+                profile
+        )
 
-        deleteSkillScores(profile.id)
+        deleteSkillScores(
+            profileId =
+                profile.id
+        )
 
-        upsertSkillScores(skillScores)
+        upsertSkillScores(
+            skillScores =
+                skillScores
+        )
     }
 
     @Query(

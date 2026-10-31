@@ -47,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -67,16 +68,6 @@ import com.julesmeister.deutschcraft.ui.theme.DeutschSky
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnSky
 
-/*
- * Compact learning note attached flush beneath its source
- * message bubble.
- *
- * Tap bubble:
- *     expand/collapse explanation
- *
- * Tap X:
- *     open removal confirmation
- */
 @Composable
 fun MarkedPhraseBubble(
     phrase: MarkedPhrase,
@@ -89,21 +80,23 @@ fun MarkedPhraseBubble(
         MaterialTheme.colorScheme
 
     var isExpanded by
-    rememberSaveable(phrase.id) {
-        mutableStateOf(false)
+    rememberSaveable(
+        phrase.id
+    ) {
+        mutableStateOf(
+            false
+        )
     }
 
     var showRemoveDialog by
-    rememberSaveable(phrase.id) {
-        mutableStateOf(false)
+    rememberSaveable(
+        phrase.id
+    ) {
+        mutableStateOf(
+            false
+        )
     }
 
-    /*
-     * Keep DeutschCraft's sender colors:
-     *
-     * User      -> lime
-     * Assistant -> sky
-     */
     val accent =
         if (isUserMessage) {
             DeutschLime
@@ -118,6 +111,22 @@ fun MarkedPhraseBubble(
             DeutschTextOnSky
         }
 
+    val isLightTheme =
+        colorScheme.background.luminance() >=
+                LIGHT_THEME_LUMINANCE_THRESHOLD
+
+    val readableAccent =
+        when {
+            !isLightTheme ->
+                accent
+
+            isUserMessage ->
+                colorScheme.primary
+
+            else ->
+                LIGHT_MODE_ASSISTANT_READABLE_ACCENT
+        }
+
     val bottomCorner =
         if (isLast) {
             BOTTOM_CORNER_RADIUS
@@ -125,26 +134,33 @@ fun MarkedPhraseBubble(
             0.dp
         }
 
-    /*
-     * Flat top because the marked phrase visually attaches
-     * directly underneath its source message.
-     */
     val shape =
         RoundedCornerShape(
-            topStart = 0.dp,
-            topEnd = 0.dp,
-            bottomStart = bottomCorner,
-            bottomEnd = bottomCorner
+            topStart =
+                0.dp,
+
+            topEnd =
+                0.dp,
+
+            bottomStart =
+                bottomCorner,
+
+            bottomEnd =
+                bottomCorner
         )
 
-    /*
-     * Theme-aware base surface.
-     */
+    val containerTintAlpha =
+        if (isLightTheme) {
+            LIGHT_CONTAINER_TINT_ALPHA
+        } else {
+            DARK_CONTAINER_TINT_ALPHA
+        }
+
     val containerColor =
         accent
             .copy(
                 alpha =
-                    CONTAINER_TINT_ALPHA
+                    containerTintAlpha
             )
             .compositeOver(
                 colorScheme.surfaceContainerHigh
@@ -169,26 +185,27 @@ fun MarkedPhraseBubble(
                                 !phrase.example.isNullOrBlank()
                         )
 
-    /*
-     * =======================================================
-     * Removal confirmation
-     * =======================================================
-     */
-
     if (showRemoveDialog) {
         RemoveMarkedPhraseDialog(
             phrase =
                 phrase.phrase,
+
             accent =
                 accent,
+
             onAccent =
                 onAccent,
+
+            isUserMessage =
+                isUserMessage,
+
             onConfirm = {
                 showRemoveDialog =
                     false
 
                 onRemove()
             },
+
             onDismiss = {
                 showRemoveDialog =
                     false
@@ -196,15 +213,10 @@ fun MarkedPhraseBubble(
         )
     }
 
-    /*
-     * =======================================================
-     * Bubble
-     * =======================================================
-     */
-
     Row(
         modifier =
             modifier.fillMaxWidth(),
+
         horizontalArrangement =
             if (isUserMessage) {
                 Arrangement.End
@@ -228,10 +240,12 @@ fun MarkedPhraseBubble(
                     .clickable(
                         enabled =
                             canExpand,
+
                         interactionSource =
                             remember {
                                 MutableInteractionSource()
                             },
+
                         indication =
                             null
                     ) {
@@ -248,21 +262,17 @@ fun MarkedPhraseBubble(
                     .padding(
                         start =
                             CONTENT_START_PADDING,
+
                         end =
                             CONTENT_END_PADDING,
+
                         top =
                             CONTENT_TOP_PADDING,
+
                         bottom =
                             CONTENT_BOTTOM_PADDING
                     )
         ) {
-
-            /*
-             * ===================================================
-             * Compact row
-             * ===================================================
-             */
-
             Row(
                 verticalAlignment =
                     Alignment.CenterVertically
@@ -274,12 +284,15 @@ fun MarkedPhraseBubble(
                                 phrase.type.icon
                             )
 
-                            append(" ")
+                            append(
+                                " "
+                            )
 
                             withStyle(
                                 SpanStyle(
                                     color =
-                                        accent,
+                                        readableAccent,
+
                                     fontWeight =
                                         FontWeight.SemiBold
                                 )
@@ -325,11 +338,16 @@ fun MarkedPhraseBubble(
                                 }
                             }
                         },
+
                     modifier =
                         Modifier.weight(
-                            weight = 1f,
-                            fill = false
+                            weight =
+                                1f,
+
+                            fill =
+                                false
                         ),
+
                     style =
                         MaterialTheme
                             .typography
@@ -337,17 +355,21 @@ fun MarkedPhraseBubble(
                             .copy(
                                 fontSize =
                                     COMPACT_FONT_SIZE,
+
                                 lineHeight =
                                     COMPACT_LINE_HEIGHT
                             ),
+
                     color =
                         colorScheme.onSurface,
+
                     maxLines =
                         if (isExpanded) {
                             3
                         } else {
                             1
                         },
+
                     overflow =
                         TextOverflow.Ellipsis
                 )
@@ -359,9 +381,6 @@ fun MarkedPhraseBubble(
                         )
                 )
 
-                /*
-                 * X no longer removes immediately.
-                 */
                 Box(
                     modifier =
                         Modifier
@@ -375,18 +394,22 @@ fun MarkedPhraseBubble(
                                 showRemoveDialog =
                                     true
                             },
+
                     contentAlignment =
                         Alignment.Center
                 ) {
                     Icon(
                         imageVector =
                             Icons.Outlined.Close,
+
                         contentDescription =
                             "Markierung entfernen",
+
                         modifier =
                             Modifier.size(
                                 REMOVE_ICON_SIZE
                             ),
+
                         tint =
                             colorScheme
                                 .onSurfaceVariant
@@ -398,16 +421,11 @@ fun MarkedPhraseBubble(
                 }
             }
 
-            /*
-             * ===================================================
-             * Expanded explanation
-             * ===================================================
-             */
-
             AnimatedVisibility(
                 visible =
                     isExpanded &&
                             canExpand,
+
                 enter =
                     fadeIn(
                         animationSpec =
@@ -423,6 +441,7 @@ fun MarkedPhraseBubble(
                                             DETAILS_EXPAND_MILLIS
                                     )
                             ),
+
                 exit =
                     fadeOut(
                         animationSpec =
@@ -442,43 +461,104 @@ fun MarkedPhraseBubble(
                 ExpandedDetails(
                     explanation =
                         phrase.explanation,
+
                     example =
                         phrase.example,
+
                     accent =
-                        accent
+                        readableAccent
                 )
             }
         }
     }
 }
 
-/*
- * ===========================================================
- * CUSTOM REMOVE DIALOG
- * ===========================================================
- */
-
 @Composable
 private fun RemoveMarkedPhraseDialog(
     phrase: String,
     accent: Color,
     onAccent: Color,
+    isUserMessage: Boolean,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val colorScheme =
         MaterialTheme.colorScheme
 
+    val isLightTheme =
+        colorScheme.background.luminance() >=
+                LIGHT_THEME_LUMINANCE_THRESHOLD
+
+    val readableAccent =
+        when {
+            !isLightTheme ->
+                accent
+
+            isUserMessage ->
+                colorScheme.primary
+
+            else ->
+                LIGHT_MODE_ASSISTANT_READABLE_ACCENT
+        }
+
+    val phraseChipColor =
+        when {
+            !isLightTheme ->
+                accent
+
+            isUserMessage ->
+                colorScheme.primary
+
+            else ->
+                LIGHT_MODE_ASSISTANT_READABLE_ACCENT
+        }
+
+    val phraseChipContentColor =
+        when {
+            !isLightTheme ->
+                onAccent
+
+            isUserMessage ->
+                colorScheme.onPrimary
+
+            else ->
+                Color.White
+        }
+
+    val dialogContainerColor =
+        if (isLightTheme) {
+            colorScheme.surfaceContainerLow
+        } else {
+            colorScheme.surfaceContainerHigh
+        }
+
+    val deleteIconBackground =
+        colorScheme.error.copy(
+            alpha =
+                if (isLightTheme) {
+                    LIGHT_DELETE_ICON_BACKGROUND_ALPHA
+                } else {
+                    DARK_DELETE_ICON_BACKGROUND_ALPHA
+                }
+        )
+
+    val cancelContainerColor =
+        if (isLightTheme) {
+            colorScheme.surfaceContainerHigh
+        } else {
+            colorScheme.surfaceContainerHighest
+        }
+
     var animationStarted by
     remember {
-        mutableStateOf(false)
+        mutableStateOf(
+            false
+        )
     }
 
-    /*
-     * Start one frame after composition so the initial scale
-     * is actually visible.
-     */
-    LaunchedEffect(Unit) {
+    LaunchedEffect(
+        Unit
+    ) {
         animationStarted =
             true
     }
@@ -491,13 +571,16 @@ private fun RemoveMarkedPhraseDialog(
             } else {
                 DIALOG_INITIAL_SCALE
             },
+
         animationSpec =
             spring(
                 dampingRatio =
                     Spring.DampingRatioMediumBouncy,
+
                 stiffness =
                     Spring.StiffnessMediumLow
             ),
+
         label =
             "MarkedPhraseDialogScale"
     )
@@ -510,11 +593,13 @@ private fun RemoveMarkedPhraseDialog(
             } else {
                 DIALOG_HIDDEN_ALPHA
             },
+
         animationSpec =
             tween(
                 durationMillis =
                     DIALOG_FADE_MILLIS
             ),
+
         label =
             "MarkedPhraseDialogAlpha"
     )
@@ -522,6 +607,7 @@ private fun RemoveMarkedPhraseDialog(
     Dialog(
         onDismissRequest =
             onDismiss,
+
         properties =
             DialogProperties(
                 usePlatformDefaultWidth =
@@ -550,82 +636,125 @@ private fun RemoveMarkedPhraseDialog(
                         DIALOG_SHAPE
                     )
                     .background(
-                        colorScheme.surfaceContainerHigh
+                        dialogContainerColor
                     )
                     .padding(
-                        DIALOG_CONTENT_PADDING
-                    ),
-            horizontalAlignment =
-                Alignment.CenterHorizontally
-        ) {
+                        horizontal =
+                            DIALOG_HORIZONTAL_PADDING,
 
-            /*
-             * ===================================================
-             * Delete icon
-             * ===================================================
-             */
-
-            Box(
-                modifier =
-                    Modifier
-                        .size(
-                            DIALOG_ICON_CONTAINER_SIZE
-                        )
-                        .clip(
-                            CircleShape
-                        )
-                        .background(
-                            colorScheme
-                                .error
-                                .copy(
-                                    alpha =
-                                        DIALOG_ERROR_CONTAINER_ALPHA
-                                )
-                        ),
-                contentAlignment =
-                    Alignment.Center
-            ) {
-                Icon(
-                    imageVector =
-                        Icons.Outlined.DeleteOutline,
-                    contentDescription =
-                        null,
-                    modifier =
-                        Modifier.size(
-                            DIALOG_ICON_SIZE
-                        ),
-                    tint =
-                        colorScheme.error
-                )
-            }
-
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        DIALOG_HEADER_SPACING
+                        vertical =
+                            DIALOG_VERTICAL_PADDING
                     )
-            )
-
+        ) {
             /*
-             * ===================================================
-             * Heading
-             * ===================================================
+             * Compact flat header.
+             *
+             * The delete icon no longer sits inside a large
+             * ornamental circle. The icon receives only a small,
+             * flat error-tinted container.
              */
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth(),
 
-            Text(
-                text =
-                    "Markierung entfernen?",
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleLarge,
-                fontWeight =
-                    FontWeight.Bold,
-                color =
-                    colorScheme.onSurface,
-                textAlign =
-                    TextAlign.Center
-            )
+                verticalAlignment =
+                    Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(
+                                DIALOG_ICON_CONTAINER_SIZE
+                            )
+                            .clip(
+                                DIALOG_ICON_SHAPE
+                            )
+                            .background(
+                                deleteIconBackground
+                            ),
+
+                    contentAlignment =
+                        Alignment.Center
+                ) {
+                    Icon(
+                        imageVector =
+                            Icons.Outlined.DeleteOutline,
+
+                        contentDescription =
+                            null,
+
+                        modifier =
+                            Modifier.size(
+                                DIALOG_ICON_SIZE
+                            ),
+
+                        tint =
+                            colorScheme.error
+                    )
+                }
+
+                Spacer(
+                    modifier =
+                        Modifier.width(
+                            DIALOG_HEADER_HORIZONTAL_SPACING
+                        )
+                )
+
+                Column(
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        )
+                ) {
+                    Text(
+                        text =
+                            "Markierung entfernen?",
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .titleMedium,
+
+                        fontWeight =
+                            FontWeight.Bold,
+
+                        color =
+                            colorScheme.onSurface,
+
+                        maxLines =
+                            1,
+
+                        overflow =
+                            TextOverflow.Ellipsis
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                DIALOG_TITLE_DESCRIPTION_SPACING
+                            )
+                    )
+
+                    Text(
+                        text =
+                            "Diese Lernnotiz wird gelöscht.",
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
+
+                        color =
+                            colorScheme.onSurfaceVariant,
+
+                        maxLines =
+                            1,
+
+                        overflow =
+                            TextOverflow.Ellipsis
+                    )
+                }
+            }
 
             Spacer(
                 modifier =
@@ -635,52 +764,91 @@ private fun RemoveMarkedPhraseDialog(
             )
 
             /*
-             * ===================================================
-             * Phrase chip
-             * ===================================================
+             * Flat phrase section.
              *
-             * Uses the same sender accent as the marked phrase:
-             *
-             * User      -> lime
-             * Assistant -> sky
+             * No outline, no surrounding card border and no
+             * nested decorative frame.
              */
-
-            Text(
-                text =
-                    phrase,
+            Row(
                 modifier =
                     Modifier
-                        .widthIn(
-                            max =
-                                DIALOG_PHRASE_MAX_WIDTH
-                        )
+                        .fillMaxWidth()
                         .clip(
-                            CircleShape
+                            DIALOG_PHRASE_ROW_SHAPE
                         )
                         .background(
-                            accent
+                            readableAccent
+                                .copy(
+                                    alpha =
+                                        if (isLightTheme) {
+                                            LIGHT_PHRASE_ROW_ALPHA
+                                        } else {
+                                            DARK_PHRASE_ROW_ALPHA
+                                        }
+                                )
+                                .compositeOver(
+                                    dialogContainerColor
+                                )
                         )
                         .padding(
                             horizontal =
-                                DIALOG_PHRASE_HORIZONTAL_PADDING,
+                                DIALOG_PHRASE_ROW_HORIZONTAL_PADDING,
+
                             vertical =
-                                DIALOG_PHRASE_VERTICAL_PADDING
+                                DIALOG_PHRASE_ROW_VERTICAL_PADDING
                         ),
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelLarge,
-                fontWeight =
-                    FontWeight.SemiBold,
-                color =
-                    onAccent,
-                maxLines =
-                    DIALOG_PHRASE_MAX_LINES,
-                overflow =
-                    TextOverflow.Ellipsis,
-                textAlign =
-                    TextAlign.Center
-            )
+
+                verticalAlignment =
+                    Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(
+                                DIALOG_PHRASE_ACCENT_DOT_SIZE
+                            )
+                            .clip(
+                                CircleShape
+                            )
+                            .background(
+                                readableAccent
+                            )
+                )
+
+                Spacer(
+                    modifier =
+                        Modifier.width(
+                            DIALOG_PHRASE_ACCENT_SPACING
+                        )
+                )
+
+                Text(
+                    text =
+                        phrase,
+
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        ),
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodyMedium,
+
+                    fontWeight =
+                        FontWeight.SemiBold,
+
+                    color =
+                        readableAccent,
+
+                    maxLines =
+                        DIALOG_PHRASE_MAX_LINES,
+
+                    overflow =
+                        TextOverflow.Ellipsis
+                )
+            }
 
             Spacer(
                 modifier =
@@ -691,16 +859,19 @@ private fun RemoveMarkedPhraseDialog(
 
             Text(
                 text =
-                    "Die Erklärung und das Beispiel werden " +
-                            "aus deinen Markierungen gelöscht.",
+                    "Bedeutung, Erklärung und Beispiel werden " +
+                            "aus deinen Markierungen entfernt.",
+
                 style =
                     MaterialTheme
                         .typography
-                        .bodyMedium,
+                        .bodySmall,
+
                 color =
                     colorScheme.onSurfaceVariant,
-                textAlign =
-                    TextAlign.Center
+
+                lineHeight =
+                    DIALOG_DESCRIPTION_LINE_HEIGHT
             )
 
             Spacer(
@@ -711,100 +882,131 @@ private fun RemoveMarkedPhraseDialog(
             )
 
             /*
-             * ===================================================
-             * Remove
-             * ===================================================
+             * Flat side-by-side actions.
+             *
+             * Cancel remains a neutral filled surface.
+             * Delete uses the semantic error color.
+             *
+             * Neither button has a border.
              */
-
-            Box(
+            Row(
                 modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(
-                            DIALOG_ACTION_HEIGHT
-                        )
-                        .clip(
-                            CircleShape
-                        )
-                        .background(
-                            colorScheme.error
-                        )
-                        .clickable(
-                            onClick =
-                                onConfirm
-                        ),
-                contentAlignment =
-                    Alignment.Center
-            ) {
-                Text(
-                    text =
-                        "Entfernen",
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelLarge,
-                    fontWeight =
-                        FontWeight.Bold,
-                    color =
-                        colorScheme.onError
-                )
-            }
+                    Modifier.fillMaxWidth(),
 
-            Spacer(
-                modifier =
-                    Modifier.height(
+                horizontalArrangement =
+                    Arrangement.spacedBy(
                         DIALOG_ACTION_SPACING
                     )
-            )
-
-            /*
-             * ===================================================
-             * Cancel
-             * ===================================================
-             */
-
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(
-                            DIALOG_ACTION_HEIGHT
-                        )
-                        .clip(
-                            CircleShape
-                        )
-                        .background(
-                            colorScheme.surfaceContainerHighest
-                        )
-                        .clickable(
-                            onClick =
-                                onDismiss
-                        ),
-                contentAlignment =
-                    Alignment.Center
             ) {
-                Text(
-                    text =
-                        "Abbrechen",
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelLarge,
-                    fontWeight =
-                        FontWeight.SemiBold,
-                    color =
-                        colorScheme.onSurface
-                )
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(
+                                1f
+                            )
+                            .height(
+                                DIALOG_ACTION_HEIGHT
+                            )
+                            .clip(
+                                DIALOG_ACTION_SHAPE
+                            )
+                            .background(
+                                cancelContainerColor
+                            )
+                            .clickable(
+                                onClick =
+                                    onDismiss
+                            ),
+
+                    contentAlignment =
+                        Alignment.Center
+                ) {
+                    Text(
+                        text =
+                            "Abbrechen",
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .labelLarge,
+
+                        fontWeight =
+                            FontWeight.SemiBold,
+
+                        color =
+                            colorScheme.onSurface
+                    )
+                }
+
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(
+                                1f
+                            )
+                            .height(
+                                DIALOG_ACTION_HEIGHT
+                            )
+                            .clip(
+                                DIALOG_ACTION_SHAPE
+                            )
+                            .background(
+                                colorScheme.error
+                            )
+                            .clickable(
+                                onClick =
+                                    onConfirm
+                            ),
+
+                    contentAlignment =
+                        Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment =
+                            Alignment.CenterVertically,
+
+                        horizontalArrangement =
+                            Arrangement.spacedBy(
+                                DIALOG_DELETE_CONTENT_SPACING
+                            )
+                    ) {
+                        Icon(
+                            imageVector =
+                                Icons.Outlined.DeleteOutline,
+
+                            contentDescription =
+                                null,
+
+                            modifier =
+                                Modifier.size(
+                                    DIALOG_DELETE_ACTION_ICON_SIZE
+                                ),
+
+                            tint =
+                                colorScheme.onError
+                        )
+
+                        Text(
+                            text =
+                                "Entfernen",
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .labelLarge,
+
+                            fontWeight =
+                                FontWeight.Bold,
+
+                            color =
+                                colorScheme.onError
+                        )
+                    }
+                }
             }
         }
     }
 }
-
-/*
- * ===========================================================
- * EXPANDED DETAILS
- * ===========================================================
- */
 
 @Composable
 private fun ExpandedDetails(
@@ -820,9 +1022,11 @@ private fun ExpandedDetails(
             Modifier.padding(
                 top =
                     DETAILS_TOP_PADDING,
+
                 end =
                     DETAILS_END_PADDING
             ),
+
         verticalArrangement =
             Arrangement.spacedBy(
                 DETAILS_SPACING
@@ -836,6 +1040,7 @@ private fun ExpandedDetails(
                 Text(
                     text =
                         text,
+
                     style =
                         MaterialTheme
                             .typography
@@ -843,12 +1048,13 @@ private fun ExpandedDetails(
                             .copy(
                                 fontSize =
                                     DETAILS_FONT_SIZE,
+
                                 lineHeight =
                                     DETAILS_LINE_HEIGHT
                             ),
+
                     color =
-                        colorScheme
-                            .onSurfaceVariant
+                        colorScheme.onSurfaceVariant
                 )
             }
 
@@ -893,6 +1099,7 @@ private fun ExpandedDetails(
                     Text(
                         text =
                             "„$text“",
+
                         style =
                             MaterialTheme
                                 .typography
@@ -900,11 +1107,14 @@ private fun ExpandedDetails(
                                 .copy(
                                     fontSize =
                                         DETAILS_FONT_SIZE,
+
                                     lineHeight =
                                         DETAILS_LINE_HEIGHT
                                 ),
+
                         fontStyle =
                             FontStyle.Italic,
+
                         color =
                             colorScheme
                                 .onSurface
@@ -918,11 +1128,13 @@ private fun ExpandedDetails(
     }
 }
 
-/*
- * ===========================================================
- * BUBBLE
- * ===========================================================
- */
+private val LIGHT_MODE_ASSISTANT_READABLE_ACCENT =
+    Color(
+        0xFF176B91
+    )
+
+private const val LIGHT_THEME_LUMINANCE_THRESHOLD =
+    0.5f
 
 private val BOTTOM_CORNER_RADIUS =
     14.dp
@@ -933,8 +1145,11 @@ private const val MAXIMUM_WIDTH_FRACTION =
 private val MAXIMUM_WIDTH =
     380.dp
 
-private const val CONTAINER_TINT_ALPHA =
+private const val DARK_CONTAINER_TINT_ALPHA =
     0.06f
+
+private const val LIGHT_CONTAINER_TINT_ALPHA =
+    0.09f
 
 private val CONTENT_START_PADDING =
     12.dp
@@ -969,12 +1184,6 @@ private val REMOVE_ICON_SIZE =
 private const val REMOVE_ICON_ALPHA =
     0.70f
 
-/*
- * ===========================================================
- * DETAILS
- * ===========================================================
- */
-
 private val DETAILS_TOP_PADDING =
     4.dp
 
@@ -997,13 +1206,13 @@ private const val EXAMPLE_ACCENT_RADIUS_PERCENT =
     50
 
 private const val EXAMPLE_ACCENT_ALPHA =
-    0.50f
+    0.65f
 
 private val EXAMPLE_TEXT_SPACING =
     8.dp
 
 private const val EXAMPLE_TEXT_ALPHA =
-    0.82f
+    0.90f
 
 private const val DETAILS_FADE_IN_MILLIS =
     180
@@ -1018,63 +1227,105 @@ private const val DETAILS_SHRINK_MILLIS =
     180
 
 /*
- * ===========================================================
- * REMOVE DIALOG
- * ===========================================================
+ * ============================================================
+ * COMPACT FLAT REMOVE DIALOG
+ * ============================================================
  */
 
 private val DIALOG_SHAPE =
     RoundedCornerShape(
-        32.dp
+        24.dp
     )
 
 private val DIALOG_OUTER_HORIZONTAL_PADDING =
-    28.dp
+    36.dp
 
-private val DIALOG_CONTENT_PADDING =
-    24.dp
+private val DIALOG_HORIZONTAL_PADDING =
+    18.dp
+
+private val DIALOG_VERTICAL_PADDING =
+    18.dp
 
 private val DIALOG_ICON_CONTAINER_SIZE =
-    64.dp
+    38.dp
 
 private val DIALOG_ICON_SIZE =
-    30.dp
-
-private val DIALOG_HEADER_SPACING =
     20.dp
 
-private val DIALOG_PHRASE_TOP_SPACING =
+private val DIALOG_ICON_SHAPE =
+    RoundedCornerShape(
+        12.dp
+    )
+
+private val DIALOG_HEADER_HORIZONTAL_SPACING =
     12.dp
 
-private val DIALOG_PHRASE_MAX_WIDTH =
-    260.dp
+private val DIALOG_TITLE_DESCRIPTION_SPACING =
+    2.dp
 
-private val DIALOG_PHRASE_HORIZONTAL_PADDING =
+private const val LIGHT_DELETE_ICON_BACKGROUND_ALPHA =
+    0.09f
+
+private const val DARK_DELETE_ICON_BACKGROUND_ALPHA =
+    0.15f
+
+private val DIALOG_PHRASE_TOP_SPACING =
     16.dp
 
-private val DIALOG_PHRASE_VERTICAL_PADDING =
-    7.dp
+private val DIALOG_PHRASE_ROW_SHAPE =
+    RoundedCornerShape(
+        14.dp
+    )
 
-private const val DIALOG_PHRASE_MAX_LINES =
-    1
-
-private val DIALOG_DESCRIPTION_TOP_SPACING =
+private val DIALOG_PHRASE_ROW_HORIZONTAL_PADDING =
     12.dp
 
+private val DIALOG_PHRASE_ROW_VERTICAL_PADDING =
+    10.dp
+
+private const val LIGHT_PHRASE_ROW_ALPHA =
+    0.08f
+
+private const val DARK_PHRASE_ROW_ALPHA =
+    0.10f
+
+private val DIALOG_PHRASE_ACCENT_DOT_SIZE =
+    7.dp
+
+private val DIALOG_PHRASE_ACCENT_SPACING =
+    9.dp
+
+private const val DIALOG_PHRASE_MAX_LINES =
+    2
+
+private val DIALOG_DESCRIPTION_TOP_SPACING =
+    10.dp
+
+private val DIALOG_DESCRIPTION_LINE_HEIGHT =
+    18.sp
+
 private val DIALOG_ACTIONS_TOP_SPACING =
-    24.dp
+    16.dp
 
 private val DIALOG_ACTION_HEIGHT =
-    50.dp
+    44.dp
 
 private val DIALOG_ACTION_SPACING =
     8.dp
 
-private const val DIALOG_ERROR_CONTAINER_ALPHA =
-    0.14f
+private val DIALOG_ACTION_SHAPE =
+    RoundedCornerShape(
+        14.dp
+    )
+
+private val DIALOG_DELETE_CONTENT_SPACING =
+    6.dp
+
+private val DIALOG_DELETE_ACTION_ICON_SIZE =
+    16.dp
 
 private const val DIALOG_INITIAL_SCALE =
-    0.88f
+    0.94f
 
 private const val DIALOG_NORMAL_SCALE =
     1f
@@ -1086,4 +1337,4 @@ private const val DIALOG_VISIBLE_ALPHA =
     1f
 
 private const val DIALOG_FADE_MILLIS =
-    160
+    140

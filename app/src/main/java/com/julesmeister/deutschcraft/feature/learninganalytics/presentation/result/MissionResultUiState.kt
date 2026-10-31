@@ -1,15 +1,10 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/learninganalytics/presentation/result/MissionResultUiState.kt
+
 package com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result
 
+import com.julesmeister.deutschcraft.feature.learninganalytics.domain.LearningDimension
 import com.julesmeister.deutschcraft.feature.learninganalytics.domain.MissionAnalytics
 
-/*
- * Presentation state for the mission-completion result sheet.
- *
- * This model contains only learner-facing information.
- *
- * Room entities and repository details remain outside the UI
- * layer.
- */
 data class MissionResultUiState(
     val isVisible: Boolean =
         false,
@@ -23,6 +18,12 @@ data class MissionResultUiState(
     val cefrLevelLabel: String =
         "",
 
+    /*
+     * Numeric values remain available to the presentation
+     * layer, but the result sheet converts them into
+     * learner-friendly growth labels instead of presenting the
+     * mission as an exam score.
+     */
     val overallScore: Int =
         0,
 
@@ -50,6 +51,12 @@ data class MissionResultUiState(
     val totalObjectiveCount: Int =
         0,
 
+    val completedRequiredObjectiveCount: Int =
+        0,
+
+    val totalRequiredObjectiveCount: Int =
+        0,
+
     val hintsUsed: Int =
         0,
 
@@ -68,17 +75,19 @@ data class MissionResultUiState(
     val directlyAssistedObjectiveCount: Int =
         0,
 
-    val correctlyUsedVocabularyCount: Int =
-        0,
-
-    val unusedVocabularyCount: Int =
-        0,
-
     val strongObjectiveTitles:
     List<String> =
         emptyList(),
 
     val improvementObjectiveTitles:
+    List<String> =
+        emptyList(),
+
+    val correctlyUsedTargetVocabulary:
+    List<String> =
+        emptyList(),
+
+    val unusedTargetVocabulary:
     List<String> =
         emptyList()
 ) {
@@ -93,125 +102,274 @@ data class MissionResultUiState(
             overallScore.coercePercent()
 
     val objectiveProgressLabel: String
-        get() =
-            "$completedObjectiveCount / " +
-                    "$totalObjectiveCount"
-
-    val resolvedCorrectionLabel: String
-        get() =
-            "$resolvedBesserCorrectionCount of " +
-                    "$besserCorrectionCount improved"
-
-    val vocabularyProgressLabel: String
         get() {
-            val totalVocabularyCount =
-                correctlyUsedVocabularyCount +
-                        unusedVocabularyCount
-
-            if (totalVocabularyCount <= 0) {
-                return "No target vocabulary"
+            if (totalObjectiveCount <= 0) {
+                return "No objectives recorded"
             }
 
-            return "$correctlyUsedVocabularyCount / " +
-                    "$totalVocabularyCount demonstrated"
+            return "$completedObjectiveCount of " +
+                    "$totalObjectiveCount completed"
+        }
+
+    val requiredObjectiveProgressLabel: String
+        get() {
+            if (totalRequiredObjectiveCount <= 0) {
+                return "No required objectives"
+            }
+
+            return "$completedRequiredObjectiveCount of " +
+                    "$totalRequiredObjectiveCount required objectives"
+        }
+
+    val missionCompletionLabel: String
+        get() =
+            when {
+                totalObjectiveCount <= 0 ->
+                    "Conversation completed"
+
+                completedObjectiveCount >=
+                        totalObjectiveCount ->
+                    "All conversation goals completed"
+
+                completedRequiredObjectiveCount >=
+                        totalRequiredObjectiveCount &&
+                        totalRequiredObjectiveCount > 0 ->
+                    "Required conversation goals completed"
+
+                else ->
+                    objectiveProgressLabel
+            }
+
+    val overallGrowthLabel: String
+        get() =
+            safeOverallScore.toGrowthLabel()
+
+    val conversationGrowthLabel: String
+        get() =
+            conversationScore.toGrowthLabel()
+
+    val independenceGrowthLabel: String
+        get() =
+            independenceScore.toGrowthLabel()
+
+    val grammarGrowthLabel: String
+        get() =
+            grammarScore.toGrowthLabel()
+
+    val vocabularyGrowthLabel: String
+        get() =
+            vocabularyScore.toGrowthLabel()
+
+    val comprehensionGrowthLabel: String
+        get() =
+            comprehensionScore.toGrowthLabel()
+
+    val interactionGrowthLabel: String
+        get() =
+            interactionScore.toGrowthLabel()
+
+    val independenceSummary: String
+        get() =
+            when {
+                independentlyCompletedObjectiveCount <= 0 &&
+                        supportedObjectiveCount <= 0 &&
+                        directlyAssistedObjectiveCount <= 0 ->
+                    "No support evidence recorded"
+
+                directlyAssistedObjectiveCount == 0 &&
+                        supportedObjectiveCount == 0 ->
+                    "Completed independently"
+
+                independentlyCompletedObjectiveCount >
+                        supportedObjectiveCount +
+                        directlyAssistedObjectiveCount ->
+                    "Mostly independent"
+
+                directlyAssistedObjectiveCount == 0 ->
+                    "Light support used"
+
+                else ->
+                    "Support helped move the conversation forward"
+            }
+
+    val hintSummary: String
+        get() =
+            when (hintsUsed) {
+                0 ->
+                    "No revealed hints"
+
+                1 ->
+                    "1 hint used"
+
+                else ->
+                    "$hintsUsed hints used"
+            }
+
+    val besserSummary: String?
+        get() {
+            if (besserCorrectionCount <= 0) {
+                return null
+            }
+
+            if (resolvedBesserCorrectionCount <= 0) {
+                return "$besserCorrectionCount Besser " +
+                        correctionWord(
+                            count =
+                                besserCorrectionCount
+                        )
+            }
+
+            return "$resolvedBesserCorrectionCount of " +
+                    "$besserCorrectionCount Besser " +
+                    correctionWord(
+                        count =
+                            besserCorrectionCount
+                    ) +
+                    " improved"
         }
 
     val supportSummary: String
         get() =
-            when {
-                hintsUsed <= 0 -> {
-                    "Completed without revealed hints"
-                }
+            buildList {
+                add(
+                    independenceSummary
+                )
 
-                hintsUsed == 1 -> {
-                    "1 hint used"
-                }
+                add(
+                    hintSummary
+                )
 
-                else -> {
-                    "$hintsUsed hints used"
-                }
+                besserSummary?.let(
+                    ::add
+                )
+            }
+                .joinToString(
+                    separator =
+                        " • "
+                )
+
+    val hasStrongObjectives: Boolean
+        get() =
+            strongObjectiveTitles.isNotEmpty()
+
+    val hasImprovementObjectives: Boolean
+        get() =
+            improvementObjectiveTitles.isNotEmpty()
+
+    val hasDemonstratedVocabulary: Boolean
+        get() =
+            correctlyUsedTargetVocabulary.isNotEmpty()
+
+    val hasUnusedVocabulary: Boolean
+        get() =
+            unusedTargetVocabulary.isNotEmpty()
+
+    val demonstratedVocabularyLabel: String
+        get() =
+            when (
+                correctlyUsedTargetVocabulary.size
+            ) {
+                0 ->
+                    "No target vocabulary demonstrated yet"
+
+                1 ->
+                    "1 target expression demonstrated"
+
+                else ->
+                    "${correctlyUsedTargetVocabulary.size} " +
+                            "target expressions demonstrated"
             }
 
-    val performanceMessage: String
+    val nextFocusMessage: String
         get() =
-            when (safeOverallScore) {
-                in 90..100 -> {
-                    "Excellent mission performance"
-                }
+            when {
+                improvementObjectiveTitles.isNotEmpty() ->
+                    "DeutschCraft will keep reinforcing these " +
+                            "conversation skills in future missions."
 
-                in 80..89 -> {
-                    "Strong mission performance"
-                }
+                unusedTargetVocabulary.isNotEmpty() ->
+                    "The conversation went well. Future missions " +
+                            "will create more opportunities to use the " +
+                            "remaining target vocabulary."
 
-                in 70..79 -> {
-                    "Good progress"
-                }
+                safeOverallScore >=
+                        STRONG_SCORE_THRESHOLD ->
+                    "You handled this conversation strongly. " +
+                            "The next missions can build on these skills " +
+                            "in a different situation."
 
-                in 60..69 -> {
-                    "Developing well"
-                }
-
-                else -> {
-                    "Keep practicing"
-                }
+                else ->
+                    "DeutschCraft will keep practising these skills " +
+                            "through new conversation contexts."
             }
 
     companion object {
 
         fun from(
-            missionTitle: String,
+            missionTitle:
+            String,
+
             analytics:
             MissionAnalytics
         ): MissionResultUiState {
+
             return MissionResultUiState(
                 isVisible =
                     true,
+
                 missionId =
                     analytics.missionId,
+
                 missionTitle =
                     missionTitle
                         .trim()
                         .ifBlank {
                             DEFAULT_MISSION_TITLE
                         },
+
                 cefrLevelLabel =
                     analytics.cefrLevel.name,
+
                 overallScore =
-                    analytics.overallScore.coercePercent(),
+                    analytics
+                        .overallScore
+                        .coercePercent(),
+
                 conversationScore =
                     analytics
                         .dimensionScores[
-                        com.julesmeister.deutschcraft
-                            .feature
-                            .learninganalytics
-                            .domain
-                            .LearningDimension
-                            .CONVERSATION
+                        LearningDimension.CONVERSATION
                     ]
                         ?.coercePercent()
                         ?: analytics
                             .overallScore
                             .coercePercent(),
+
                 independenceScore =
                     analytics
                         .independenceScore
                         .coercePercent(),
+
                 grammarScore =
                     analytics
                         .grammarScore
                         .coercePercent(),
+
                 vocabularyScore =
                     analytics
                         .vocabularyScore
                         .coercePercent(),
+
                 comprehensionScore =
                     analytics
                         .comprehensionScore
                         .coercePercent(),
+
                 interactionScore =
                     analytics
                         .interactionScore
                         .coercePercent(),
+
                 completedObjectiveCount =
                     analytics
                         .completedObjectiveCount
@@ -219,6 +377,7 @@ data class MissionResultUiState(
                             minimumValue =
                                 0
                         ),
+
                 totalObjectiveCount =
                     analytics
                         .totalObjectiveCount
@@ -226,6 +385,23 @@ data class MissionResultUiState(
                             minimumValue =
                                 0
                         ),
+
+                completedRequiredObjectiveCount =
+                    analytics
+                        .completedRequiredObjectiveCount
+                        .coerceAtLeast(
+                            minimumValue =
+                                0
+                        ),
+
+                totalRequiredObjectiveCount =
+                    analytics
+                        .totalRequiredObjectiveCount
+                        .coerceAtLeast(
+                            minimumValue =
+                                0
+                        ),
+
                 hintsUsed =
                     analytics
                         .hintsUsed
@@ -233,6 +409,7 @@ data class MissionResultUiState(
                             minimumValue =
                                 0
                         ),
+
                 besserCorrectionCount =
                     analytics
                         .besserCorrectionCount
@@ -240,19 +417,23 @@ data class MissionResultUiState(
                             minimumValue =
                                 0
                         ),
+
                 resolvedBesserCorrectionCount =
                     analytics
                         .resolvedBesserCorrectionCount
                         .coerceIn(
                             minimumValue =
                                 0,
+
                             maximumValue =
                                 analytics
                                     .besserCorrectionCount
                                     .coerceAtLeast(
-                                        0
+                                        minimumValue =
+                                            0
                                     )
                         ),
+
                 independentlyCompletedObjectiveCount =
                     analytics
                         .independentlyCompletedObjectiveCount
@@ -260,6 +441,7 @@ data class MissionResultUiState(
                             minimumValue =
                                 0
                         ),
+
                 supportedObjectiveCount =
                     analytics
                         .supportedObjectiveCount
@@ -267,6 +449,7 @@ data class MissionResultUiState(
                             minimumValue =
                                 0
                         ),
+
                 directlyAssistedObjectiveCount =
                     analytics
                         .directlyAssistedObjectiveCount
@@ -274,30 +457,48 @@ data class MissionResultUiState(
                             minimumValue =
                                 0
                         ),
-                correctlyUsedVocabularyCount =
-                    analytics
-                        .correctlyUsedTargetVocabulary
-                        .size,
-                unusedVocabularyCount =
-                    analytics
-                        .unusedTargetVocabulary
-                        .size,
+
                 strongObjectiveTitles =
                     analytics
                         .strongObjectiveTitles
-                        .sanitizedTitles(),
+                        .sanitizedValues(
+                            maximumCount =
+                                MAXIMUM_OBJECTIVE_SUMMARY_COUNT
+                        ),
+
                 improvementObjectiveTitles =
                     analytics
                         .improvementObjectiveTitles
-                        .sanitizedTitles()
+                        .sanitizedValues(
+                            maximumCount =
+                                MAXIMUM_OBJECTIVE_SUMMARY_COUNT
+                        ),
+
+                correctlyUsedTargetVocabulary =
+                    analytics
+                        .correctlyUsedTargetVocabulary
+                        .toList()
+                        .sanitizedValues(
+                            maximumCount =
+                                MAXIMUM_VOCABULARY_SUMMARY_COUNT
+                        ),
+
+                unusedTargetVocabulary =
+                    analytics
+                        .unusedTargetVocabulary
+                        .toList()
+                        .sanitizedValues(
+                            maximumCount =
+                                MAXIMUM_VOCABULARY_SUMMARY_COUNT
+                        )
             )
         }
 
-        private const val DEFAULT_MISSION_TITLE =
-            "Conversation mission"
+        private fun List<String>.sanitizedValues(
+            maximumCount:
+            Int
+        ): List<String> {
 
-        private fun List<String>.sanitizedTitles():
-                List<String> {
             return asSequence()
                 .map(
                     String::trim
@@ -307,22 +508,65 @@ data class MissionResultUiState(
                 )
                 .distinct()
                 .take(
-                    MAXIMUM_OBJECTIVE_SUMMARY_COUNT
+                    maximumCount
                 )
                 .toList()
         }
 
+        private const val DEFAULT_MISSION_TITLE =
+            "Conversation mission"
+
         private const val MAXIMUM_OBJECTIVE_SUMMARY_COUNT =
             4
+
+        private const val MAXIMUM_VOCABULARY_SUMMARY_COUNT =
+            8
+
+        private const val STRONG_SCORE_THRESHOLD =
+            75
     }
 }
 
 private fun Int.coercePercent():
         Int {
+
     return coerceIn(
         minimumValue =
             0,
+
         maximumValue =
             100
     )
+}
+
+private fun Int.toGrowthLabel():
+        String {
+
+    return when (
+        coercePercent()
+    ) {
+        in 85..100 ->
+            "Strong"
+
+        in 70..84 ->
+            "Improving"
+
+        in 50..69 ->
+            "Practising"
+
+        else ->
+            "Developing"
+    }
+}
+
+private fun correctionWord(
+    count:
+    Int
+): String {
+
+    return if (count == 1) {
+        "correction"
+    } else {
+        "corrections"
+    }
 }

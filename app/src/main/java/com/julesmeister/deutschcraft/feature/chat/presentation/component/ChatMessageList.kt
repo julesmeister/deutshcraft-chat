@@ -50,23 +50,11 @@ fun ChatMessageList(
     scrollRequestKey: Int = 0,
     bottomOverlayHeight: Dp = 0.dp,
 
-    /*
-     * =======================================================
-     * MARKED PHRASES
-     * =======================================================
-     */
-
     markedPhrases: Map<String, List<MarkedPhrase>> =
         emptyMap(),
 
     onRemoveMarkedPhrase: (String) -> Unit =
         {},
-
-    /*
-     * =======================================================
-     * BESSER
-     * =======================================================
-     */
 
     onBesserImprove: (String) -> Unit =
         {},
@@ -109,10 +97,12 @@ fun ChatMessageList(
         }
 
     /*
-     * Attachments remain inside their owning message item.
+     * The anchor is a real LazyColumn item placed after every
+     * message and after the typing indicator.
      *
-     * Besser challenges and marked phrases do not add separate
-     * LazyColumn item indices.
+     * Date separators are included in entries, therefore
+     * entries.size is the correct index base rather than
+     * uiState.messages.size.
      */
     val bottomAnchorIndex =
         entries.size +
@@ -122,6 +112,15 @@ fun ChatMessageList(
                     0
                 }
 
+    /*
+     * Start directly on the bottom anchor.
+     *
+     * The follow-up scroll effect performs another correction
+     * after the floating composer has reported its real height.
+     * That second correction is important when reopening a
+     * conversation because bottomOverlayHeight initially starts
+     * at zero.
+     */
     val listState =
         rememberLazyListState(
             initialFirstVisibleItemIndex =
@@ -138,12 +137,6 @@ fun ChatMessageList(
                 density =
                     density
             )
-
-    /*
-     * =======================================================
-     * LATEST MESSAGE IDS
-     * =======================================================
-     */
 
     val latestUserMessageId =
         remember(
@@ -171,16 +164,6 @@ fun ChatMessageList(
                 ?.id
         }
 
-    /*
-     * The active Besser bubble belongs only to the latest
-     * learner message.
-     *
-     * If the latest learner message has no challenge yet, no
-     * older challenge is displayed as a fallback.
-     *
-     * Older challenges remain persisted in Room but are hidden
-     * from the conversation.
-     */
     val latestVisibleBesserMessageId =
         remember(
             latestUserMessageId,
@@ -196,12 +179,6 @@ fun ChatMessageList(
                 }
         }
 
-    /*
-     * =======================================================
-     * MESSAGE ANIMATION STATE
-     * =======================================================
-     */
-
     val seenMessageIds =
         remember {
             mutableStateMapOf<String, Boolean>()
@@ -215,18 +192,6 @@ fun ChatMessageList(
                 }
         }
 
-    /*
-     * =======================================================
-     * SOURCE BUBBLE WIDTHS
-     * =======================================================
-     *
-     * Stores:
-     *
-     * messageId -> actual rendered source-bubble width in px
-     *
-     * BesserChallengeBubble uses this measurement to determine
-     * whether its exposed upper corner should be rounded.
-     */
     val sourceBubbleWidths =
         remember {
             mutableStateMapOf<String, Int>()
@@ -312,22 +277,10 @@ fun ChatMessageList(
                         message.sender ==
                                 MessageSender.USER
 
-                    /*
-                     * ===========================================
-                     * MARKED PHRASES
-                     * ===========================================
-                     */
-
                     val attachedPhrases =
                         markedPhrases[
                             message.id
                         ].orEmpty()
-
-                    /*
-                     * ===========================================
-                     * BESSER
-                     * ===========================================
-                     */
 
                     val attachedChallenge =
                         uiState
@@ -335,19 +288,6 @@ fun ChatMessageList(
                             message.id
                         ]
 
-                    /*
-                     * A Besser challenge is rendered only if:
-                     *
-                     * 1. It belongs to a learner message.
-                     * 2. That learner message is the latest
-                     *    learner message.
-                     * 3. The latest learner message currently has
-                     *    an active challenge in ChatUiState.
-                     *
-                     * This intentionally does not fall back to an
-                     * older challenge while a newer challenge is
-                     * still being generated.
-                     */
                     val visibleChallenge =
                         attachedChallenge
                             ?.takeIf {
@@ -356,14 +296,6 @@ fun ChatMessageList(
                                         latestVisibleBesserMessageId
                             }
 
-                    /*
-                     * Flatten the message's connecting corner only
-                     * when something is actually visible beneath
-                     * that message.
-                     *
-                     * Hidden older challenges must not alter the
-                     * source bubble's shape.
-                     */
                     val hasAttachedContent =
                         visibleChallenge != null ||
                                 attachedPhrases.isNotEmpty()
@@ -391,12 +323,6 @@ fun ChatMessageList(
                                 )
                                 .animateContentSize()
                     ) {
-                        /*
-                         * =======================================
-                         * SOURCE MESSAGE
-                         * =======================================
-                         */
-
                         AnimatedMessageItem(
                             message =
                                 message,
@@ -417,11 +343,6 @@ fun ChatMessageList(
                                     message.id
                                 ] == true,
 
-                            /*
-                             * This historical parameter now means
-                             * any visible attachment under the
-                             * source message.
-                             */
                             hasAttachedPhrase =
                                 hasAttachedContent,
 
@@ -441,16 +362,13 @@ fun ChatMessageList(
                             onMessageCopied =
                                 onMessageCopied,
 
-                            /*
-                             * Measure only the actual MessageBubble
-                             * container, not the full-width row.
-                             */
                             onBubbleWidthChanged = { width ->
                                 if (
                                     width > 0 &&
                                     sourceBubbleWidths[
                                         message.id
-                                    ] != width
+                                    ] !=
+                                    width
                                 ) {
                                     sourceBubbleWidths[
                                         message.id
@@ -462,12 +380,6 @@ fun ChatMessageList(
                             modifier =
                                 Modifier
                         )
-
-                        /*
-                         * =======================================
-                         * LATEST BESSER CHALLENGE
-                         * =======================================
-                         */
 
                         visibleChallenge?.let { challenge ->
                             BesserChallengeBubble(
@@ -482,11 +394,6 @@ fun ChatMessageList(
                                         message.id
                                     ] ?: 0,
 
-                                /*
-                                 * Besser owns rounded bottom
-                                 * corners only when no marked
-                                 * phrases continue beneath it.
-                                 */
                                 isLast =
                                     attachedPhrases.isEmpty(),
 
@@ -509,12 +416,6 @@ fun ChatMessageList(
                                 }
                             )
                         }
-
-                        /*
-                         * =======================================
-                         * MARKED PHRASES
-                         * =======================================
-                         */
 
                         attachedPhrases.forEachIndexed {
                                 index,
@@ -543,12 +444,6 @@ fun ChatMessageList(
             }
         }
 
-        /*
-         * ===================================================
-         * TYPING INDICATOR
-         * ===================================================
-         */
-
         if (hasTypingIndicator) {
             item(
                 key =
@@ -571,11 +466,13 @@ fun ChatMessageList(
         }
 
         /*
-         * ===================================================
-         * BOTTOM ANCHOR
-         * ===================================================
+         * Always keep one real item after the final visible
+         * conversation item.
+         *
+         * Scrolling directly to this item is more reliable than
+         * trying to calculate a pixel offset for an arbitrary
+         * final message whose height may still be animating.
          */
-
         item(
             key =
                 ChatTokens.BottomAnchorKey
@@ -589,12 +486,6 @@ fun ChatMessageList(
         }
     }
 }
-
-/*
- * ===========================================================
- * LIST ENTRIES
- * ===========================================================
- */
 
 private sealed interface ChatListEntry {
 
@@ -617,8 +508,10 @@ private sealed interface ChatListEntry {
 }
 
 private fun buildChatListEntries(
-    messages: List<ChatMessage>
+    messages:
+    List<ChatMessage>
 ): List<ChatListEntry> {
+
     val zone =
         ZoneId.systemDefault()
 
@@ -630,10 +523,12 @@ private fun buildChatListEntries(
     val entries =
         mutableListOf<ChatListEntry>()
 
-    var previousDate: LocalDate? =
+    var previousDate:
+            LocalDate? =
         null
 
-    var previousMessage: ChatMessage? =
+    var previousMessage:
+            ChatMessage? =
         null
 
     messages.forEach { message ->
@@ -702,16 +597,14 @@ private fun buildChatListEntries(
     return entries
 }
 
-/*
- * ===========================================================
- * DATE FORMATTING
- * ===========================================================
- */
-
 private fun formatDateSeparator(
-    date: LocalDate,
-    today: LocalDate
+    date:
+    LocalDate,
+
+    today:
+    LocalDate
 ): String {
+
     return when {
         date == today -> {
             TODAY_LABEL
@@ -745,15 +638,10 @@ private fun formatDateSeparator(
     }
 }
 
-/*
- * ===========================================================
- * DATE SEPARATOR
- * ===========================================================
- */
-
 @Composable
 private fun ChatDateSeparator(
-    label: String
+    label:
+    String
 ) {
     Box(
         modifier =
@@ -813,15 +701,10 @@ private fun ChatDateSeparator(
     }
 }
 
-/*
- * ===========================================================
- * EMPTY STATE
- * ===========================================================
- */
-
 @Composable
 private fun ChatMessageListEmptyState(
-    modifier: Modifier
+    modifier:
+    Modifier
 ) {
     Box(
         modifier =
@@ -833,12 +716,6 @@ private fun ChatMessageListEmptyState(
         ChatEmptyState()
     }
 }
-
-/*
- * ===========================================================
- * CONSTANTS
- * ===========================================================
- */
 
 private const val DATE_CONTENT_TYPE =
     "date"

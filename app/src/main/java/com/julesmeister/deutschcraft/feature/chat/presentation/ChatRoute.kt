@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/presentation/ChatRoute.kt
+
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import androidx.compose.runtime.Composable
@@ -5,15 +7,22 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.julesmeister.deutschcraft.feature.chat.presentation.progress.ChatLevelProgressViewModel
+import com.julesmeister.deutschcraft.feature.chat.presentation.progress.LocalChatLevelProgress
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.LocalChatFontScale
 import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
 
 @Composable
 fun ChatRoute(
-    onBackClick: () -> Unit,
+    onBackClick:
+        () -> Unit,
 
     viewModel:
     ChatViewModel =
+        hiltViewModel(),
+
+    levelProgressViewModel:
+    ChatLevelProgressViewModel =
         hiltViewModel()
 ) {
     val uiState by
@@ -36,13 +45,11 @@ fun ChatRoute(
         .markedPhrases
         .collectAsStateWithLifecycle()
 
-    /*
-     * SettingsRepository.settings is a Flow rather than a
-     * StateFlow.
-     *
-     * UserSettings() supplies the normal 1.00 font scale until
-     * DataStore emits the persisted preference.
-     */
+    val levelProgressState by
+    levelProgressViewModel
+        .uiState
+        .collectAsStateWithLifecycle()
+
     val settings by
     viewModel
         .settings
@@ -51,16 +58,15 @@ fun ChatRoute(
                 UserSettings()
         )
 
-    /*
-     * Provide the persisted font scale once around the entire
-     * chat presentation tree.
-     *
-     * All nested chat components can read LocalChatFontScale
-     * without receiving another function parameter.
-     */
     CompositionLocalProvider(
         LocalChatFontScale provides
-                settings.fontScale
+                settings.fontScale,
+
+        LocalChatLevelProgress provides
+                levelProgressState.withAnimationPreference(
+                    reduceAnimations =
+                        settings.reduceAnimations
+                )
     ) {
         ChatScreen(
             uiState =
@@ -81,12 +87,6 @@ fun ChatRoute(
             onBackClick =
                 onBackClick,
 
-            /*
-             * ===============================================
-             * BESSER
-             * ===============================================
-             */
-
             onBesserImprove =
                 viewModel::improveBesserChallenge,
 
@@ -95,12 +95,6 @@ fun ChatRoute(
 
             onBesserSkip =
                 viewModel::skipBesserChallenge,
-
-            /*
-             * ===============================================
-             * MISSION GUIDANCE
-             * ===============================================
-             */
 
             onOpenMissionGuidance =
                 viewModel::openMissionGuidance,
@@ -117,23 +111,11 @@ fun ChatRoute(
             onToggleMissionExamples =
                 viewModel::toggleMissionExamples,
 
-            /*
-             * ===============================================
-             * MISSION RESULT
-             * ===============================================
-             */
-
             onDismissMissionResult =
                 viewModel::dismissMissionResult,
 
             onContinueAfterMissionResult =
                 viewModel::continueAfterMissionResult,
-
-            /*
-             * ===============================================
-             * MARKED PHRASES
-             * ===============================================
-             */
 
             onMarkPhrase =
                 viewModel::markPhrase,

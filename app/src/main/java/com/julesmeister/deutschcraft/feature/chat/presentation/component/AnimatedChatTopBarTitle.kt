@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/presentation/component/AnimatedChatTopBarTitle.kt
+
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
 import androidx.compose.animation.AnimatedContent
@@ -23,7 +25,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,17 +60,8 @@ internal fun AnimatedChatTopBarTitle(
         (String) -> Unit,
     onAdaptiveLearningFeedbackShown:
         (String) -> Unit,
-
-    /*
-     * Opens the learner-facing mission guidance sheet.
-     *
-     * This callback is used only by MissionTopBarPager.
-     * Normal Emil status and temporary status messages remain
-     * non-clickable.
-     */
     onMissionGuidanceClick:
         () -> Unit,
-
     modifier: Modifier =
         Modifier
 ) {
@@ -94,10 +86,6 @@ internal fun AnimatedChatTopBarTitle(
                 String::isNotBlank
             )
 
-    /*
-     * Mission-objective completion remains visible briefly
-     * before being consumed.
-     */
     LaunchedEffect(
         objectiveCompletionEvent?.eventId
     ) {
@@ -114,10 +102,6 @@ internal fun AnimatedChatTopBarTitle(
         )
     }
 
-    /*
-     * Adaptive feedback remains visible longer because the
-     * learner may need additional time to read it.
-     */
     LaunchedEffect(
         adaptiveLearningFeedbackEvent?.eventId,
         objectiveCompletionEvent?.eventId
@@ -126,9 +110,6 @@ internal fun AnimatedChatTopBarTitle(
             adaptiveLearningFeedbackEvent
                 ?: return@LaunchedEffect
 
-        /*
-         * Objective completion has higher display priority.
-         */
         if (
             objectiveCompletionEvent !=
             null
@@ -145,48 +126,35 @@ internal fun AnimatedChatTopBarTitle(
         )
     }
 
-    /*
-     * Temporary-state priority:
-     *
-     * 1. Mission objective completion
-     * 2. Adaptive-learning feedback
-     * 3. Assistant typing
-     * 4. Assessment
-     * 5. Mission / normal state
-     */
     val temporaryStatus =
         when {
             objectiveCompletionEvent !=
                     null -> {
-
                 ChatTopBarTemporaryStatus
                     .ObjectiveCompleted(
                         eventId =
-                            objectiveCompletionEvent
-                                .eventId,
+                            objectiveCompletionEvent.eventId,
+
                         objectiveTitle =
-                            objectiveCompletionEvent
-                                .objectiveTitle
+                            objectiveCompletionEvent.objectiveTitle
                     )
             }
 
             adaptiveLearningFeedbackEvent !=
                     null -> {
-
                 ChatTopBarTemporaryStatus
                     .AdaptiveLearningFeedback(
                         eventId =
-                            adaptiveLearningFeedbackEvent
-                                .eventId,
+                            adaptiveLearningFeedbackEvent.eventId,
+
                         type =
-                            adaptiveLearningFeedbackEvent
-                                .type,
+                            adaptiveLearningFeedbackEvent.type,
+
                         message =
-                            adaptiveLearningFeedbackEvent
-                                .message,
+                            adaptiveLearningFeedbackEvent.message,
+
                         focusTitle =
-                            adaptiveLearningFeedbackEvent
-                                .focusTitle
+                            adaptiveLearningFeedbackEvent.focusTitle
                     )
             }
 
@@ -208,6 +176,7 @@ internal fun AnimatedChatTopBarTitle(
     AnimatedContent(
         targetState =
             temporaryStatus,
+
         modifier =
             modifier
                 .fillMaxWidth()
@@ -220,10 +189,12 @@ internal fun AnimatedChatTopBarTitle(
                         tween(
                             durationMillis =
                                 STATUS_SIZE_ANIMATION_MILLIS,
+
                             easing =
                                 FastOutSlowInEasing
                         )
                 ),
+
         transitionSpec = {
             val enterTransition =
                 fadeIn(
@@ -231,18 +202,22 @@ internal fun AnimatedChatTopBarTitle(
                         tween(
                             durationMillis =
                                 STATUS_ENTER_DURATION_MILLIS,
+
                             easing =
                                 LinearOutSlowInEasing
                         )
                 ) +
                         slideInVertically(
                             initialOffsetY = { height ->
-                                height / 5
+                                height /
+                                        5
                             },
+
                             animationSpec =
                                 tween(
                                     durationMillis =
                                         STATUS_ENTER_DURATION_MILLIS,
+
                                     easing =
                                         FastOutSlowInEasing
                                 )
@@ -262,8 +237,10 @@ internal fun AnimatedChatTopBarTitle(
                 ) +
                         slideOutVertically(
                             targetOffsetY = { height ->
-                                -height / 5
+                                -height /
+                                        5
                             },
+
                             animationSpec =
                                 tween(
                                     durationMillis =
@@ -278,8 +255,10 @@ internal fun AnimatedChatTopBarTitle(
             enterTransition togetherWith
                     exitTransition
         },
+
         contentAlignment =
             Alignment.CenterStart,
+
         label =
             "ChatTopBarTemporaryStatus"
     ) { displayedStatus ->
@@ -291,30 +270,22 @@ internal fun AnimatedChatTopBarTitle(
                 ) {
                     NormalStatus()
                 } else {
-                    /*
-                     * Only the persistent active mission area
-                     * receives the mission-guidance click.
-                     *
-                     * Temporary statuses such as:
-                     *
-                     * - Emil schreibt
-                     * - Skill Assessment
-                     * - Objective completed
-                     * - Adaptive feedback
-                     *
-                     * do not open the guidance sheet.
-                     */
                     MissionTopBarPager(
                         missionTitle =
                             missionTitle,
+
                         currentObjective =
                             missionObjective,
+
                         currentGuidance =
                             missionGuidance,
+
                         missionProgressPercentage =
                             missionProgressPercentage,
+
                         onMissionGuidanceClick =
                             onMissionGuidanceClick,
+
                         modifier =
                             Modifier.fillMaxWidth()
                     )
@@ -323,12 +294,13 @@ internal fun AnimatedChatTopBarTitle(
 
             ChatTopBarTemporaryStatus
                 .AssistantTyping -> {
-
                 SimpleStatus(
                     icon =
                         "•••",
+
                     title =
                         "Emil schreibt",
+
                     subtitle =
                         "Antwort wird vorbereitet"
                 )
@@ -336,12 +308,13 @@ internal fun AnimatedChatTopBarTitle(
 
             ChatTopBarTemporaryStatus
                 .Assessing -> {
-
                 SimpleStatus(
                     icon =
                         "🧠",
+
                     title =
                         "Skill Assessment",
+
                     subtitle =
                         "Fortschritt wird aktualisiert"
                 )
@@ -349,10 +322,10 @@ internal fun AnimatedChatTopBarTitle(
 
             is ChatTopBarTemporaryStatus
             .ObjectiveCompleted -> {
-
                 MissionObjectiveCompletedStatus(
                     eventId =
                         displayedStatus.eventId,
+
                     objectiveTitle =
                         displayedStatus.objectiveTitle
                 )
@@ -360,12 +333,13 @@ internal fun AnimatedChatTopBarTitle(
 
             is ChatTopBarTemporaryStatus
             .AdaptiveLearningFeedback -> {
-
                 AdaptiveLearningStatus(
                     type =
                         displayedStatus.type,
+
                     message =
                         displayedStatus.message,
+
                     focusTitle =
                         displayedStatus.focusTitle
                 )
@@ -376,8 +350,7 @@ internal fun AnimatedChatTopBarTitle(
 
 @Composable
 private fun AdaptiveLearningStatus(
-    type:
-    AdaptiveLearningFeedbackType,
+    type: AdaptiveLearningFeedbackType,
     message: String,
     focusTitle: String?
 ) {
@@ -390,6 +363,7 @@ private fun AdaptiveLearningStatus(
     Row(
         modifier =
             Modifier.fillMaxWidth(),
+
         verticalAlignment =
             Alignment.CenterVertically
     ) {
@@ -413,12 +387,14 @@ private fun AdaptiveLearningStatus(
                                         ADAPTIVE_ICON_BACKGROUND_ALPHA
                                 )
                     ),
+
             contentAlignment =
                 Alignment.Center
         ) {
             Text(
                 text =
                     presentation.icon,
+
                 textAlign =
                     TextAlign.Center
             )
@@ -436,6 +412,7 @@ private fun AdaptiveLearningStatus(
                 Modifier.weight(
                     1f
                 ),
+
             horizontalAlignment =
                 Alignment.Start
         ) {
@@ -446,20 +423,27 @@ private fun AdaptiveLearningStatus(
                             String::isNotBlank
                         )
                         ?: presentation.title,
+
                 modifier =
                     Modifier.fillMaxWidth(),
+
                 style =
                     MaterialTheme
                         .typography
                         .titleSmall,
+
                 fontWeight =
                     FontWeight.SemiBold,
+
                 color =
                     presentation.accentColor,
+
                 textAlign =
                     TextAlign.Start,
+
                 maxLines =
                     1,
+
                 overflow =
                     TextOverflow.Ellipsis
             )
@@ -474,18 +458,18 @@ private fun AdaptiveLearningStatus(
 
 @Composable
 private fun adaptiveFeedbackPresentation(
-    type:
-    AdaptiveLearningFeedbackType
+    type: AdaptiveLearningFeedbackType
 ): AdaptiveFeedbackPresentation {
     return when (type) {
         AdaptiveLearningFeedbackType
             .GENTLE_REMINDER -> {
-
             AdaptiveFeedbackPresentation(
                 icon =
                     "💡",
+
                 title =
                     "Learning focus",
+
                 accentColor =
                     DeutschLime
             )
@@ -493,12 +477,13 @@ private fun adaptiveFeedbackPresentation(
 
         AdaptiveLearningFeedbackType
             .REPEATED_MISTAKE -> {
-
             AdaptiveFeedbackPresentation(
                 icon =
                     "↻",
+
                 title =
                     "Still practicing",
+
                 accentColor =
                     MaterialTheme
                         .colorScheme
@@ -508,12 +493,13 @@ private fun adaptiveFeedbackPresentation(
 
         AdaptiveLearningFeedbackType
             .PARTIAL_SUCCESS -> {
-
             AdaptiveFeedbackPresentation(
                 icon =
                     "◐",
+
                 title =
                     "Almost there",
+
                 accentColor =
                     DeutschLime
             )
@@ -521,12 +507,13 @@ private fun adaptiveFeedbackPresentation(
 
         AdaptiveLearningFeedbackType
             .SUCCESS -> {
-
             AdaptiveFeedbackPresentation(
                 icon =
                     "✓",
+
                 title =
                     "Nice use",
+
                 accentColor =
                     DeutschLime
             )
@@ -534,12 +521,13 @@ private fun adaptiveFeedbackPresentation(
 
         AdaptiveLearningFeedbackType
             .IMPROVING -> {
-
             AdaptiveFeedbackPresentation(
                 icon =
                     "✨",
+
                 title =
                     "Improving",
+
                 accentColor =
                     DeutschLime
             )
@@ -547,12 +535,13 @@ private fun adaptiveFeedbackPresentation(
 
         AdaptiveLearningFeedbackType
             .MASTERED -> {
-
             AdaptiveFeedbackPresentation(
                 icon =
                     "🏆",
+
                 title =
                     "Skill mastered",
+
                 accentColor =
                     DeutschLime
             )
@@ -560,12 +549,13 @@ private fun adaptiveFeedbackPresentation(
 
         AdaptiveLearningFeedbackType
             .NEEDS_REVIEW -> {
-
             AdaptiveFeedbackPresentation(
                 icon =
                     "↺",
+
                 title =
                     "Quick review",
+
                 accentColor =
                     MaterialTheme
                         .colorScheme
@@ -580,28 +570,36 @@ private fun NormalStatus() {
     Column(
         modifier =
             Modifier.fillMaxWidth(),
+
         horizontalAlignment =
             Alignment.Start
     ) {
         Text(
             text =
                 "DeutschCraft",
+
             modifier =
                 Modifier.fillMaxWidth(),
+
             style =
                 MaterialTheme
                     .typography
                     .titleMedium,
+
             fontWeight =
                 FontWeight.SemiBold,
+
             color =
                 MaterialTheme
                     .colorScheme
                     .onBackground,
+
             textAlign =
                 TextAlign.Start,
+
             maxLines =
                 1,
+
             overflow =
                 TextOverflow.Ellipsis
         )
@@ -612,23 +610,11 @@ private fun NormalStatus() {
                     top =
                         NORMAL_SUBTITLE_TOP_PADDING
                 ),
+
             verticalAlignment =
                 Alignment.CenterVertically
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(
-                            ONLINE_DOT_SIZE
-                        )
-                        .clip(
-                            CircleShape
-                        )
-                        .background(
-                            color =
-                                DeutschLime
-                        )
-            )
+            ChatPresenceIndicator()
 
             Spacer(
                 modifier =
@@ -640,14 +626,17 @@ private fun NormalStatus() {
             Text(
                 text =
                     "Emil ist online",
+
                 style =
                     MaterialTheme
                         .typography
                         .labelSmall,
+
                 color =
                     MaterialTheme
                         .colorScheme
                         .onSurfaceVariant,
+
                 maxLines =
                     1
             )
@@ -664,6 +653,7 @@ private fun SimpleStatus(
     Row(
         modifier =
             Modifier.fillMaxWidth(),
+
         verticalAlignment =
             Alignment.CenterVertically
     ) {
@@ -684,12 +674,14 @@ private fun SimpleStatus(
                                 .colorScheme
                                 .primaryContainer
                     ),
+
             contentAlignment =
                 Alignment.Center
         ) {
             Text(
                 text =
                     icon,
+
                 textAlign =
                     TextAlign.Center
             )
@@ -707,24 +699,31 @@ private fun SimpleStatus(
                 Modifier.weight(
                     1f
                 ),
+
             horizontalAlignment =
                 Alignment.Start
         ) {
             Text(
                 text =
                     title,
+
                 modifier =
                     Modifier.fillMaxWidth(),
+
                 style =
                     MaterialTheme
                         .typography
                         .titleSmall,
+
                 fontWeight =
                     FontWeight.SemiBold,
+
                 textAlign =
                     TextAlign.Start,
+
                 maxLines =
                     1,
+
                 overflow =
                     TextOverflow.Ellipsis
             )
@@ -737,12 +736,6 @@ private fun SimpleStatus(
     }
 }
 
-/*
- * Shared one-line scrolling subtitle.
- *
- * basicMarquee only moves when the text exceeds the available
- * width. Short text therefore remains visually stationary.
- */
 @Composable
 private fun MarqueeSubtitle(
     text: String,
@@ -752,6 +745,7 @@ private fun MarqueeSubtitle(
     Text(
         text =
             text,
+
         modifier =
             modifier
                 .fillMaxWidth()
@@ -759,20 +753,26 @@ private fun MarqueeSubtitle(
                     iterations =
                         Int.MAX_VALUE
                 ),
+
         style =
             MaterialTheme
                 .typography
                 .labelSmall,
+
         color =
             MaterialTheme
                 .colorScheme
                 .onSurfaceVariant,
+
         textAlign =
             TextAlign.Start,
+
         maxLines =
             1,
+
         softWrap =
             false,
+
         overflow =
             TextOverflow.Clip
     )
@@ -814,9 +814,6 @@ private const val ADAPTIVE_FEEDBACK_DISPLAY_MILLIS =
 
 private val TOP_BAR_CONTENT_MINIMUM_HEIGHT =
     42.dp
-
-private val ONLINE_DOT_SIZE =
-    7.dp
 
 private val ONLINE_DOT_SPACING =
     5.dp

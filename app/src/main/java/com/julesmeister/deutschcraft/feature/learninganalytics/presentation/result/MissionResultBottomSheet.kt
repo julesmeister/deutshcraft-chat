@@ -1,9 +1,7 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/learninganalytics/presentation/result/MissionResultBottomSheet.kt
+
 package com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,46 +25,30 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/*
- * Displays finalized mission analytics.
- *
- * Layout:
- *
- * - Hero: animated score ring, mission title, CEFR pill
- * - Bento grid: six skill tiles with compact bars
- * - Evidence: compact stat chips
- * - Objectives: strong / practice-next lists
- * - Continue: full-width primary pill
- *
- * Purely presentational. All colors come from MaterialTheme so
- * the sheet follows light and dark mode automatically.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MissionResultBottomSheet(
-    state: MissionResultUiState,
-    onDismiss: () -> Unit,
-    onContinue: () -> Unit,
-    modifier: Modifier = Modifier
+    state:
+    MissionResultUiState,
+
+    onDismiss:
+        () -> Unit,
+
+    onContinue:
+        () -> Unit,
+
+    modifier:
+    Modifier =
+        Modifier
 ) {
     if (!state.hasMissionResult) {
         return
@@ -74,383 +56,474 @@ fun MissionResultBottomSheet(
 
     val sheetState =
         rememberModalBottomSheetState(
-            skipPartiallyExpanded = true
+            skipPartiallyExpanded =
+                true
         )
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        modifier = modifier,
-        shape = SHEET_SHAPE,
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 0.dp
+        onDismissRequest =
+            onDismiss,
+
+        sheetState =
+            sheetState,
+
+        modifier =
+            modifier,
+
+        shape =
+            SHEET_SHAPE,
+
+        containerColor =
+            MaterialTheme
+                .colorScheme
+                .surface,
+
+        contentColor =
+            MaterialTheme
+                .colorScheme
+                .onSurface,
+
+        tonalElevation =
+            0.dp
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = SHEET_HORIZONTAL_PADDING)
-                    .padding(bottom = 16.dp)
+                    .verticalScroll(
+                        rememberScrollState()
+                    )
+                    .padding(
+                        horizontal =
+                            SHEET_HORIZONTAL_PADDING
+                    )
+                    .padding(
+                        bottom =
+                            16.dp
+                    )
                     .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(SECTION_SPACING)
+
+            verticalArrangement =
+                Arrangement.spacedBy(
+                    SECTION_SPACING
+                )
         ) {
-            ResultHero(state = state)
+            ResultHero(
+                state =
+                    state
+            )
 
-            SkillBentoGrid(state = state)
+            CommunicationGrowthSection(
+                state =
+                    state
+            )
 
-            EvidenceSection(state = state)
-
-            if (state.strongObjectiveTitles.isNotEmpty()) {
+            if (
+                state.hasStrongObjectives
+            ) {
                 ObjectiveSection(
-                    title = "Strong",
-                    objectiveTitles = state.strongObjectiveTitles,
-                    isStrong = true
+                    title =
+                        "What you demonstrated",
+
+                    subtitle =
+                        "Conversation goals you handled well.",
+
+                    objectiveTitles =
+                        state.strongObjectiveTitles,
+
+                    style =
+                        ObjectiveSectionStyle.SUCCESS
                 )
             }
 
-            if (state.improvementObjectiveTitles.isNotEmpty()) {
-                ObjectiveSection(
-                    title = "Practice next",
-                    objectiveTitles = state.improvementObjectiveTitles,
-                    isStrong = false
+            if (
+                state.hasDemonstratedVocabulary
+            ) {
+                VocabularySection(
+                    title =
+                        "Words you demonstrated",
+
+                    subtitle =
+                        state.demonstratedVocabularyLabel,
+
+                    vocabulary =
+                        state.correctlyUsedTargetVocabulary,
+
+                    isPositive =
+                        true
                 )
             }
 
-            ContinueButton(onClick = onContinue)
+            if (
+                state.hasImprovementObjectives
+            ) {
+                ObjectiveSection(
+                    title =
+                        "Keep working on",
+
+                    subtitle =
+                        "These skills will continue appearing " +
+                                "naturally in future conversations.",
+
+                    objectiveTitles =
+                        state.improvementObjectiveTitles,
+
+                    style =
+                        ObjectiveSectionStyle.NEXT
+                )
+            }
+
+            if (
+                state.hasUnusedVocabulary
+            ) {
+                VocabularySection(
+                    title =
+                        "Try next time",
+
+                    subtitle =
+                        "Target language that did not appear yet.",
+
+                    vocabulary =
+                        state.unusedTargetVocabulary,
+
+                    isPositive =
+                        false
+                )
+            }
+
+            SupportSection(
+                state =
+                    state
+            )
+
+            NextFocusSection(
+                state =
+                    state
+            )
+
+            ContinueButton(
+                onClick =
+                    onContinue
+            )
         }
     }
 }
 
-/*
- * ===========================================================
- * HERO
- * ===========================================================
- */
-
 @Composable
 private fun ResultHero(
-    state: MissionResultUiState
+    state:
+    MissionResultUiState
 ) {
-    val colorScheme = MaterialTheme.colorScheme
+    val colors =
+        MaterialTheme.colorScheme
 
     Column(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(CARD_SHAPE)
-                .background(colorScheme.surfaceContainerHigh)
-                .padding(vertical = 24.dp, horizontal = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "MISSION COMPLETE",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = colorScheme.primary
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        ScoreRing(
-            score = state.safeOverallScore,
-            size = SCORE_RING_SIZE,
-            strokeWidth = SCORE_RING_STROKE
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = state.missionTitle,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        if (state.cefrLevelLabel.isNotBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Pill(
-                text = state.cefrLevelLabel,
-                background = colorScheme.primary.copy(alpha = 0.14f),
-                content = colorScheme.primary
-            )
-        }
-
-        if (state.performanceMessage.isNotBlank()) {
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = state.performanceMessage,
-                style = MaterialTheme.typography.bodyMedium,
-                color = colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-private fun ScoreRing(
-    score: Int,
-    size: Dp,
-    strokeWidth: Dp
-) {
-    val colorScheme = MaterialTheme.colorScheme
-
-    val safeScore = score.coerceIn(0, 100)
-
-    var started by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        started = true
-    }
-
-    val progress by animateFloatAsState(
-        targetValue = if (started) safeScore / 100f else 0f,
-        animationSpec =
-            tween(
-                durationMillis = RING_ANIMATION_MILLIS,
-                easing = FastOutSlowInEasing
-            ),
-        label = "MissionScoreRing"
-    )
-
-    val trackColor = colorScheme.primary.copy(alpha = 0.12f)
-    val progressColor = colorScheme.primary
-
-    Box(
-        modifier = Modifier.size(size),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.size(size)) {
-            val strokePx = strokeWidth.toPx()
-            val inset = strokePx / 2f
-            val arcSize =
-                Size(
-                    width = this.size.width - strokePx,
-                    height = this.size.height - strokePx
+                .clip(
+                    HERO_SHAPE
                 )
+                .background(
+                    colors.surfaceContainerHigh
+                )
+                .padding(
+                    horizontal =
+                        20.dp,
 
-            drawArc(
-                color = trackColor,
-                startAngle = 0f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = Offset(inset, inset),
-                size = arcSize,
-                style = Stroke(width = strokePx)
-            )
+                    vertical =
+                        22.dp
+                ),
 
-            drawArc(
-                color = progressColor,
-                startAngle = -90f,
-                sweepAngle = 360f * progress,
-                useCenter = false,
-                topLeft = Offset(inset, inset),
-                size = arcSize,
-                style = Stroke(width = strokePx, cap = StrokeCap.Round)
-            )
-        }
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "${(progress * 100).toInt()}%",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.onSurface
-            )
-
-            Text(
-                text = "Overall",
-                style = MaterialTheme.typography.labelMedium,
-                color = colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-/*
- * ===========================================================
- * SKILL BENTO GRID
- * ===========================================================
- */
-
-private data class SkillTile(
-    val label: String,
-    val score: Int
-)
-
-@Composable
-private fun SkillBentoGrid(
-    state: MissionResultUiState
-) {
-    val tiles =
-        listOf(
-            SkillTile("Conversation", state.conversationScore),
-            SkillTile("Independence", state.independenceScore),
-            SkillTile("Grammar", state.grammarScore),
-            SkillTile("Vocabulary", state.vocabularyScore),
-            SkillTile("Interaction", state.interactionScore),
-            SkillTile("Comprehension", state.comprehensionScore)
-        )
-
-    Column(verticalArrangement = Arrangement.spacedBy(TILE_SPACING)) {
-        SectionLabel(text = "Performance")
-
-        tiles.chunked(2).forEach { rowTiles ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(TILE_SPACING)
-            ) {
-                rowTiles.forEach { tile ->
-                    SkillTileCard(
-                        tile = tile,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                if (rowTiles.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SkillTileCard(
-    tile: SkillTile,
-    modifier: Modifier = Modifier
-) {
-    val colorScheme = MaterialTheme.colorScheme
-
-    val safeScore = tile.score.coerceIn(0, 100)
-
-    var started by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        started = true
-    }
-
-    val progress by animateFloatAsState(
-        targetValue = if (started) safeScore / 100f else 0f,
-        animationSpec =
-            tween(
-                durationMillis = BAR_ANIMATION_MILLIS,
-                easing = FastOutSlowInEasing
-            ),
-        label = "SkillTileProgress"
-    )
-
-    val accent = scoreAccent(safeScore)
-
-    Column(
-        modifier =
-            modifier
-                .clip(TILE_SHAPE)
-                .background(colorScheme.surfaceContainerLow)
-                .padding(14.dp)
+        horizontalAlignment =
+            Alignment.Start
     ) {
-        Text(
-            text = tile.label,
-            style = MaterialTheme.typography.labelMedium,
-            color = colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = "$safeScore%",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = colorScheme.onSurface
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Box(
+        Row(
             modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(BAR_HEIGHT)
-                    .clip(CircleShape)
-                    .background(accent.copy(alpha = 0.14f))
+                Modifier.fillMaxWidth(),
+
+            verticalAlignment =
+                Alignment.CenterVertically
         ) {
             Box(
                 modifier =
                     Modifier
-                        .fillMaxWidth(progress)
-                        .height(BAR_HEIGHT)
-                        .clip(CircleShape)
-                        .background(accent)
-            )
-        }
-    }
-}
+                        .size(
+                            COMPLETE_ICON_SIZE
+                        )
+                        .clip(
+                            CircleShape
+                        )
+                        .background(
+                            colors.primary.copy(
+                                alpha =
+                                    0.14f
+                            )
+                        ),
 
-@Composable
-private fun scoreAccent(
-    score: Int
-): Color {
-    val colorScheme = MaterialTheme.colorScheme
+                contentAlignment =
+                    Alignment.Center
+            ) {
+                Text(
+                    text =
+                        "✓",
 
-    return when {
-        score >= STRONG_SCORE_THRESHOLD -> colorScheme.primary
-        score >= DEVELOPING_SCORE_THRESHOLD -> colorScheme.tertiary
-        else -> colorScheme.error
-    }
-}
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleLarge,
 
-/*
- * ===========================================================
- * EVIDENCE
- * ===========================================================
- */
+                    fontWeight =
+                        FontWeight.Bold,
 
-@Composable
-private fun EvidenceSection(
-    state: MissionResultUiState
-) {
-    val colorScheme = MaterialTheme.colorScheme
-
-    val rows =
-        buildList {
-            add("Objectives" to state.objectiveProgressLabel)
-            add("Hints" to state.supportSummary)
-            add("Independent" to state.independentlyCompletedObjectiveCount.toString())
-            add("Supported" to state.supportedObjectiveCount.toString())
-            add("Directly assisted" to state.directlyAssistedObjectiveCount.toString())
-            add("Besser corrections" to state.besserCorrectionCount.toString())
-
-            if (state.besserCorrectionCount > 0) {
-                add("Besser improvement" to state.resolvedCorrectionLabel)
+                    color =
+                        colors.primary
+                )
             }
 
-            add("Target vocabulary" to state.vocabularyProgressLabel)
+            Spacer(
+                modifier =
+                    Modifier.width(
+                        14.dp
+                    )
+            )
+
+            Column(
+                modifier =
+                    Modifier.weight(
+                        1f
+                    )
+            ) {
+                Text(
+                    text =
+                        "Conversation complete",
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .labelLarge,
+
+                    fontWeight =
+                        FontWeight.Bold,
+
+                    color =
+                        colors.primary
+                )
+
+                Spacer(
+                    modifier =
+                        Modifier.height(
+                            3.dp
+                        )
+                )
+
+                Text(
+                    text =
+                        state.missionTitle,
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleLarge,
+
+                    fontWeight =
+                        FontWeight.SemiBold,
+
+                    color =
+                        colors.onSurface,
+
+                    maxLines =
+                        2,
+
+                    overflow =
+                        TextOverflow.Ellipsis
+                )
+            }
         }
 
-    Column(verticalArrangement = Arrangement.spacedBy(TILE_SPACING)) {
-        SectionLabel(text = "Mission evidence")
+        Spacer(
+            modifier =
+                Modifier.height(
+                    18.dp
+                )
+        )
+
+        Row(
+            modifier =
+                Modifier.fillMaxWidth(),
+
+            horizontalArrangement =
+                Arrangement.spacedBy(
+                    8.dp
+                ),
+
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+            if (
+                state.cefrLevelLabel.isNotBlank()
+            ) {
+                ResultPill(
+                    text =
+                        state.cefrLevelLabel,
+
+                    background =
+                        colors.primary.copy(
+                            alpha =
+                                0.13f
+                        ),
+
+                    content =
+                        colors.primary
+                )
+            }
+
+            ResultPill(
+                text =
+                    state.overallGrowthLabel,
+
+                background =
+                    growthColor(
+                        label =
+                            state.overallGrowthLabel
+                    )
+                        .copy(
+                            alpha =
+                                0.13f
+                        ),
+
+                content =
+                    growthColor(
+                        label =
+                            state.overallGrowthLabel
+                    )
+            )
+        }
+
+        Spacer(
+            modifier =
+                Modifier.height(
+                    14.dp
+                )
+        )
+
+        Text(
+            text =
+                state.missionCompletionLabel,
+
+            style =
+                MaterialTheme
+                    .typography
+                    .bodyMedium,
+
+            color =
+                colors.onSurfaceVariant
+        )
+    }
+}
+
+private data class GrowthRowModel(
+    val label:
+    String,
+
+    val growthLabel:
+    String
+)
+
+@Composable
+private fun CommunicationGrowthSection(
+    state:
+    MissionResultUiState
+) {
+    val rows =
+        listOf(
+            GrowthRowModel(
+                label =
+                    "Conversation",
+
+                growthLabel =
+                    state.conversationGrowthLabel
+            ),
+
+            GrowthRowModel(
+                label =
+                    "Independence",
+
+                growthLabel =
+                    state.independenceGrowthLabel
+            ),
+
+            GrowthRowModel(
+                label =
+                    "Grammar",
+
+                growthLabel =
+                    state.grammarGrowthLabel
+            ),
+
+            GrowthRowModel(
+                label =
+                    "Vocabulary",
+
+                growthLabel =
+                    state.vocabularyGrowthLabel
+            ),
+
+            GrowthRowModel(
+                label =
+                    "Comprehension",
+
+                growthLabel =
+                    state.comprehensionGrowthLabel
+            ),
+
+            GrowthRowModel(
+                label =
+                    "Interaction",
+
+                growthLabel =
+                    state.interactionGrowthLabel
+            )
+        )
+
+    Column(
+        verticalArrangement =
+            Arrangement.spacedBy(
+                SECTION_CONTENT_SPACING
+            )
+    ) {
+        SectionHeader(
+            title =
+                "Communication growth",
+
+            subtitle =
+                "What this conversation showed about your German."
+        )
 
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .clip(CARD_SHAPE)
-                    .background(colorScheme.surfaceContainerLow)
-                    .padding(vertical = 6.dp)
+                    .clip(
+                        CARD_SHAPE
+                    )
+                    .background(
+                        MaterialTheme
+                            .colorScheme
+                            .surfaceContainerLow
+                    )
         ) {
-            rows.forEachIndexed { index, (label, value) ->
-                EvidenceRow(
-                    label = label,
-                    value = value,
-                    showDivider = index < rows.lastIndex
+            rows.forEachIndexed {
+                    index,
+                    row ->
+
+                GrowthRow(
+                    model =
+                        row,
+
+                    showDivider =
+                        index <
+                                rows.lastIndex
                 )
             }
         }
@@ -458,109 +531,246 @@ private fun EvidenceSection(
 }
 
 @Composable
-private fun EvidenceRow(
-    label: String,
-    value: String,
-    showDivider: Boolean
+private fun GrowthRow(
+    model:
+    GrowthRowModel,
+
+    showDivider:
+    Boolean
 ) {
-    val colorScheme = MaterialTheme.colorScheme
+    val colors =
+        MaterialTheme.colorScheme
+
+    val accent =
+        growthColor(
+            label =
+                model.growthLabel
+        )
 
     Column {
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically
+                    .padding(
+                        horizontal =
+                            16.dp,
+
+                        vertical =
+                            13.dp
+                    ),
+
+            verticalAlignment =
+                Alignment.CenterVertically
         ) {
-            Text(
-                text = label,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyMedium,
-                color = colorScheme.onSurfaceVariant
+            Box(
+                modifier =
+                    Modifier
+                        .size(
+                            GROWTH_DOT_SIZE
+                        )
+                        .clip(
+                            CircleShape
+                        )
+                        .background(
+                            accent
+                        )
             )
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(
+                modifier =
+                    Modifier.width(
+                        12.dp
+                    )
+            )
 
             Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = colorScheme.onSurface,
-                textAlign = TextAlign.End
+                text =
+                    model.label,
+
+                modifier =
+                    Modifier.weight(
+                        1f
+                    ),
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
+
+                color =
+                    colors.onSurface
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.width(
+                        12.dp
+                    )
+            )
+
+            Text(
+                text =
+                    model.growthLabel,
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelLarge,
+
+                fontWeight =
+                    FontWeight.SemiBold,
+
+                color =
+                    accent
             )
         }
 
         if (showDivider) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .height(0.5.dp)
-                        .background(colorScheme.outlineVariant.copy(alpha = 0.6f))
-            )
+            DividerLine()
         }
     }
 }
 
-/*
- * ===========================================================
- * OBJECTIVES
- * ===========================================================
- */
+private enum class ObjectiveSectionStyle {
+    SUCCESS,
+    NEXT
+}
 
 @Composable
 private fun ObjectiveSection(
-    title: String,
-    objectiveTitles: List<String>,
-    isStrong: Boolean
+    title:
+    String,
+
+    subtitle:
+    String,
+
+    objectiveTitles:
+    List<String>,
+
+    style:
+    ObjectiveSectionStyle
 ) {
-    val colorScheme = MaterialTheme.colorScheme
+    val colors =
+        MaterialTheme.colorScheme
 
     val accent =
-        if (isStrong) colorScheme.primary else colorScheme.tertiary
+        when (style) {
+            ObjectiveSectionStyle.SUCCESS ->
+                colors.primary
+
+            ObjectiveSectionStyle.NEXT ->
+                colors.tertiary
+        }
 
     val marker =
-        if (isStrong) "✓" else "→"
+        when (style) {
+            ObjectiveSectionStyle.SUCCESS ->
+                "✓"
 
-    Column(verticalArrangement = Arrangement.spacedBy(TILE_SPACING)) {
-        SectionLabel(text = title)
+            ObjectiveSectionStyle.NEXT ->
+                "→"
+        }
+
+    Column(
+        verticalArrangement =
+            Arrangement.spacedBy(
+                SECTION_CONTENT_SPACING
+            )
+    ) {
+        SectionHeader(
+            title =
+                title,
+
+            subtitle =
+                subtitle
+        )
 
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .clip(CARD_SHAPE)
-                    .background(colorScheme.surfaceContainerLow)
-                    .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .clip(
+                        CARD_SHAPE
+                    )
+                    .background(
+                        colors.surfaceContainerLow
+                    )
+                    .padding(
+                        12.dp
+                    ),
+
+            verticalArrangement =
+                Arrangement.spacedBy(
+                    10.dp
+                )
         ) {
-            objectiveTitles.forEach { objectiveTitle ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            objectiveTitles.forEach {
+                    objectiveTitle ->
+
+                Row(
+                    verticalAlignment =
+                        Alignment.CenterVertically
+                ) {
                     Box(
                         modifier =
                             Modifier
-                                .size(26.dp)
-                                .clip(CircleShape)
-                                .background(accent.copy(alpha = 0.14f)),
-                        contentAlignment = Alignment.Center
+                                .size(
+                                    OBJECTIVE_MARKER_SIZE
+                                )
+                                .clip(
+                                    CircleShape
+                                )
+                                .background(
+                                    accent.copy(
+                                        alpha =
+                                            0.13f
+                                    )
+                                ),
+
+                        contentAlignment =
+                            Alignment.Center
                     ) {
                         Text(
-                            text = marker,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = accent
+                            text =
+                                marker,
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .labelLarge,
+
+                            fontWeight =
+                                FontWeight.Bold,
+
+                            color =
+                                accent
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(
+                        modifier =
+                            Modifier.width(
+                                12.dp
+                            )
+                    )
 
                     Text(
-                        text = objectiveTitle,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurface
+                        text =
+                            objectiveTitle,
+
+                        modifier =
+                            Modifier.weight(
+                                1f
+                            ),
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodyMedium,
+
+                        color =
+                            colors.onSurface
                     )
                 }
             }
@@ -568,114 +778,648 @@ private fun ObjectiveSection(
     }
 }
 
-/*
- * ===========================================================
- * SHARED
- * ===========================================================
- */
+@Composable
+private fun VocabularySection(
+    title:
+    String,
+
+    subtitle:
+    String,
+
+    vocabulary:
+    List<String>,
+
+    isPositive:
+    Boolean
+) {
+    val colors =
+        MaterialTheme.colorScheme
+
+    val accent =
+        if (isPositive) {
+            colors.primary
+        } else {
+            colors.tertiary
+        }
+
+    Column(
+        verticalArrangement =
+            Arrangement.spacedBy(
+                SECTION_CONTENT_SPACING
+            )
+    ) {
+        SectionHeader(
+            title =
+                title,
+
+            subtitle =
+                subtitle
+        )
+
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(
+                        CARD_SHAPE
+                    )
+                    .background(
+                        colors.surfaceContainerLow
+                    )
+                    .padding(
+                        12.dp
+                    ),
+
+            verticalArrangement =
+                Arrangement.spacedBy(
+                    VOCABULARY_ROW_SPACING
+                )
+        ) {
+            vocabulary
+                .chunked(
+                    VOCABULARY_ITEMS_PER_ROW
+                )
+                .forEach {
+                        rowVocabulary ->
+
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth(),
+
+                        horizontalArrangement =
+                            Arrangement.spacedBy(
+                                VOCABULARY_CHIP_SPACING
+                            )
+                    ) {
+                        rowVocabulary.forEach {
+                                vocabularyItem ->
+
+                            VocabularyChip(
+                                text =
+                                    vocabularyItem,
+
+                                accent =
+                                    accent,
+
+                                modifier =
+                                    Modifier.weight(
+                                        1f
+                                    )
+                            )
+                        }
+
+                        repeat(
+                            VOCABULARY_ITEMS_PER_ROW -
+                                    rowVocabulary.size
+                        ) {
+                            Spacer(
+                                modifier =
+                                    Modifier.weight(
+                                        1f
+                                    )
+                            )
+                        }
+                    }
+                }
+        }
+    }
+}
 
 @Composable
-private fun SectionLabel(
-    text: String
+private fun VocabularyChip(
+    text:
+    String,
+
+    accent:
+    Color,
+
+    modifier:
+    Modifier =
+        Modifier
 ) {
     Text(
-        text = text.uppercase(),
-        modifier = Modifier.padding(start = 4.dp),
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+        text =
+            text,
+
+        modifier =
+            modifier
+                .clip(
+                    RoundedCornerShape(
+                        14.dp
+                    )
+                )
+                .background(
+                    accent.copy(
+                        alpha =
+                            0.11f
+                    )
+                )
+                .padding(
+                    horizontal =
+                        10.dp,
+
+                    vertical =
+                        9.dp
+                ),
+
+        style =
+            MaterialTheme
+                .typography
+                .bodySmall,
+
+        fontWeight =
+            FontWeight.Medium,
+
+        color =
+            MaterialTheme
+                .colorScheme
+                .onSurface,
+
+        textAlign =
+            TextAlign.Center,
+
+        maxLines =
+            2,
+
+        overflow =
+            TextOverflow.Ellipsis
     )
 }
 
 @Composable
-private fun Pill(
-    text: String,
-    background: Color,
-    content: Color
+private fun SupportSection(
+    state:
+    MissionResultUiState
 ) {
-    Text(
-        text = text,
-        modifier =
-            Modifier
-                .clip(CircleShape)
-                .background(background)
-                .padding(horizontal = 12.dp, vertical = 5.dp),
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
-        color = content
-    )
+    val colors =
+        MaterialTheme.colorScheme
+
+    Column(
+        verticalArrangement =
+            Arrangement.spacedBy(
+                SECTION_CONTENT_SPACING
+            )
+    ) {
+        SectionHeader(
+            title =
+                "Support",
+
+            subtitle =
+                "How much help you needed to keep the conversation moving."
+        )
+
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(
+                        CARD_SHAPE
+                    )
+                    .background(
+                        colors.surfaceContainerLow
+                    )
+        ) {
+            SupportRow(
+                label =
+                    "Independence",
+
+                value =
+                    state.independenceSummary,
+
+                showDivider =
+                    true
+            )
+
+            SupportRow(
+                label =
+                    "Hints",
+
+                value =
+                    state.hintSummary,
+
+                showDivider =
+                    state.besserSummary !=
+                            null
+            )
+
+            state.besserSummary?.let {
+                    besserSummary ->
+
+                SupportRow(
+                    label =
+                        "Besser",
+
+                    value =
+                        besserSummary,
+
+                    showDivider =
+                        false
+                )
+            }
+        }
+    }
 }
 
 @Composable
-private fun ContinueButton(
-    onClick: () -> Unit
-) {
-    val colorScheme = MaterialTheme.colorScheme
+private fun SupportRow(
+    label:
+    String,
 
-    Box(
+    value:
+    String,
+
+    showDivider:
+    Boolean
+) {
+    val colors =
+        MaterialTheme.colorScheme
+
+    Column {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal =
+                            16.dp,
+
+                        vertical =
+                            13.dp
+                    ),
+
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+            Text(
+                text =
+                    label,
+
+                modifier =
+                    Modifier.weight(
+                        1f
+                    ),
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
+
+                color =
+                    colors.onSurfaceVariant
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.width(
+                        16.dp
+                    )
+            )
+
+            Text(
+                text =
+                    value,
+
+                modifier =
+                    Modifier.weight(
+                        1.6f
+                    ),
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodyMedium,
+
+                fontWeight =
+                    FontWeight.Medium,
+
+                textAlign =
+                    TextAlign.End,
+
+                color =
+                    colors.onSurface
+            )
+        }
+
+        if (showDivider) {
+            DividerLine()
+        }
+    }
+}
+
+@Composable
+private fun NextFocusSection(
+    state:
+    MissionResultUiState
+) {
+    val colors =
+        MaterialTheme.colorScheme
+
+    Column(
         modifier =
             Modifier
-                .padding(top = 4.dp)
                 .fillMaxWidth()
-                .height(CONTINUE_BUTTON_HEIGHT)
-                .clip(CircleShape)
-                .background(colorScheme.primary)
-                .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+                .clip(
+                    CARD_SHAPE
+                )
+                .background(
+                    colors.secondaryContainer.copy(
+                        alpha =
+                            0.55f
+                    )
+                )
+                .padding(
+                    16.dp
+                )
     ) {
         Text(
-            text = "Continue",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            color = colorScheme.onPrimary
+            text =
+                "Next focus",
+
+            style =
+                MaterialTheme
+                    .typography
+                    .labelLarge,
+
+            fontWeight =
+                FontWeight.Bold,
+
+            color =
+                colors.onSecondaryContainer
+        )
+
+        Spacer(
+            modifier =
+                Modifier.height(
+                    6.dp
+                )
+        )
+
+        Text(
+            text =
+                state.nextFocusMessage,
+
+            style =
+                MaterialTheme
+                    .typography
+                    .bodyMedium,
+
+            color =
+                colors
+                    .onSecondaryContainer
+                    .copy(
+                        alpha =
+                            0.86f
+                    )
         )
     }
 }
 
-/*
- * ===========================================================
- * TOKENS
- * ===========================================================
- */
+@Composable
+private fun SectionHeader(
+    title:
+    String,
+
+    subtitle:
+    String
+) {
+    Column(
+        modifier =
+            Modifier.padding(
+                horizontal =
+                    4.dp
+            )
+    ) {
+        Text(
+            text =
+                title,
+
+            style =
+                MaterialTheme
+                    .typography
+                    .titleMedium,
+
+            fontWeight =
+                FontWeight.SemiBold,
+
+            color =
+                MaterialTheme
+                    .colorScheme
+                    .onSurface
+        )
+
+        Spacer(
+            modifier =
+                Modifier.height(
+                    3.dp
+                )
+        )
+
+        Text(
+            text =
+                subtitle,
+
+            style =
+                MaterialTheme
+                    .typography
+                    .bodySmall,
+
+            color =
+                MaterialTheme
+                    .colorScheme
+                    .onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ResultPill(
+    text:
+    String,
+
+    background:
+    Color,
+
+    content:
+    Color
+) {
+    Text(
+        text =
+            text,
+
+        modifier =
+            Modifier
+                .clip(
+                    CircleShape
+                )
+                .background(
+                    background
+                )
+                .padding(
+                    horizontal =
+                        12.dp,
+
+                    vertical =
+                        6.dp
+                ),
+
+        style =
+            MaterialTheme
+                .typography
+                .labelMedium,
+
+        fontWeight =
+            FontWeight.SemiBold,
+
+        color =
+            content
+    )
+}
+
+@Composable
+private fun DividerLine() {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal =
+                        16.dp
+                )
+                .height(
+                    0.5.dp
+                )
+                .background(
+                    MaterialTheme
+                        .colorScheme
+                        .outlineVariant
+                        .copy(
+                            alpha =
+                                0.55f
+                        )
+                )
+    )
+}
+
+@Composable
+private fun growthColor(
+    label:
+    String
+): Color {
+
+    val colors =
+        MaterialTheme.colorScheme
+
+    return when (label) {
+        "Strong" ->
+            colors.primary
+
+        "Improving" ->
+            colors.tertiary
+
+        "Practising" ->
+            colors.secondary
+
+        else ->
+            colors.onSurfaceVariant
+    }
+}
+
+@Composable
+private fun ContinueButton(
+    onClick:
+        () -> Unit
+) {
+    val colors =
+        MaterialTheme.colorScheme
+
+    Box(
+        modifier =
+            Modifier
+                .padding(
+                    top =
+                        4.dp
+                )
+                .fillMaxWidth()
+                .height(
+                    CONTINUE_BUTTON_HEIGHT
+                )
+                .clip(
+                    CircleShape
+                )
+                .background(
+                    colors.primary
+                )
+                .clickable(
+                    onClick =
+                        onClick
+                ),
+
+        contentAlignment =
+            Alignment.Center
+    ) {
+        Text(
+            text =
+                "Continue",
+
+            style =
+                MaterialTheme
+                    .typography
+                    .labelLarge,
+
+            fontWeight =
+                FontWeight.Bold,
+
+            color =
+                colors.onPrimary
+        )
+    }
+}
 
 private val SHEET_SHAPE =
-    RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    RoundedCornerShape(
+        topStart =
+            28.dp,
+
+        topEnd =
+            28.dp
+    )
+
+private val HERO_SHAPE =
+    RoundedCornerShape(
+        26.dp
+    )
 
 private val CARD_SHAPE =
-    RoundedCornerShape(24.dp)
-
-private val TILE_SHAPE =
-    RoundedCornerShape(20.dp)
+    RoundedCornerShape(
+        22.dp
+    )
 
 private val SHEET_HORIZONTAL_PADDING =
     18.dp
 
 private val SECTION_SPACING =
-    18.dp
+    20.dp
 
-private val TILE_SPACING =
+private val SECTION_CONTENT_SPACING =
     10.dp
 
-private val SCORE_RING_SIZE =
-    132.dp
+private val COMPLETE_ICON_SIZE =
+    44.dp
 
-private val SCORE_RING_STROKE =
-    10.dp
+private val GROWTH_DOT_SIZE =
+    8.dp
 
-private val BAR_HEIGHT =
-    5.dp
+private val OBJECTIVE_MARKER_SIZE =
+    26.dp
 
 private val CONTINUE_BUTTON_HEIGHT =
     52.dp
 
-private const val RING_ANIMATION_MILLIS =
-    900
+private val VOCABULARY_ROW_SPACING =
+    8.dp
 
-private const val BAR_ANIMATION_MILLIS =
-    700
+private val VOCABULARY_CHIP_SPACING =
+    8.dp
 
-private const val STRONG_SCORE_THRESHOLD =
-    75
-
-private const val DEVELOPING_SCORE_THRESHOLD =
-    50
+private const val VOCABULARY_ITEMS_PER_ROW =
+    2

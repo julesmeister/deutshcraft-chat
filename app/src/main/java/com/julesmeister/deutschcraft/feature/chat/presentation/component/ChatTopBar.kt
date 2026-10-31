@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/presentation/component/ChatTopBar.kt
+
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
 import androidx.compose.animation.AnimatedVisibility
@@ -11,6 +13,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,7 +41,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -47,6 +52,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.presentation.AdaptiveLearningFeedbackEvent
 import com.julesmeister.deutschcraft.feature.chat.presentation.MissionObjectiveCompletionEvent
+import com.julesmeister.deutschcraft.feature.chat.presentation.progress.ChatLevelProgressIndicator
+import com.julesmeister.deutschcraft.feature.chat.presentation.progress.LocalChatLevelProgress
 
 @OptIn(
     ExperimentalMaterial3Api::class
@@ -62,47 +69,63 @@ fun ChatTopBar(
     currentMissionGuidance: String? = null,
     missionProgressPercentage: Int = 0,
     objectiveCompletionEvent:
-    MissionObjectiveCompletionEvent? = null,
+    MissionObjectiveCompletionEvent? =
+        null,
     adaptiveLearningFeedbackEvent:
-    AdaptiveLearningFeedbackEvent? = null,
+    AdaptiveLearningFeedbackEvent? =
+        null,
     onObjectiveCompletionShown:
-        (String) -> Unit = {},
+        (String) -> Unit =
+        {},
     onAdaptiveLearningFeedbackShown:
-        (String) -> Unit = {},
-    showCopiedConfirmation: Boolean = false,
+        (String) -> Unit =
+        {},
+    showCopiedConfirmation: Boolean =
+        false,
     onMissionGuidanceClick:
-        () -> Unit = {}
+        () -> Unit =
+        {}
 ) {
+    val levelProgress =
+        LocalChatLevelProgress.current
+
     TopAppBar(
         modifier =
             modifier.fillMaxWidth(),
+
         colors =
             TopAppBarDefaults.topAppBarColors(
                 containerColor =
                     MaterialTheme
                         .colorScheme
                         .background,
+
                 scrolledContainerColor =
                     MaterialTheme
                         .colorScheme
                         .background,
+
                 titleContentColor =
                     MaterialTheme
                         .colorScheme
                         .onBackground,
+
                 navigationIconContentColor =
                     MaterialTheme
                         .colorScheme
                         .onBackground,
+
                 actionIconContentColor =
                     MaterialTheme
                         .colorScheme
                         .onBackground
             ),
+
         navigationIcon = {
             AnimatedChatTopBarIconButton(
                 onClick =
                     onBackClick,
+
                 modifier =
                     Modifier.padding(
                         start =
@@ -115,8 +138,10 @@ fun ChatTopBar(
                             .AutoMirrored
                             .Outlined
                             .ArrowBack,
+
                     contentDescription =
                         "Back",
+
                     tint =
                         MaterialTheme
                             .colorScheme
@@ -124,6 +149,7 @@ fun ChatTopBar(
                 )
             }
         },
+
         title = {
             Row(
                 modifier =
@@ -132,11 +158,14 @@ fun ChatTopBar(
                         .padding(
                             start =
                                 TITLE_START_PADDING,
+
                             end =
                                 TITLE_END_PADDING
                         ),
+
                 verticalAlignment =
                     Alignment.CenterVertically,
+
                 horizontalArrangement =
                     Arrangement.spacedBy(
                         COPY_CONFIRMATION_SPACING
@@ -145,33 +174,47 @@ fun ChatTopBar(
                 AnimatedChatTopBarTitle(
                     isAssistantTyping =
                         isAssistantTyping,
+
                     isAssessing =
                         isAssessing,
+
                     activeMissionTitle =
                         activeMissionTitle,
+
                     currentMissionObjective =
                         currentMissionObjective,
+
                     currentMissionGuidance =
                         currentMissionGuidance,
+
                     missionProgressPercentage =
                         missionProgressPercentage,
+
                     objectiveCompletionEvent =
                         objectiveCompletionEvent,
+
                     adaptiveLearningFeedbackEvent =
                         adaptiveLearningFeedbackEvent,
+
                     onObjectiveCompletionShown =
                         onObjectiveCompletionShown,
+
                     onAdaptiveLearningFeedbackShown =
                         onAdaptiveLearningFeedbackShown,
+
                     onMissionGuidanceClick =
                         onMissionGuidanceClick,
+
                     modifier =
-                        Modifier.weight(1f)
+                        Modifier.weight(
+                            1f
+                        )
                 )
 
                 AnimatedVisibility(
                     visible =
                         showCopiedConfirmation,
+
                     enter =
                         fadeIn(
                             animationSpec =
@@ -186,13 +229,16 @@ fun ChatTopBar(
                                             dampingRatio =
                                                 Spring
                                                     .DampingRatioMediumBouncy,
+
                                             stiffness =
                                                 Spring
                                                     .StiffnessMedium
                                         ),
+
                                     expandFrom =
                                         Alignment.End
                                 ),
+
                     exit =
                         fadeOut(
                             animationSpec =
@@ -207,6 +253,7 @@ fun ChatTopBar(
                                             durationMillis =
                                                 COPY_CONFIRMATION_EXIT_MILLIS
                                         ),
+
                                     shrinkTowards =
                                         Alignment.End
                                 )
@@ -215,8 +262,19 @@ fun ChatTopBar(
                 }
             }
         },
-        actions =
-            {}
+
+        actions = {
+            ChatLevelProgressIndicator(
+                state =
+                    levelProgress,
+
+                modifier =
+                    Modifier.padding(
+                        end =
+                            TOP_BAR_EDGE_PADDING
+                    )
+            )
+        }
     )
 }
 
@@ -224,7 +282,9 @@ fun ChatTopBar(
 private fun TopBarCopyConfirmation() {
     var animationStarted by
     remember {
-        mutableStateOf(false)
+        mutableStateOf(
+            false
+        )
     }
 
     val scale by
@@ -235,15 +295,18 @@ private fun TopBarCopyConfirmation() {
             } else {
                 COPY_CONFIRMATION_INITIAL_SCALE
             },
+
         animationSpec =
             spring(
                 dampingRatio =
                     Spring
                         .DampingRatioMediumBouncy,
+
                 stiffness =
                     Spring
                         .StiffnessMedium
             ),
+
         label =
             "TopBarCopyConfirmationScale"
     )
@@ -256,18 +319,23 @@ private fun TopBarCopyConfirmation() {
             } else {
                 COPY_CONFIRMATION_INITIAL_ROTATION
             },
+
         animationSpec =
             spring(
                 dampingRatio =
                     COPY_CONFIRMATION_ROTATION_DAMPING,
+
                 stiffness =
                     COPY_CONFIRMATION_ROTATION_STIFFNESS
             ),
+
         label =
             "TopBarCopyConfirmationRotation"
     )
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(
+        Unit
+    ) {
         animationStarted =
             true
     }
@@ -299,29 +367,25 @@ private fun TopBarCopyConfirmation() {
                 .padding(
                     start =
                         COPY_CONFIRMATION_START_PADDING,
+
                     end =
                         COPY_CONFIRMATION_END_PADDING,
+
                     top =
                         COPY_CONFIRMATION_VERTICAL_PADDING,
+
                     bottom =
                         COPY_CONFIRMATION_VERTICAL_PADDING
                 ),
+
         verticalAlignment =
             Alignment.CenterVertically,
+
         horizontalArrangement =
             Arrangement.spacedBy(
                 COPY_CONFIRMATION_CONTENT_SPACING
             )
     ) {
-        /*
-         * Inverted check circle:
-         *
-         * Dark theme:
-         * Light circle with dark check.
-         *
-         * Light theme:
-         * Dark circle with light check.
-         */
         Box(
             modifier =
                 Modifier
@@ -336,6 +400,7 @@ private fun TopBarCopyConfirmation() {
                             .colorScheme
                             .onSurface
                     ),
+
             contentAlignment =
                 Alignment.Center
         ) {
@@ -344,12 +409,15 @@ private fun TopBarCopyConfirmation() {
                     Icons
                         .Outlined
                         .Check,
+
                 contentDescription =
                     null,
+
                 modifier =
                     Modifier.size(
                         COPY_CONFIRMATION_CHECK_SIZE
                     ),
+
                 tint =
                     MaterialTheme
                         .colorScheme
@@ -360,12 +428,15 @@ private fun TopBarCopyConfirmation() {
         Text(
             text =
                 "Copied",
+
             style =
                 MaterialTheme
                     .typography
                     .labelMedium,
+
             fontWeight =
                 FontWeight.SemiBold,
+
             color =
                 MaterialTheme
                     .colorScheme
@@ -382,8 +453,48 @@ private fun AnimatedChatTopBarIconButton(
 ) {
     var isPressed by
     remember {
-        mutableStateOf(false)
+        mutableStateOf(
+            false
+        )
     }
+
+    val colors =
+        MaterialTheme.colorScheme
+
+    val isLightTheme =
+        colors.background.luminance() >
+                LIGHT_THEME_LUMINANCE_THRESHOLD
+
+    val normalContainerColor =
+        if (isLightTheme) {
+            LIGHT_MODE_BACK_BUTTON_BACKGROUND
+        } else {
+            colors
+                .surfaceContainer
+                .copy(
+                    alpha =
+                        NORMAL_BUTTON_ALPHA
+                )
+        }
+
+    val pressedContainerColor =
+        if (isLightTheme) {
+            LIGHT_MODE_BACK_BUTTON_PRESSED_BACKGROUND
+        } else {
+            colors.surfaceContainerHighest
+        }
+
+    val borderColor =
+        if (isLightTheme) {
+            LIGHT_MODE_BACK_BUTTON_BORDER
+        } else {
+            colors
+                .outlineVariant
+                .copy(
+                    alpha =
+                        DARK_MODE_BACK_BUTTON_BORDER_ALPHA
+                )
+        }
 
     val animatedScale by
     animateFloatAsState(
@@ -393,13 +504,16 @@ private fun AnimatedChatTopBarIconButton(
             } else {
                 NORMAL_ICON_SCALE
             },
+
         animationSpec =
             tween(
                 durationMillis =
                     ICON_PRESS_ANIMATION_DURATION_MILLIS,
+
                 easing =
                     FastOutSlowInEasing
             ),
+
         label =
             "ChatTopBarIconPressScale"
     )
@@ -423,18 +537,20 @@ private fun AnimatedChatTopBarIconButton(
                 .background(
                     color =
                         if (isPressed) {
-                            MaterialTheme
-                                .colorScheme
-                                .surfaceContainerHigh
+                            pressedContainerColor
                         } else {
-                            MaterialTheme
-                                .colorScheme
-                                .surfaceContainer
-                                .copy(
-                                    alpha =
-                                        NORMAL_BUTTON_ALPHA
-                                )
+                            normalContainerColor
                         }
+                )
+                .border(
+                    width =
+                        BACK_BUTTON_BORDER_WIDTH,
+
+                    color =
+                        borderColor,
+
+                    shape =
+                        CircleShape
                 )
                 .semantics {
                     role =
@@ -455,11 +571,13 @@ private fun AnimatedChatTopBarIconButton(
                                     false
                             }
                         },
+
                         onTap = {
                             onClick()
                         }
                     )
                 },
+
         contentAlignment =
             Alignment.Center
     ) {
@@ -477,7 +595,7 @@ private val TITLE_START_PADDING =
     8.dp
 
 private val TITLE_END_PADDING =
-    12.dp
+    2.dp
 
 private val COPY_CONFIRMATION_SPACING =
     6.dp
@@ -500,6 +618,30 @@ private val COPY_CONFIRMATION_VERTICAL_PADDING =
 private val COPY_CONFIRMATION_CONTENT_SPACING =
     5.dp
 
+private val BACK_BUTTON_BORDER_WIDTH =
+    1.dp
+
+private val LIGHT_MODE_BACK_BUTTON_BACKGROUND =
+    Color(
+        0xFFE7E8EC
+    )
+
+private val LIGHT_MODE_BACK_BUTTON_PRESSED_BACKGROUND =
+    Color(
+        0xFFD8DAE0
+    )
+
+private val LIGHT_MODE_BACK_BUTTON_BORDER =
+    Color(
+        0xFFB8BBC4
+    )
+
+private const val LIGHT_THEME_LUMINANCE_THRESHOLD =
+    0.5f
+
+private const val DARK_MODE_BACK_BUTTON_BORDER_ALPHA =
+    0.65f
+
 private const val FULL_CORNER_PERCENT =
     50
 
@@ -510,7 +652,7 @@ private const val PRESSED_ICON_SCALE =
     0.9f
 
 private const val NORMAL_BUTTON_ALPHA =
-    0.68f
+    0.82f
 
 private const val ICON_PRESS_ANIMATION_DURATION_MILLIS =
     130
