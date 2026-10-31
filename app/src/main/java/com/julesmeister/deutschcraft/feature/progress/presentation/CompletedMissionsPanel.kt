@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,14 +55,10 @@ import java.util.Locale
 @Composable
 internal fun CompletedMissionsPanel(
     completedMissionCount: Int,
-    recentMissions:
-    List<CompletedMissionUiModel>,
+    recentMissions: List<CompletedMissionUiModel>,
     showEnglish: Boolean,
-    colors:
-    ProgressColors,
-    modifier:
-    Modifier =
-        Modifier
+    colors: ProgressColors,
+    modifier: Modifier = Modifier
 ) {
     var contentVisible by
     remember {
@@ -127,6 +124,9 @@ internal fun CompletedMissionsPanel(
             color =
                 colors.missionPanelBackground,
 
+            contentColor =
+                colors.missionTextPrimary,
+
             tonalElevation =
                 0.dp,
 
@@ -183,7 +183,7 @@ internal fun CompletedMissionsPanel(
                             FontWeight.SemiBold,
 
                         color =
-                            colors.textSecondary
+                            colors.missionTextSecondary
                     )
 
                     Spacer(
@@ -205,10 +205,7 @@ internal fun CompletedMissionsPanel(
                                 colors
                         )
 
-                        if (
-                            index <
-                            recentMissions.lastIndex
-                        ) {
+                        if (index < recentMissions.lastIndex) {
                             Spacer(
                                 modifier =
                                     Modifier.height(
@@ -227,8 +224,7 @@ internal fun CompletedMissionsPanel(
 private fun MissionSummaryHeader(
     completedMissionCount: Int,
     showEnglish: Boolean,
-    colors:
-    ProgressColors
+    colors: ProgressColors
 ) {
     Row(
         modifier =
@@ -265,7 +261,7 @@ private fun MissionSummaryHeader(
                     null,
 
                 tint =
-                    colors.textPrimary
+                    colors.missionAccent
             )
         }
 
@@ -299,7 +295,7 @@ private fun MissionSummaryHeader(
                     FontWeight.SemiBold,
 
                 color =
-                    colors.textPrimary
+                    colors.missionTextPrimary
             )
 
             Text(
@@ -322,7 +318,7 @@ private fun MissionSummaryHeader(
                         .bodySmall,
 
                 color =
-                    colors.textSecondary
+                    colors.missionTextSecondary
             )
         }
 
@@ -388,7 +384,7 @@ private fun MissionSummaryHeader(
                         FontWeight.Bold,
 
                     color =
-                        colors.textPrimary
+                        colors.missionTextPrimary
                 )
             }
         }
@@ -397,26 +393,17 @@ private fun MissionSummaryHeader(
 
 @Composable
 private fun CompletedMissionRow(
-    mission:
-    CompletedMissionUiModel,
-
+    mission: CompletedMissionUiModel,
     showEnglish: Boolean,
-
-    colors:
-    ProgressColors
+    colors: ProgressColors
 ) {
     val completionFraction =
-        if (
-            mission.totalObjectiveCount <=
-            0
-        ) {
+        if (mission.totalObjectiveCount <= 0) {
             1f
         } else {
             (
-                    mission.completedObjectiveCount
-                        .toFloat() /
-                            mission.totalObjectiveCount
-                                .toFloat()
+                    mission.completedObjectiveCount.toFloat() /
+                            mission.totalObjectiveCount.toFloat()
                     )
                 .coerceIn(
                     minimumValue =
@@ -490,7 +477,10 @@ private fun CompletedMissionRow(
                 style =
                     MaterialTheme
                         .typography
-                        .titleMedium
+                        .titleMedium,
+
+                color =
+                    colors.missionTextPrimary
             )
         }
 
@@ -532,7 +522,7 @@ private fun CompletedMissionRow(
                         FontWeight.SemiBold,
 
                     color =
-                        colors.textPrimary,
+                        colors.missionTextPrimary,
 
                     maxLines =
                         1,
@@ -548,14 +538,6 @@ private fun CompletedMissionRow(
                         )
                 )
 
-                /*
-                 * Lightweight completion mark.
-                 *
-                 * This intentionally matches the visual language
-                 * of Communication Growth: a plain outlined
-                 * icon using the panel accent, with no filled
-                 * circular badge around every mission.
-                 */
                 Icon(
                     imageVector =
                         Icons
@@ -604,7 +586,13 @@ private fun CompletedMissionRow(
                             .labelSmall,
 
                     color =
-                        colors.textSecondary
+                        colors.missionTextSecondary,
+
+                    maxLines =
+                        1,
+
+                    overflow =
+                        TextOverflow.Ellipsis
                 )
 
                 Text(
@@ -623,7 +611,7 @@ private fun CompletedMissionRow(
                             .labelSmall,
 
                     color =
-                        colors.textSecondary
+                        colors.missionTextSecondary
                 )
             }
 
@@ -650,7 +638,16 @@ private fun CompletedMissionRow(
                     colors.missionAccent,
 
                 trackColor =
-                    colors.missionProgressTrack
+                    colors.missionProgressTrack,
+
+                strokeCap =
+                    StrokeCap.Round,
+
+                gapSize =
+                    0.dp,
+
+                drawStopIndicator =
+                    {}
             )
         }
     }
@@ -659,8 +656,7 @@ private fun CompletedMissionRow(
 @Composable
 private fun EmptyMissionHistory(
     showEnglish: Boolean,
-    colors:
-    ProgressColors
+    colors: ProgressColors
 ) {
     Row(
         modifier =
@@ -709,7 +705,7 @@ private fun EmptyMissionHistory(
                     null,
 
                 tint =
-                    colors.textSecondary
+                    colors.missionAccent
             )
         }
 
@@ -734,7 +730,7 @@ private fun EmptyMissionHistory(
                     .bodyMedium,
 
             color =
-                colors.textSecondary
+                colors.missionTextSecondary
         )
     }
 }
@@ -743,7 +739,6 @@ private fun formatCompletionDate(
     timestamp: Long,
     showEnglish: Boolean
 ): String {
-
     if (timestamp <= 0L) {
         return ""
     }

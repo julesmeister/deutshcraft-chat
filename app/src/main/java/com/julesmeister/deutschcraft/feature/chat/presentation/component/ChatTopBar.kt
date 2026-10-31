@@ -13,7 +13,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -465,6 +464,15 @@ private fun AnimatedChatTopBarIconButton(
         colors.background.luminance() >
                 LIGHT_THEME_LUMINANCE_THRESHOLD
 
+    /*
+     * Keep the filled circular button, but remove the outline.
+     *
+     * Light mode uses a stronger filled surface so the button
+     * remains clearly separated from the pale top-bar
+     * background without needing a border.
+     *
+     * Dark mode keeps the existing surface behavior.
+     */
     val normalContainerColor =
         if (isLightTheme) {
             LIGHT_MODE_BACK_BUTTON_BACKGROUND
@@ -482,18 +490,6 @@ private fun AnimatedChatTopBarIconButton(
             LIGHT_MODE_BACK_BUTTON_PRESSED_BACKGROUND
         } else {
             colors.surfaceContainerHighest
-        }
-
-    val borderColor =
-        if (isLightTheme) {
-            LIGHT_MODE_BACK_BUTTON_BORDER
-        } else {
-            colors
-                .outlineVariant
-                .copy(
-                    alpha =
-                        DARK_MODE_BACK_BUTTON_BORDER_ALPHA
-                )
         }
 
     val animatedScale by
@@ -541,16 +537,6 @@ private fun AnimatedChatTopBarIconButton(
                         } else {
                             normalContainerColor
                         }
-                )
-                .border(
-                    width =
-                        BACK_BUTTON_BORDER_WIDTH,
-
-                    color =
-                        borderColor,
-
-                    shape =
-                        CircleShape
                 )
                 .semantics {
                     role =
@@ -618,29 +604,18 @@ private val COPY_CONFIRMATION_VERTICAL_PADDING =
 private val COPY_CONFIRMATION_CONTENT_SPACING =
     5.dp
 
-private val BACK_BUTTON_BORDER_WIDTH =
-    1.dp
-
 private val LIGHT_MODE_BACK_BUTTON_BACKGROUND =
     Color(
-        0xFFE7E8EC
+        0xFFE3E4E8
     )
 
 private val LIGHT_MODE_BACK_BUTTON_PRESSED_BACKGROUND =
     Color(
-        0xFFD8DAE0
-    )
-
-private val LIGHT_MODE_BACK_BUTTON_BORDER =
-    Color(
-        0xFFB8BBC4
+        0xFFD3D5DB
     )
 
 private const val LIGHT_THEME_LUMINANCE_THRESHOLD =
     0.5f
-
-private const val DARK_MODE_BACK_BUTTON_BORDER_ALPHA =
-    0.65f
 
 private const val FULL_CORNER_PERCENT =
     50

@@ -16,31 +16,16 @@ import com.julesmeister.deutschcraft.feature.progress.domain.model.ProgressSumma
 
 @Composable
 internal fun ProgressContent(
-    progress:
-    ProgressSummary,
-
-    besserProgress:
-    BesserProgressUiModel,
-
-    learningFocuses:
-    List<LearningFocusProgressUiModel>,
-
+    progress: ProgressSummary,
+    besserProgress: BesserProgressUiModel,
+    learningFocuses: List<LearningFocusProgressUiModel>,
     reinforcementFocusCount: Int,
-
     improvingFocusCount: Int,
-
     masteredFocusCount: Int,
-
     completedMissionCount: Int,
-
-    recentCompletedMissions:
-    List<CompletedMissionUiModel>,
-
+    recentCompletedMissions: List<CompletedMissionUiModel>,
     showEnglish: Boolean,
-
-    modifier:
-    Modifier =
-        Modifier
+    modifier: Modifier = Modifier
 ) {
     val colors =
         rememberProgressColors()
@@ -144,11 +129,11 @@ internal fun ProgressContent(
                 PROGRESS_STATISTICS_KEY
         ) {
             ProgressStatistics(
-                showEnglish =
-                    showEnglish,
-
                 progress =
-                    progress
+                    progress,
+
+                showEnglish =
+                    showEnglish
             )
         }
 
@@ -179,6 +164,9 @@ internal fun ProgressContent(
                 progress =
                     progress,
 
+                showEnglish =
+                    showEnglish,
+
                 colors =
                     colors
             )
@@ -191,6 +179,9 @@ internal fun ProgressContent(
             ConfidencePanel(
                 progress =
                     progress,
+
+                showEnglish =
+                    showEnglish,
 
                 colors =
                     colors

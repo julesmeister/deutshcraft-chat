@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,23 +45,13 @@ import com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.Maste
 
 @Composable
 internal fun LearningFocusPanel(
-    focuses:
-    List<LearningFocusProgressUiModel>,
-
+    focuses: List<LearningFocusProgressUiModel>,
     reinforcementFocusCount: Int,
-
     improvingFocusCount: Int,
-
     masteredFocusCount: Int,
-
     showEnglish: Boolean,
-
-    colors:
-    ProgressColors,
-
-    modifier:
-    Modifier =
-        Modifier
+    colors: ProgressColors,
+    modifier: Modifier = Modifier
 ) {
     Surface(
         modifier =
@@ -75,6 +66,9 @@ internal fun LearningFocusPanel(
 
         color =
             colors.learningPanelBackground,
+
+        contentColor =
+            colors.learningTextPrimary,
 
         tonalElevation =
             0.dp,
@@ -148,10 +142,7 @@ internal fun LearningFocusPanel(
                             colors
                     )
 
-                    if (
-                        index <
-                        focuses.lastIndex
-                    ) {
+                    if (index < focuses.lastIndex) {
                         Spacer(
                             modifier =
                                 Modifier.height(
@@ -181,7 +172,7 @@ internal fun LearningFocusPanel(
                             .labelSmall,
 
                     color =
-                        colors.textSecondary
+                        colors.learningTextSecondary
                 )
             }
         }
@@ -262,7 +253,7 @@ private fun LearningFocusHeader(
                     FontWeight.SemiBold,
 
                 color =
-                    colors.textPrimary
+                    colors.learningTextPrimary
             )
 
             Text(
@@ -285,7 +276,7 @@ private fun LearningFocusHeader(
                         .bodySmall,
 
                 color =
-                    colors.textSecondary
+                    colors.learningTextSecondary
             )
         }
     }
@@ -405,20 +396,16 @@ private fun LearningSummaryMetric(
                     .labelSmall,
 
             color =
-                colors.textSecondary
+                colors.learningTextSecondary
         )
     }
 }
 
 @Composable
 private fun LearningFocusRow(
-    focus:
-    LearningFocusProgressUiModel,
-
+    focus: LearningFocusProgressUiModel,
     showEnglish: Boolean,
-
-    colors:
-    ProgressColors
+    colors: ProgressColors
 ) {
     val animatedMastery by
     animateFloatAsState(
@@ -521,7 +508,7 @@ private fun LearningFocusRow(
                         FontWeight.SemiBold,
 
                     color =
-                        colors.textPrimary,
+                        colors.learningTextPrimary,
 
                     maxLines =
                         1,
@@ -553,7 +540,7 @@ private fun LearningFocusRow(
                                 .labelSmall,
 
                         color =
-                            colors.textSecondary
+                            colors.learningTextSecondary
                     )
 
                     Text(
@@ -566,7 +553,7 @@ private fun LearningFocusRow(
                                 .labelSmall,
 
                         color =
-                            colors.textSecondary
+                            colors.learningTextSecondary
                     )
 
                     Text(
@@ -630,7 +617,16 @@ private fun LearningFocusRow(
                 colors.learningAccent,
 
             trackColor =
-                colors.learningProgressTrack
+                colors.learningProgressTrack,
+
+            strokeCap =
+                StrokeCap.Round,
+
+            gapSize =
+                0.dp,
+
+            drawStopIndicator =
+                {}
         )
 
         Text(
@@ -652,7 +648,7 @@ private fun LearningFocusRow(
                     .labelSmall,
 
             color =
-                colors.textSecondary
+                colors.learningTextSecondary
         )
 
         val guidance =
@@ -680,7 +676,7 @@ private fun LearningFocusRow(
                         .bodySmall,
 
                 color =
-                    colors.textPrimary,
+                    colors.learningTextPrimary,
 
                 maxLines =
                     2,
@@ -767,7 +763,7 @@ private fun LearningFocusEmptyState(
                     .bodyMedium,
 
             color =
-                colors.textSecondary
+                colors.learningTextSecondary
         )
     }
 }
@@ -775,7 +771,6 @@ private fun LearningFocusEmptyState(
 private fun LearningFocusProgressUiModel.evidenceDescription(
     showEnglish: Boolean
 ): String {
-
     val evidenceLabel =
         if (showEnglish) {
             if (safeEvidenceCount == 1) {
@@ -807,7 +802,6 @@ private fun LearningFocusProgressUiModel.evidenceDescription(
 private fun LearningFocusType.displayName(
     showEnglish: Boolean
 ): String {
-
     return when (this) {
         LearningFocusType.GRAMMAR ->
             if (showEnglish) {
@@ -835,7 +829,6 @@ private fun LearningFocusType.displayName(
 private fun MasteryState.displayName(
     showEnglish: Boolean
 ): String {
-
     return when (this) {
         MasteryState.OBSERVING ->
             if (showEnglish) {

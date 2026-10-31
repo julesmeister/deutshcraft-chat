@@ -1,5 +1,3 @@
-// app/src/main/java/com/julesmeister/deutschcraft/feature/progress/presentation/ProgressColors.kt
-
 package com.julesmeister.deutschcraft.feature.progress.presentation
 
 import androidx.compose.material3.MaterialTheme
@@ -8,124 +6,102 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import com.julesmeister.deutschcraft.ui.theme.DeutschInfo
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
-import com.julesmeister.deutschcraft.ui.theme.DeutschLimeDark
-import com.julesmeister.deutschcraft.ui.theme.DeutschSurfaceHigh
-import com.julesmeister.deutschcraft.ui.theme.DeutschSurfaceHighest
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextPrimary
-import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
 @Immutable
 internal data class ProgressColors(
     val isDark: Boolean,
 
     val textPrimary: Color,
-
     val textSecondary: Color,
 
     val accent: Color,
-
     val accentContainer: Color,
-
     val progressTrack: Color,
 
     val currentLevelBackground: Color,
-
     val currentLevelTextPrimary: Color,
-
     val currentLevelTextSecondary: Color,
 
-    /*
-     * Learning focus.
-     *
-     * Blue deliberately separates adaptive observation from
-     * the lime Besser / progression identity.
-     */
     val learningAccent: Color,
-
     val learningAccentContainer: Color,
-
     val learningPanelBackground: Color,
-
     val learningItemBackground: Color,
-
     val learningSummaryBackground: Color,
-
     val learningProgressTrack: Color,
+    val learningTextPrimary: Color,
+    val learningTextSecondary: Color,
 
-    /*
-     * Communication growth.
-     *
-     * Besser keeps the DeutschCraft lime identity, but uses a
-     * warmer / deeper panel treatment instead of nesting the
-     * same generic Material surfaces.
-     */
     val growthAccent: Color,
-
     val growthAccentContainer: Color,
-
     val growthPanelBackground: Color,
-
     val growthItemBackground: Color,
-
     val growthProgressTrack: Color,
+    val growthTextPrimary: Color,
+    val growthTextSecondary: Color,
 
-    /*
-     * Mission history stays deliberately neutral.
-     *
-     * Lime is reserved for successful completion instead of
-     * tinting every surface inside the card.
-     */
     val missionAccent: Color,
-
     val missionAccentContainer: Color,
-
     val missionPanelBackground: Color,
-
     val missionItemBackground: Color,
+    val missionProgressTrack: Color,
+    val missionTextPrimary: Color,
+    val missionTextSecondary: Color,
 
-    val missionProgressTrack: Color
+    val skillAccent: Color,
+    val skillAccentContainer: Color,
+    val skillPanelBackground: Color,
+    val skillProgressTrack: Color,
+    val skillTextPrimary: Color,
+    val skillTextSecondary: Color,
+
+    val confidenceAccent: Color,
+    val confidencePanelBackground: Color,
+    val confidenceTextPrimary: Color,
+    val confidenceTextSecondary: Color
 )
 
 @Composable
 internal fun rememberProgressColors():
         ProgressColors {
-
-    val colorScheme =
+    val scheme =
         MaterialTheme.colorScheme
 
     return remember(
-        colorScheme
+        scheme
     ) {
         val isDark =
-            colorScheme
-                .background
-                .luminance() <
-                    ProgressDarkLuminanceThreshold
+            scheme.background.luminance() <
+                    DARK_LUMINANCE_THRESHOLD
 
         if (isDark) {
+            val accent =
+                DeutschLime
+
+            val accentContainer =
+                DeutschLime.copy(
+                    alpha =
+                        DARK_ACCENT_CONTAINER_ALPHA
+                )
+
             ProgressColors(
                 isDark =
                     true,
 
                 textPrimary =
-                    DeutschTextPrimary,
+                    scheme.onSurface,
 
                 textSecondary =
-                    DeutschTextSecondary,
+                    scheme.onSurfaceVariant,
 
                 accent =
-                    DeutschLime,
+                    accent,
 
                 accentContainer =
-                    DeutschLime.copy(
-                        alpha =
-                            ProgressDarkAccentContainerAlpha
-                    ),
+                    accentContainer,
 
                 progressTrack =
-                    colorScheme.surfaceContainerHighest,
+                    scheme.surfaceContainerHighest,
 
                 currentLevelBackground =
                     CefrCurrentLevelBackground,
@@ -137,58 +113,100 @@ internal fun rememberProgressColors():
                     CefrCurrentLevelTextSecondary,
 
                 learningAccent =
-                    DeutschInfo,
+                    accent,
 
                 learningAccentContainer =
-                    DeutschInfo.copy(
-                        alpha =
-                            DarkLearningAccentContainerAlpha
-                    ),
+                    accentContainer,
 
                 learningPanelBackground =
-                    DarkLearningPanelBackground,
+                    scheme.surfaceContainer,
 
                 learningItemBackground =
-                    DarkLearningItemBackground,
+                    scheme.surfaceContainerHigh,
 
                 learningSummaryBackground =
-                    DarkLearningSummaryBackground,
+                    scheme.surfaceContainerHighest,
 
                 learningProgressTrack =
-                    DarkLearningProgressTrack,
+                    scheme.surfaceContainerHighest,
+
+                learningTextPrimary =
+                    scheme.onSurface,
+
+                learningTextSecondary =
+                    scheme.onSurfaceVariant,
 
                 growthAccent =
-                    DeutschLime,
+                    accent,
 
                 growthAccentContainer =
-                    DeutschLime.copy(
-                        alpha =
-                            DarkGrowthAccentContainerAlpha
-                    ),
+                    accentContainer,
 
                 growthPanelBackground =
-                    DarkGrowthPanelBackground,
+                    scheme.surfaceContainer,
 
                 growthItemBackground =
-                    DarkGrowthItemBackground,
+                    scheme.surfaceContainerHigh,
 
                 growthProgressTrack =
-                    DarkGrowthProgressTrack,
+                    scheme.surfaceContainerHighest,
+
+                growthTextPrimary =
+                    scheme.onSurface,
+
+                growthTextSecondary =
+                    scheme.onSurfaceVariant,
 
                 missionAccent =
-                    DeutschLime,
+                    accent,
 
                 missionAccentContainer =
-                    colorScheme.surfaceContainerHighest,
+                    accentContainer,
 
                 missionPanelBackground =
-                    DarkMissionPanelBackground,
+                    scheme.surfaceContainer,
 
                 missionItemBackground =
-                    DarkMissionItemBackground,
+                    scheme.surfaceContainerHigh,
 
                 missionProgressTrack =
-                    DarkMissionProgressTrack
+                    scheme.surfaceContainerHighest,
+
+                missionTextPrimary =
+                    scheme.onSurface,
+
+                missionTextSecondary =
+                    scheme.onSurfaceVariant,
+
+                skillAccent =
+                    accent,
+
+                skillAccentContainer =
+                    accentContainer,
+
+                skillPanelBackground =
+                    scheme.surfaceContainer,
+
+                skillProgressTrack =
+                    scheme.surfaceContainerHighest,
+
+                skillTextPrimary =
+                    scheme.onSurface,
+
+                skillTextSecondary =
+                    scheme.onSurfaceVariant,
+
+                confidenceAccent =
+                    accent,
+
+                confidencePanelBackground =
+                    scheme.surfaceContainer,
+
+                confidenceTextPrimary =
+                    scheme.onSurface,
+
+                confidenceTextSecondary =
+                    scheme.onSurfaceVariant
             )
         } else {
             ProgressColors(
@@ -196,222 +214,232 @@ internal fun rememberProgressColors():
                     false,
 
                 textPrimary =
-                    colorScheme.onSurface,
+                    LIGHT_TEXT_PRIMARY,
 
                 textSecondary =
-                    colorScheme.onSurfaceVariant,
+                    LIGHT_TEXT_SECONDARY,
 
                 accent =
-                    ProgressLightAccent,
+                    scheme.primary,
 
                 accentContainer =
-                    DeutschLime.copy(
-                        alpha =
-                            ProgressLightAccentContainerAlpha
-                    ),
+                    scheme.primaryContainer,
 
                 progressTrack =
-                    colorScheme.surfaceContainerHighest,
+                    LIGHT_PROGRESS_TRACK,
 
                 currentLevelBackground =
-                    colorScheme.inverseSurface,
+                    scheme.inverseSurface,
 
                 currentLevelTextPrimary =
-                    colorScheme.inverseOnSurface,
+                    scheme.inverseOnSurface,
 
                 currentLevelTextSecondary =
-                    colorScheme.inverseOnSurface.copy(
+                    scheme.inverseOnSurface.copy(
                         alpha =
-                            ProgressLightInverseSecondaryAlpha
+                            INVERSE_SECONDARY_ALPHA
                     ),
 
+                /*
+                 * Learning Focus:
+                 * dark outer panel, layered dark inner surfaces,
+                 * lime accents and explicit light foregrounds.
+                 */
                 learningAccent =
-                    LightLearningAccent,
+                    DeutschLime,
 
                 learningAccentContainer =
-                    LightLearningAccentContainer,
+                    DARK_LIME_CONTAINER,
 
                 learningPanelBackground =
-                    LightLearningPanelBackground,
+                    DARK_PANEL,
 
                 learningItemBackground =
-                    LightLearningItemBackground,
+                    DARK_ITEM,
 
                 learningSummaryBackground =
-                    LightLearningSummaryBackground,
+                    DARK_ITEM_HIGH,
 
                 learningProgressTrack =
-                    LightLearningProgressTrack,
+                    DARK_PROGRESS_TRACK,
 
+                learningTextPrimary =
+                    LIGHT_ON_DARK_PRIMARY,
+
+                learningTextSecondary =
+                    LIGHT_ON_DARK_SECONDARY,
+
+                /*
+                 * Communication Growth:
+                 * full lime treatment matching the CEFR bento.
+                 */
                 growthAccent =
-                    DeutschLimeDark,
+                    ON_LIME_PRIMARY,
 
                 growthAccentContainer =
-                    LightGrowthAccentContainer,
+                    ON_LIME_SOFT_CONTAINER,
 
                 growthPanelBackground =
-                    LightGrowthPanelBackground,
+                    DeutschLime,
 
                 growthItemBackground =
-                    LightGrowthItemBackground,
+                    LIME_INNER_SURFACE,
 
                 growthProgressTrack =
-                    LightGrowthProgressTrack,
+                    ON_LIME_TRACK,
 
+                growthTextPrimary =
+                    ON_LIME_PRIMARY,
+
+                growthTextSecondary =
+                    ON_LIME_SECONDARY,
+
+                /*
+                 * Conversation Missions:
+                 * dark panel as requested.
+                 */
                 missionAccent =
-                    DeutschLimeDark,
+                    DeutschLime,
 
                 missionAccentContainer =
-                    LightMissionAccentContainer,
+                    DARK_LIME_CONTAINER,
 
                 missionPanelBackground =
-                    LightMissionPanelBackground,
+                    DARK_PANEL,
 
                 missionItemBackground =
-                    LightMissionItemBackground,
+                    DARK_ITEM,
 
                 missionProgressTrack =
-                    LightMissionProgressTrack
+                    DARK_PROGRESS_TRACK,
+
+                missionTextPrimary =
+                    LIGHT_ON_DARK_PRIMARY,
+
+                missionTextSecondary =
+                    LIGHT_ON_DARK_SECONDARY,
+
+                /*
+                 * Skills:
+                 * dark panel.
+                 */
+                skillAccent =
+                    DeutschLime,
+
+                skillAccentContainer =
+                    DARK_LIME_CONTAINER,
+
+                skillPanelBackground =
+                    DARK_PANEL,
+
+                skillProgressTrack =
+                    DARK_PROGRESS_TRACK,
+
+                skillTextPrimary =
+                    LIGHT_ON_DARK_PRIMARY,
+
+                skillTextSecondary =
+                    LIGHT_ON_DARK_SECONDARY,
+
+                /*
+                 * Evidence Quality:
+                 * light panel with explicit dark foregrounds.
+                 */
+                confidenceAccent =
+                    scheme.primary,
+
+                confidencePanelBackground =
+                    LIGHT_PANEL,
+
+                confidenceTextPrimary =
+                    LIGHT_TEXT_PRIMARY,
+
+                confidenceTextSecondary =
+                    LIGHT_TEXT_SECONDARY
             )
         }
     }
 }
 
-private const val ProgressDarkLuminanceThreshold =
+private const val DARK_LUMINANCE_THRESHOLD =
     0.5f
 
-private const val ProgressDarkAccentContainerAlpha =
+private const val DARK_ACCENT_CONTAINER_ALPHA =
     0.14f
 
-private val ProgressLightAccent =
-    Color(
-        0xFF5A7A00
-    )
-
-private const val ProgressLightAccentContainerAlpha =
-    0.35f
-
-private const val ProgressLightInverseSecondaryAlpha =
+private const val INVERSE_SECONDARY_ALPHA =
     0.72f
 
-private const val DarkLearningAccentContainerAlpha =
-    0.15f
-
-private val DarkLearningPanelBackground =
+private val DARK_PANEL =
     Color(
-        0xFF141C23
+        0xFF191B18
     )
 
-private val DarkLearningItemBackground =
+private val DARK_ITEM =
     Color(
-        0xFF1B2731
+        0xFF232620
     )
 
-private val DarkLearningSummaryBackground =
+private val DARK_ITEM_HIGH =
     Color(
-        0xFF18222B
+        0xFF2B2F27
     )
 
-private val DarkLearningProgressTrack =
+private val DARK_PROGRESS_TRACK =
     Color(
-        0xFF2A3945
+        0xFF3A3F34
     )
 
-private val LightLearningAccent =
+private val DARK_LIME_CONTAINER =
     Color(
-        0xFF25679D
+        0xFF30372B
     )
 
-private val LightLearningAccentContainer =
+private val LIGHT_ON_DARK_PRIMARY =
     Color(
-        0xFFDCEEFF
+        0xFFF4F5F1
     )
 
-private val LightLearningPanelBackground =
+private val LIGHT_ON_DARK_SECONDARY =
     Color(
-        0xFFF1F7FC
+        0xFFBEC2B8
     )
 
-private val LightLearningItemBackground =
+private val ON_LIME_PRIMARY =
+    CefrOnLimePrimary
+
+private val ON_LIME_SECONDARY =
+    CefrOnLimeSecondary
+
+private val ON_LIME_TRACK =
+    CefrOnLimeTrack
+
+private val LIME_INNER_SURFACE =
     Color(
-        0xFFFFFFFF
+        0xFFB5E679
     )
 
-private val LightLearningSummaryBackground =
+private val ON_LIME_SOFT_CONTAINER =
     Color(
-        0xFFE5F2FC
+        0x29111111
     )
 
-private val LightLearningProgressTrack =
+private val LIGHT_PANEL =
     Color(
-        0xFFD3E3EF
+        0xFFF4F4F2
     )
 
-private const val DarkGrowthAccentContainerAlpha =
-    0.11f
-
-private val DarkGrowthPanelBackground =
+private val LIGHT_PROGRESS_TRACK =
     Color(
-        0xFF171B15
+        0xFFD8DAD4
     )
 
-private val DarkGrowthItemBackground =
+private val LIGHT_TEXT_PRIMARY =
     Color(
-        0xFF20271D
+        0xFF151613
     )
 
-private val DarkGrowthProgressTrack =
+private val LIGHT_TEXT_SECONDARY =
     Color(
-        0xFF35412F
-    )
-
-private val LightGrowthAccentContainer =
-    Color(
-        0xFFE5F7D9
-    )
-
-private val LightGrowthPanelBackground =
-    Color(
-        0xFFF4F8F0
-    )
-
-private val LightGrowthItemBackground =
-    Color(
-        0xFFFFFFFF
-    )
-
-private val LightGrowthProgressTrack =
-    Color(
-        0xFFD9E5D2
-    )
-
-private val DarkMissionPanelBackground =
-    DeutschSurfaceHigh
-
-private val DarkMissionItemBackground =
-    Color(
-        0xFF181A1C
-    )
-
-private val DarkMissionProgressTrack =
-    DeutschSurfaceHighest
-
-private val LightMissionAccentContainer =
-    Color(
-        0xFFEEF1EB
-    )
-
-private val LightMissionPanelBackground =
-    Color(
-        0xFFFFFFFF
-    )
-
-private val LightMissionItemBackground =
-    Color(
-        0xFFF1F2EF
-    )
-
-private val LightMissionProgressTrack =
-    Color(
-        0xFFDADDD6
+        0xFF60645B
     )
