@@ -371,13 +371,17 @@ Implemented:
 
 ## Mission Top Bar
 
-The mission header expands downward using a subtle chevron without moving its
-navigation and progress controls. Mission paging and auto-advance pause while
-expanded. An upward chevron below the details, the header chevron, or Android
-Back collapses it.
+During a mission a small handle tab hangs beneath the top bar. Tap it, or drag
+the handle or the top bar downward, to pull a details drawer out from under the
+bar; it follows the finger and settles open or closed by distance and fling
+velocity. The drawer overlays the conversation (with a scrim) so messages never
+move. Mission paging and auto-advance pause while expanded. Dragging up, tapping
+the handle or scrim, or Android Back collapses it. Reduced motion snaps instead
+of animating.
 
-The expansion shows the scenario, completed/current goals, and existing
-progressive hints. Vocabulary and grammar are generated on demand for the
+The drawer shows a progress ring with CEFR badge, the current-goal card, a goal
+timeline, and existing progressive hints. Vocabulary (card carousel) and grammar
+(pattern cards) are generated on demand for the
 mission's CEFR level and cached locally for up to 32 mission contexts. Branch
 changes produce fresh support; ordinary goal progress does not regenerate it.
 Vocabulary follows the target-vocabulary setting; grammar and German examples

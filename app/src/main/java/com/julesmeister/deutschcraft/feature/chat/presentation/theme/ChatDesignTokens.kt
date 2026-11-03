@@ -794,14 +794,63 @@ object ChatDesignTokens {
         const val OnlineHighlightOffsetFactor = 0.27f
     }
 
+    object MissionDrawer {
+        const val MaxHeightFraction = 0.62f
+        val FallbackPanelHeight = 360.dp
+        val PanelCornerRadius = 28.dp
+        val PanelElevation = 4.dp
+        const val ScrimMaxAlpha = 0.36f
+        const val ExpandThreshold = 0.4f
+        val FlingVelocity = 400.dp
+        const val SpringDampingRatio = 0.86f
+        const val SpringStiffness = 420f
+
+        val HandleTouchWidth = 112.dp
+        val HandleTouchHeight = 40.dp
+        val HandleWidth = 72.dp
+        val HandleHeight = 22.dp
+        val HandleCornerRadius = 14.dp
+        val HandleElevation = 3.dp
+        val HandleExpandedElevation = 1.dp
+        val HandleSeamOverlap = 1.dp
+        val HandleIconSize = 18.dp
+        const val HandleIconAlpha = 0.72f
+        const val HandleRotationDegrees = 180f
+
+        val ContentPadding = 18.dp
+        val SectionSpacing = 18.dp
+        val ItemSpacing = 8.dp
+        val SectionIconSize = 16.dp
+        val CardCornerRadius = 18.dp
+        val CardPadding = 14.dp
+        val AccentBarWidth = 3.dp
+
+        val ProgressRingSize = 58.dp
+        val ProgressRingStroke = 5.dp
+        val BadgeHorizontalPadding = 10.dp
+        val BadgeVerticalPadding = 4.dp
+
+        val StepDotSize = 24.dp
+        val StepIconSize = 14.dp
+        val StepLineWidth = 2.dp
+        val StepLineMinHeight = 12.dp
+        val StepVerticalPadding = 4.dp
+        const val UpcomingStepAlpha = 0.6f
+
+        val VocabularyCardWidth = 176.dp
+        const val AccentContainerDarkAlpha = 0.14f
+        const val AccentContainerLightAlpha = 0.32f
+
+        val SkeletonLineHeight = 12.dp
+        val SkeletonCardHeight = 72.dp
+        const val SkeletonCardCount = 2
+        const val ShimmerMillis = 1100
+        const val ShimmerMinAlpha = 0.35f
+        const val ShimmerMaxAlpha = 0.85f
+        const val SkeletonShortLineFraction = 0.55f
+    }
+
     object TopBar {
-        val MissionExpandIconSize = 18.dp
-        val MissionExpandTouchSize = 48.dp
-        val MissionDetailPadding = 16.dp
-        val MissionDetailSpacing = 12.dp
-        const val MissionDetailHeightFraction = 0.45f
-        const val MissionExpandAnimationMillis = 180
-        const val MissionExpandIconAlpha = 0.65f
         val TopBarIconButtonSize = 40.dp
         val TopBarEdgePadding = 8.dp
         val TitleStartPadding = 8.dp

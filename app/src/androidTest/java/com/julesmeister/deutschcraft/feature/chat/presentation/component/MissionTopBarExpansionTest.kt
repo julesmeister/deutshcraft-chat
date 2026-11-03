@@ -15,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeLeft
 import com.julesmeister.deutschcraft.feature.mission.data.ai.MissionGrammar
 import com.julesmeister.deutschcraft.feature.mission.data.ai.MissionLanguageSupport
@@ -29,23 +30,31 @@ class MissionTopBarExpansionTest {
     @get:Rule val compose = createComposeRule()
 
     @Test
-    fun arrowTogglesExpansionAndKeepsBackNavigationAvailable() {
+    fun handleBelowTopBarTogglesAndDragsDrawer() {
+        var expanded by mutableStateOf(false)
         compose.setContent {
-            var expanded by mutableStateOf(false)
-            MaterialTheme {
-                Column {
-                    ChatTopBar(
-                        isAssistantTyping = false,
-                        isAssessing = false,
-                        onBackClick = {},
-                        activeMissionTitle = "A restaurant mission",
-                        currentMissionObjective = "Order a meal",
-                        isMissionExpanded = expanded,
-                        onMissionGuidanceClick = { expanded = !expanded }
-                    )
-                    if (expanded) {
-                        MissionTopBarDetails(
-                            state = MissionGuidanceUiState(objectiveTitle = "Order a meal"),
+            CompositionLocalProvider(LocalUserSettings provides UserSettings(reduceAnimations = true)) {
+                MaterialTheme {
+                    val drawerState = rememberMissionDrawerState()
+                    Column {
+                        ChatTopBar(
+                            isAssistantTyping = false,
+                            isAssessing = false,
+                            onBackClick = {},
+                            activeMissionTitle = "A restaurant mission",
+                            currentMissionObjective = "Order a meal",
+                            isMissionExpanded = expanded
+                        )
+                        MissionTopBarDrawer(
+                            state = drawerState,
+                            guidance = MissionGuidanceUiState(
+                                missionId = "mission",
+                                objectiveId = "goal",
+                                objectiveTitle = "Order a meal"
+                            ),
+                            expanded = expanded,
+                            onExpand = { expanded = true },
+                            onCollapse = { expanded = false },
                             onRevealNextHint = {},
                             onRetryLanguageSupport = {}
                         )
@@ -58,6 +67,8 @@ class MissionTopBarExpansionTest {
         compose.onNodeWithContentDescription("Back").assertIsDisplayed()
         compose.onNodeWithContentDescription("Collapse mission details").performClick()
         compose.onNodeWithText("Mission details").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Expand mission details").performTouchInput { swipeDown(startY = centerY, endY = centerY + 600f) }
+        compose.onNodeWithText("Mission details").assertIsDisplayed()
     }
 
     @Test

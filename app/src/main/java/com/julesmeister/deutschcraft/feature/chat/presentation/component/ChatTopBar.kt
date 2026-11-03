@@ -25,9 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.KeyboardArrowUp
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -267,23 +264,6 @@ fun ChatTopBar(
         },
 
         actions = {
-            if (!activeMissionTitle.isNullOrBlank()) {
-                IconButton(
-                    onClick = onMissionGuidanceClick,
-                    modifier = Modifier.size(ChatDesignTokens.TopBar.MissionExpandTouchSize)
-                ) {
-                    Icon(
-                        imageVector = if (isMissionExpanded) Icons.Outlined.KeyboardArrowUp
-                            else Icons.Outlined.KeyboardArrowDown,
-                        contentDescription = if (isMissionExpanded) "Collapse mission details"
-                            else "Expand mission details",
-                        modifier = Modifier.size(ChatDesignTokens.TopBar.MissionExpandIconSize),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                            alpha = ChatDesignTokens.TopBar.MissionExpandIconAlpha
-                        )
-                    )
-                }
-            }
             ChatLevelProgressIndicator(
                 state =
                     levelProgress,

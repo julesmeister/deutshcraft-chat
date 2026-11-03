@@ -2,20 +2,10 @@
 
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.KeyboardArrowUp
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -34,8 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -46,7 +34,9 @@ import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatBottomBar
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatMessageList
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatTopBar
-import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionTopBarDetails
+import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionTopBarDrawer
+import com.julesmeister.deutschcraft.feature.chat.presentation.component.missionDrawerDrag
+import com.julesmeister.deutschcraft.feature.chat.presentation.component.rememberMissionDrawerState
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.FloatingReplySuggestions
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionOfferCard
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionVariationDialog
@@ -63,6 +53,7 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun ChatScreen(
     uiState: ChatUiState,
@@ -264,6 +255,7 @@ fun ChatScreen(
     }
 
     val isMissionExpanded = missionGuidanceUiState.hasActiveMission && missionGuidanceUiState.isVisible
+    val missionDrawerState = rememberMissionDrawerState()
     BackHandler(enabled = isMissionExpanded, onBack = onDismissMissionGuidance)
 
     MissionResultBottomSheet(
@@ -323,8 +315,14 @@ fun ChatScreen(
             ),
 
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
-                ChatTopBar(
+            ChatTopBar(
+                    modifier = Modifier.missionDrawerDrag(
+                        state = missionDrawerState,
+                        enabled = missionGuidanceUiState.hasActiveMission,
+                        expanded = isMissionExpanded,
+                        onExpand = onOpenMissionGuidance,
+                        onCollapse = onDismissMissionGuidance
+                    ),
                     isMissionExpanded = isMissionExpanded,
                     isAssistantTyping =
                         uiState.isAssistantTyping,
@@ -379,43 +377,6 @@ fun ChatScreen(
                     onMissionGuidanceClick =
                         if (isMissionExpanded) onDismissMissionGuidance else onOpenMissionGuidance
                 )
-                AnimatedVisibility(
-                    visible = isMissionExpanded,
-                    enter = expandVertically(
-                        expandFrom = Alignment.Top,
-                        animationSpec = tween(ChatTokens.TopBar.MissionExpandAnimationMillis)
-                    ),
-                    exit = shrinkVertically(
-                        shrinkTowards = Alignment.Top,
-                        animationSpec = tween(ChatTokens.TopBar.MissionExpandAnimationMillis)
-                    )
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        MissionTopBarDetails(
-                            state = missionGuidanceUiState,
-                            onRevealNextHint = onRevealNextMissionHint,
-                            onRetryLanguageSupport = onOpenMissionGuidance,
-                            modifier = Modifier.heightIn(
-                                max = LocalConfiguration.current.screenHeightDp.dp *
-                                    ChatTokens.TopBar.MissionDetailHeightFraction
-                            ).clipToBounds()
-                        )
-                        IconButton(
-                            onClick = onDismissMissionGuidance,
-                            modifier = Modifier.size(ChatTokens.TopBar.MissionExpandTouchSize)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.KeyboardArrowUp,
-                                contentDescription = "Collapse mission details",
-                                modifier = Modifier.size(ChatTokens.TopBar.MissionExpandIconSize),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                    alpha = ChatTokens.TopBar.MissionExpandIconAlpha
-                                )
-                            )
-                        }
-                    }
-                }
-            }
         },
 
         snackbarHost = {
@@ -647,6 +608,16 @@ fun ChatScreen(
                                     measuredHeight
                             }
                         }
+            )
+
+            MissionTopBarDrawer(
+                state = missionDrawerState,
+                guidance = missionGuidanceUiState,
+                expanded = isMissionExpanded,
+                onExpand = onOpenMissionGuidance,
+                onCollapse = onDismissMissionGuidance,
+                onRevealNextHint = onRevealNextMissionHint,
+                onRetryLanguageSupport = onOpenMissionGuidance
             )
         }
     }
