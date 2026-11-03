@@ -303,6 +303,12 @@ Objectives are completed naturally through conversation.
 
 ## Mission Flow
 
+New missions suggested inside ordinary chats use the same 8–10-goal range as
+thread-list missions, aiming for 10 distinct steps from opening to closing the
+conversation. Short generated lists receive the existing single repair attempt
+before an offer is accepted. Already-started missions retain their saved goals
+and progress.
+
 ```text
 Conversation
       ↓
@@ -364,6 +370,19 @@ Implemented:
 ---
 
 ## Mission Top Bar
+
+The mission header expands downward using a subtle chevron without moving its
+navigation and progress controls. Mission paging and auto-advance pause while
+expanded. An upward chevron below the details, the header chevron, or Android
+Back collapses it.
+
+The expansion shows the scenario, completed/current goals, and existing
+progressive hints. Vocabulary and grammar are generated on demand for the
+mission's CEFR level and cached locally for up to 32 mission contexts. Branch
+changes produce fresh support; ordinary goal progress does not regenerate it.
+Vocabulary follows the target-vocabulary setting; grammar and German examples
+follow the example-phrases setting. When both are disabled no support request is
+made. Failures show an explicit retry action rather than placeholder content.
 
 The chat screen contains a dynamic learning-assistant top bar.
 

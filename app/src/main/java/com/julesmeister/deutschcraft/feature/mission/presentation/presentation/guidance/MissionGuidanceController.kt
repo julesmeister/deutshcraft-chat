@@ -1,6 +1,10 @@
 package com.julesmeister.deutschcraft.feature.mission.presentation.guidance
 
 import android.util.Log
+import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
+import com.julesmeister.deutschcraft.feature.mission.data.ai.MissionLanguageSupportRepository
+import com.julesmeister.deutschcraft.feature.mission.data.ai.MissionLanguageSupportRequest
+import com.julesmeister.deutschcraft.feature.settings.data.SettingsRepository
 import com.julesmeister.deutschcraft.feature.learninganalytics.domain.repository.MissionObjectiveHintUsageRepository
 import com.julesmeister.deutschcraft.feature.learninganalytics.domain.usecase.RecordMissionObjectiveHintUseCase
 import com.julesmeister.deutschcraft.feature.mission.domain.ActiveMissionConversationContext
@@ -15,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /*
@@ -23,7 +28,7 @@ import kotlinx.coroutines.launch
  * Responsibilities:
  *
  * - Reflect the current active mission objective
- * - Open and close the guidance bottom sheet
+ * - Expand and collapse mission header details
  * - Reveal coaching hints progressively
  * - Persist only hints explicitly revealed by the learner
  * - Restore already revealed hints from Room
@@ -50,8 +55,13 @@ class MissionGuidanceController
      * mission mapping already used by Emil.
      */
     private val missionConversationContextMapper:
-    MissionConversationContextMapper
+    MissionConversationContextMapper,
+
+    private val languageSupportRepository: MissionLanguageSupportRepository,
+    private val settingsRepository: SettingsRepository
 ) {
+    private var languageSupportRequest: MissionLanguageSupportRequest? = null
+    private var languageSupportJob: Job? = null
 
     private val _uiState =
         MutableStateFlow(
@@ -135,6 +145,7 @@ class MissionGuidanceController
                 context =
                     context
             )
+            updateMissionDetails(mission)
 
             return
         }
@@ -145,6 +156,77 @@ class MissionGuidanceController
             scope =
                 scope
         )
+        updateMissionDetails(mission)
+    }
+
+    private fun updateMissionDetails(mission: ConversationMission) {
+        val request = MissionLanguageSupportRequest(
+            missionId = mission.id,
+            templateId = mission.template.id,
+            cefrLevel = CefrLevel.valueOf(mission.template.difficulty.name),
+            title = mission.template.title,
+            scenario = mission.template.scenario,
+            learnerRole = mission.template.learnerRole,
+            objectives = mission.template.objectives.sortedBy { it.sequenceNumber }
+                .map { "${it.title}: ${it.description}" }
+        )
+        val changed = request != languageSupportRequest
+        if (changed) {
+            languageSupportJob?.cancel()
+            languageSupportJob = null
+            languageSupportRequest = request
+        }
+        _uiState.update { state ->
+            state.copy(
+                scenario = request.scenario,
+                cefrLevel = request.cefrLevel,
+                objectives = mission.objectiveProgress.sortedBy { it.objective.sequenceNumber }
+                    .map { MissionGuidanceGoal(it.objective.id, it.objective.title, it.isCompleted) },
+                languageSupport = if (changed) null else state.languageSupport,
+                isLoadingLanguageSupport = if (changed) false else state.isLoadingLanguageSupport,
+                languageSupportError = if (changed) null else state.languageSupportError
+            )
+        }
+        if (_uiState.value.isVisible) {
+            loadLanguageSupport()
+        }
+    }
+
+    private fun loadLanguageSupport() {
+        val request = languageSupportRequest ?: return
+        val scope = controllerScope ?: return
+        if (!_uiState.value.isVisible || _uiState.value.languageSupport != null ||
+            _uiState.value.languageSupportError != null ||
+            languageSupportJob?.isActive == true
+        ) return
+        _uiState.update { it.copy(isLoadingLanguageSupport = true, languageSupportError = null) }
+        languageSupportJob = scope.launch {
+            try {
+                val settings = settingsRepository.settings.first()
+                if (!settings.showTargetVocabulary && !settings.showExamplePhrases) {
+                    _uiState.update { it.copy(isLoadingLanguageSupport = false) }
+                    return@launch
+                }
+                val support = languageSupportRepository.load(request)
+                if (request == languageSupportRequest) {
+                    _uiState.update {
+                        it.copy(languageSupport = support, isLoadingLanguageSupport = false)
+                    }
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (exception: Exception) {
+                Log.e(CONTROLLER_TAG, "Mission language support could not be loaded.", exception)
+                if (request == languageSupportRequest) {
+                    _uiState.update {
+                        it.copy(
+                            isLoadingLanguageSupport = false,
+                            languageSupportError = "Language support could not be loaded. Tap to retry."
+                        )
+                    }
+                }
+            }
+        }
     }
 
     /*
@@ -240,7 +322,7 @@ class MissionGuidanceController
          * open, but reset objective-specific support state.
          */
         val wasVisible =
-            currentState.isVisible
+            currentState.isVisible && currentState.missionId == context.missionId
 
         restoreJob?.cancel()
         revealJob?.cancel()
@@ -259,7 +341,10 @@ class MissionGuidanceController
                 )
                 .copy(
                     isVisible =
-                        wasVisible
+                        wasVisible,
+                    languageSupport = currentState.languageSupport,
+                    isLoadingLanguageSupport = currentState.isLoadingLanguageSupport,
+                    languageSupportError = currentState.languageSupportError
                 )
 
         /*
@@ -273,7 +358,7 @@ class MissionGuidanceController
     }
 
     /*
-     * Opens the mission guidance bottom sheet.
+     * Expands mission header details and loads language support on demand.
      *
      * Tapping the mission top bar calls this method.
      */
@@ -286,10 +371,12 @@ class MissionGuidanceController
                     isVisible =
                         true,
                     errorMessage =
-                        null
+                        null,
+                    languageSupportError = null
                 )
             }
         }
+        loadLanguageSupport()
     }
 
     /*
@@ -538,6 +625,9 @@ class MissionGuidanceController
      * active mission anymore.
      */
     fun clear() {
+        languageSupportJob?.cancel()
+        languageSupportJob = null
+        languageSupportRequest = null
         restoreJob?.cancel()
         revealJob?.cancel()
 
@@ -556,6 +646,8 @@ class MissionGuidanceController
      * lifecycle ends.
      */
     fun cancel() {
+        languageSupportJob?.cancel()
+        languageSupportJob = null
         restoreJob?.cancel()
         revealJob?.cancel()
 

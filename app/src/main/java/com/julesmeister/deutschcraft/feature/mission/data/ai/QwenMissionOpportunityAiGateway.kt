@@ -270,7 +270,10 @@ class QwenMissionOpportunityAiGateway @Inject constructor(
 
             Requirements:
             - Return JSON only.
-            - Use 3 to 5 objectives.
+            - Aim for 10 distinct objectives; use 8 to 10.
+            - Arrange objectives as a natural progression
+              from opening the conversation to closing it.
+            - Do not pad the list with repeated goals.
             - All objectives must be observable in learner
               messages.
             - All objectives must be achievable through chat.
@@ -297,6 +300,13 @@ class QwenMissionOpportunityAiGateway @Inject constructor(
 
                     The mission difficulty must be
                     ${cefrLevel.name}.
+
+                    If shouldOfferMission is true, provide
+                    8 to 10 distinct, observable chat goals,
+                    aiming for 10 in a natural progression.
+                    Complete missing goals without repeating
+                    existing ones. Every goal needs a title,
+                    description, completionHint, and required.
 
                     Return exactly one JSON object and no
                     Markdown.
@@ -380,6 +390,18 @@ class QwenMissionOpportunityAiGateway @Inject constructor(
                         OBJECTIVES_KEY
                     ]
             )
+                .filter { objective ->
+                    objective.title.isNotBlank() &&
+                        objective.description.isNotBlank() &&
+                        objective.completionHint.isNotBlank()
+                }
+                .distinctBy { objective -> objective.title.lowercase() }
+
+        if (objectives.size !in MINIMUM_OBJECTIVE_COUNT..MAXIMUM_OBJECTIVE_COUNT ||
+            objectives.none { it.required }
+        ) {
+            return null
+        }
 
         return AiMissionOpportunity(
             shouldOfferMission =
@@ -588,10 +610,16 @@ class QwenMissionOpportunityAiGateway @Inject constructor(
             12
 
         const val MAXIMUM_RESPONSE_TOKENS =
-            900
+            2_000
 
         const val MAXIMUM_REPAIR_INPUT_LENGTH =
-            6_000
+            12_000
+
+        const val MINIMUM_OBJECTIVE_COUNT =
+            8
+
+        const val MAXIMUM_OBJECTIVE_COUNT =
+            10
 
         const val DETECTION_TEMPERATURE =
             0.35

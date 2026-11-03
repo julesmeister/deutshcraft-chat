@@ -45,7 +45,8 @@ internal fun MissionTopBarPager(
     currentGuidance: String?,
     missionProgressPercentage: Int,
     onMissionGuidanceClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isExpanded: Boolean = false
 ) {
     val reduceAnimations = LocalUserSettings.current.reduceAnimations
     val pages =
@@ -70,9 +71,10 @@ internal fun MissionTopBarPager(
         missionTitle,
         currentObjective,
         currentGuidance,
-        reduceAnimations
+        reduceAnimations,
+        isExpanded
     ) {
-        if (reduceAnimations) {
+        if (reduceAnimations || isExpanded) {
             return@LaunchedEffect
         }
         snapshotFlow {
@@ -132,7 +134,7 @@ internal fun MissionTopBarPager(
             modifier =
                 Modifier.fillMaxWidth(),
             userScrollEnabled =
-                pages.size > 1,
+                pages.size > 1 && !isExpanded,
             beyondViewportPageCount =
                 Tokens.MissionPagerBeyondViewportPageCount,
             key = { pageIndex ->

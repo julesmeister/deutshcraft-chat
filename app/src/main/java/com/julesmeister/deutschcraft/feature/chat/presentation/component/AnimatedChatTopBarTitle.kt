@@ -58,7 +58,8 @@ internal fun AnimatedChatTopBarTitle(
     onObjectiveCompletionShown: (String) -> Unit,
     onAdaptiveLearningFeedbackShown: (String) -> Unit,
     onMissionGuidanceClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isMissionExpanded: Boolean = false
 ) {
     val missionTitle =
         activeMissionTitle
@@ -252,6 +253,7 @@ internal fun AnimatedChatTopBarTitle(
                     NormalStatus()
                 } else {
                     MissionTopBarPager(
+                        isExpanded = isMissionExpanded,
                         missionTitle =
                             missionTitle,
 

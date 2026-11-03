@@ -241,10 +241,10 @@ class DetectMissionOpportunityUseCase @Inject constructor(
             3
 
         const val MINIMUM_OBJECTIVE_COUNT =
-            3
+            8
 
         const val MAXIMUM_OBJECTIVE_COUNT =
-            5
+            10
 
         const val MINIMUM_CONFIDENCE =
             0.80f

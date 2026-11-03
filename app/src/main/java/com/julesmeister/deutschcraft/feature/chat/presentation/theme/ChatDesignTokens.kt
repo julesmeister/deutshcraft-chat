@@ -795,6 +795,13 @@ object ChatDesignTokens {
     }
 
     object TopBar {
+        val MissionExpandIconSize = 18.dp
+        val MissionExpandTouchSize = 48.dp
+        val MissionDetailPadding = 16.dp
+        val MissionDetailSpacing = 12.dp
+        const val MissionDetailHeightFraction = 0.45f
+        const val MissionExpandAnimationMillis = 180
+        const val MissionExpandIconAlpha = 0.65f
         val TopBarIconButtonSize = 40.dp
         val TopBarEdgePadding = 8.dp
         val TitleStartPadding = 8.dp

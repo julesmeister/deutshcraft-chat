@@ -4,6 +4,18 @@ package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -22,6 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -32,6 +46,7 @@ import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatBottomBar
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatMessageList
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatTopBar
+import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionTopBarDetails
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.FloatingReplySuggestions
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionOfferCard
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionVariationDialog
@@ -40,7 +55,6 @@ import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.resu
 import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultUiState
 import com.julesmeister.deutschcraft.feature.messageactions.presentation.MessageActionBottomSheet
 import com.julesmeister.deutschcraft.feature.messageactions.presentation.MessageActionViewModel
-import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceBottomSheet
 import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceUiState
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhrase
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhraseType
@@ -249,22 +263,8 @@ fun ChatScreen(
         )
     }
 
-    MissionGuidanceBottomSheet(
-        state =
-            missionGuidanceUiState,
-
-        onDismiss =
-            onDismissMissionGuidance,
-
-        onRevealNextHint =
-            onRevealNextMissionHint,
-
-        onToggleVocabulary =
-            onToggleMissionVocabulary,
-
-        onToggleExamples =
-            onToggleMissionExamples
-    )
+    val isMissionExpanded = missionGuidanceUiState.hasActiveMission && missionGuidanceUiState.isVisible
+    BackHandler(enabled = isMissionExpanded, onBack = onDismissMissionGuidance)
 
     MissionResultBottomSheet(
         state =
@@ -323,60 +323,99 @@ fun ChatScreen(
             ),
 
         topBar = {
-            ChatTopBar(
-                isAssistantTyping =
-                    uiState.isAssistantTyping,
+            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+                ChatTopBar(
+                    isMissionExpanded = isMissionExpanded,
+                    isAssistantTyping =
+                        uiState.isAssistantTyping,
 
-                isAssessing =
-                    uiState.isAssessing,
+                    isAssessing =
+                        uiState.isAssessing,
 
-                onBackClick =
-                    onBackClick,
+                    onBackClick =
+                        onBackClick,
 
-                activeMissionTitle =
-                    uiState.activeMissionTitle,
+                    activeMissionTitle =
+                        uiState.activeMissionTitle,
 
-                currentMissionObjective =
-                    uiState.currentMissionObjective,
+                    currentMissionObjective =
+                        uiState.currentMissionObjective,
 
-                currentMissionGuidance =
-                    uiState.currentMissionGuidance,
+                    currentMissionGuidance =
+                        uiState.currentMissionGuidance,
 
-                missionProgressPercentage =
-                    uiState.missionProgressPercentage,
+                    missionProgressPercentage =
+                        uiState.missionProgressPercentage,
 
-                objectiveCompletionEvent =
-                    uiState.objectiveCompletionEvent,
+                    objectiveCompletionEvent =
+                        uiState.objectiveCompletionEvent,
 
-                adaptiveLearningFeedbackEvent =
-                    uiState.adaptiveLearningFeedbackEvent,
+                    adaptiveLearningFeedbackEvent =
+                        uiState.adaptiveLearningFeedbackEvent,
 
-                showCopiedConfirmation =
-                    showCopiedConfirmation,
+                    showCopiedConfirmation =
+                        showCopiedConfirmation,
 
-                onObjectiveCompletionShown = { eventId ->
-                    onAction(
-                        ChatUiAction
-                            .ObjectiveCompletionShown(
-                                eventId =
-                                    eventId
-                            )
+                    onObjectiveCompletionShown = { eventId ->
+                        onAction(
+                            ChatUiAction
+                                .ObjectiveCompletionShown(
+                                    eventId =
+                                        eventId
+                                )
+                        )
+                    },
+
+                    onAdaptiveLearningFeedbackShown = { eventId ->
+                        onAction(
+                            ChatUiAction
+                                .AdaptiveLearningFeedbackShown(
+                                    eventId =
+                                        eventId
+                                )
+                        )
+                    },
+
+                    onMissionGuidanceClick =
+                        if (isMissionExpanded) onDismissMissionGuidance else onOpenMissionGuidance
+                )
+                AnimatedVisibility(
+                    visible = isMissionExpanded,
+                    enter = expandVertically(
+                        expandFrom = Alignment.Top,
+                        animationSpec = tween(ChatTokens.TopBar.MissionExpandAnimationMillis)
+                    ),
+                    exit = shrinkVertically(
+                        shrinkTowards = Alignment.Top,
+                        animationSpec = tween(ChatTokens.TopBar.MissionExpandAnimationMillis)
                     )
-                },
-
-                onAdaptiveLearningFeedbackShown = { eventId ->
-                    onAction(
-                        ChatUiAction
-                            .AdaptiveLearningFeedbackShown(
-                                eventId =
-                                    eventId
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        MissionTopBarDetails(
+                            state = missionGuidanceUiState,
+                            onRevealNextHint = onRevealNextMissionHint,
+                            onRetryLanguageSupport = onOpenMissionGuidance,
+                            modifier = Modifier.heightIn(
+                                max = LocalConfiguration.current.screenHeightDp.dp *
+                                    ChatTokens.TopBar.MissionDetailHeightFraction
+                            ).clipToBounds()
+                        )
+                        IconButton(
+                            onClick = onDismissMissionGuidance,
+                            modifier = Modifier.size(ChatTokens.TopBar.MissionExpandTouchSize)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.KeyboardArrowUp,
+                                contentDescription = "Collapse mission details",
+                                modifier = Modifier.size(ChatTokens.TopBar.MissionExpandIconSize),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                    alpha = ChatTokens.TopBar.MissionExpandIconAlpha
+                                )
                             )
-                    )
-                },
-
-                onMissionGuidanceClick =
-                    onOpenMissionGuidance
-            )
+                        }
+                    }
+                }
+            }
         },
 
         snackbarHost = {

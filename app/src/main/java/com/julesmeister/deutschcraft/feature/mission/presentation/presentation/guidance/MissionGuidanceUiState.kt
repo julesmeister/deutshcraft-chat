@@ -1,6 +1,8 @@
 package com.julesmeister.deutschcraft.feature.mission.presentation.guidance
 
 import com.julesmeister.deutschcraft.feature.mission.domain.ActiveMissionConversationContext
+import com.julesmeister.deutschcraft.feature.mission.data.ai.MissionLanguageSupport
+import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 
 /*
  * Presentation state for learner-facing mission guidance.
@@ -17,14 +19,11 @@ import com.julesmeister.deutschcraft.feature.mission.domain.ActiveMissionConvers
 data class MissionGuidanceUiState(
 
     /*
-     * Controls whether MissionGuidanceBottomSheet is currently
-     * visible.
+     * Controls whether the mission header details are expanded.
      *
-     * An active mission does not automatically show the
-     * bottom sheet.
+     * An active mission does not automatically expand the header.
      *
-     * The learner opens it by tapping the mission area in the
-     * chat top bar.
+     * The learner toggles it with the mission header chevron.
      */
     val isVisible: Boolean =
         false,
@@ -113,7 +112,14 @@ data class MissionGuidanceUiState(
      * This should normally remain null.
      */
     val errorMessage: String? =
-        null
+        null,
+
+    val scenario: String = "",
+    val cefrLevel: CefrLevel? = null,
+    val objectives: List<MissionGuidanceGoal> = emptyList(),
+    val languageSupport: MissionLanguageSupport? = null,
+    val isLoadingLanguageSupport: Boolean = false,
+    val languageSupportError: String? = null
 ) {
 
     /*
@@ -359,6 +365,8 @@ data class MissionGuidanceUiState(
  * This is intentionally based on revealed coaching hints,
  * rather than simply having guidance available.
  */
+data class MissionGuidanceGoal(val id: String, val title: String, val isCompleted: Boolean)
+
 enum class MissionAssistanceLevel {
     INDEPENDENT,
     GENTLE,
