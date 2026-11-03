@@ -134,7 +134,7 @@ internal fun MissionTopBarDetails(
                 }
                 if (settings.showExamplePhrases && language.grammar.isNotEmpty()) {
                     DetailSection("Grammar for this mission", Icons.Outlined.AutoStories, colors) {
-                        language.grammar.forEach { GrammarCard(it, colors) }
+                        language.grammar.forEachIndexed { index, grammar -> GrammarCard(index + 1, grammar, colors) }
                     }
                 }
             }
@@ -402,21 +402,64 @@ private fun VocabularyCarousel(words: List<MissionVocabulary>, showExamples: Boo
 }
 
 @Composable
-private fun GrammarCard(grammar: MissionGrammar, colors: MissionDetailColors) {
+private fun GrammarCard(number: Int, grammar: MissionGrammar, colors: MissionDetailColors) {
     Surface(
         color = colors.card,
         shape = RoundedCornerShape(DetailTokens.CardCornerRadius),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-            Box(modifier = Modifier.width(DetailTokens.AccentBarWidth).fillMaxHeight().background(colors.accentFill))
-            Column(
-                modifier = Modifier.padding(DetailTokens.CardPadding),
-                verticalArrangement = Arrangement.spacedBy(DetailTokens.ItemSpacing / 2)
+        Column(
+            modifier = Modifier.padding(DetailTokens.CardPadding),
+            verticalArrangement = Arrangement.spacedBy(DetailTokens.ItemSpacing)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(DetailTokens.ItemSpacing + DetailTokens.ItemSpacing / 2)
             ) {
-                Text(grammar.pattern, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text(grammar.explanation, style = MaterialTheme.typography.bodySmall, color = colors.muted)
-                QuoteLine(grammar.example, colors)
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(DetailTokens.GrammarBadgeSize)
+                        .background(colors.accentContainer, RoundedCornerShape(DetailTokens.GrammarBadgeCornerRadius))
+                ) {
+                    Text(
+                        "$number",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.accent
+                    )
+                }
+                Text(
+                    grammar.pattern,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Text(grammar.explanation, style = MaterialTheme.typography.bodySmall, color = colors.muted)
+            Row(
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(DetailTokens.ItemSpacing),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background, RoundedCornerShape(DetailTokens.CardCornerRadius / 2))
+                    .padding(DetailTokens.ItemSpacing + DetailTokens.ItemSpacing / 2)
+            ) {
+                Icon(
+                    Icons.Outlined.FormatQuote,
+                    contentDescription = null,
+                    tint = colors.accent,
+                    modifier = Modifier.size(DetailTokens.SectionIconSize)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Beispiel",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.accent
+                    )
+                    Text(grammar.example, style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic)
+                }
             }
         }
     }

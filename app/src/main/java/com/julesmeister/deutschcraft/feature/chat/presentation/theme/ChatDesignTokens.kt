@@ -797,8 +797,6 @@ object ChatDesignTokens {
     object MissionDrawer {
         const val MaxHeightFraction = 0.62f
         val FallbackPanelHeight = 360.dp
-        val PanelCornerRadius = 28.dp
-        val PanelElevation = 4.dp
         const val ScrimMaxAlpha = 0.36f
         const val ExpandThreshold = 0.4f
         val FlingVelocity = 400.dp
@@ -810,10 +808,12 @@ object ChatDesignTokens {
         val HandleWidth = 72.dp
         val HandleHeight = 22.dp
         val HandleCornerRadius = 14.dp
-        val HandleElevation = 3.dp
-        val HandleExpandedElevation = 1.dp
-        val HandleSeamOverlap = 1.dp
         val HandleIconSize = 18.dp
+        val HandleFilletRadius = 10.dp
+        val ShadowRadius = 7.dp
+        val ShadowOffsetY = 1.dp
+        const val ShadowLightAlpha = 0.09f
+        const val ShadowDarkAlpha = 0.32f
         const val HandleIconAlpha = 0.72f
         const val HandleRotationDegrees = 180f
 
@@ -823,7 +823,8 @@ object ChatDesignTokens {
         val SectionIconSize = 16.dp
         val CardCornerRadius = 18.dp
         val CardPadding = 14.dp
-        val AccentBarWidth = 3.dp
+        val GrammarBadgeSize = 28.dp
+        val GrammarBadgeCornerRadius = 9.dp
 
         val ProgressRingSize = 58.dp
         val ProgressRingStroke = 5.dp

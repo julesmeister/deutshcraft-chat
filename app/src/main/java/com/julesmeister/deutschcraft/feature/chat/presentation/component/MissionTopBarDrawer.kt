@@ -15,15 +15,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.unit.lerp
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -34,7 +30,16 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
@@ -152,6 +157,13 @@ internal fun MissionTopBarDrawer(
     val progress = state.progress
     val maxPanelHeight = LocalConfiguration.current.screenHeightDp.dp * DrawerTokens.MaxHeightFraction
     val panelColor = MaterialTheme.colorScheme.background
+    val shadowColor = Color.Black.copy(
+        alpha = if (panelColor.luminance() < ChatDesignTokens.DarkLuminanceThreshold) {
+            DrawerTokens.ShadowDarkAlpha
+        } else {
+            DrawerTokens.ShadowLightAlpha
+        }
+    )
 
     Box(modifier = modifier.fillMaxSize()) {
         if (progress > 0f) {
@@ -163,33 +175,31 @@ internal fun MissionTopBarDrawer(
             )
         }
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawBehind {
+                    drawUnifiedBarOutline(
+                        edgeY = state.panelHeightPx * progress,
+                        color = panelColor,
+                        shadowColor = shadowColor
+                    )
+                },
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (progress > 0f || expanded) {
-                Surface(
-                    color = panelColor,
-                    shape = RoundedCornerShape(
-                        bottomStart = DrawerTokens.PanelCornerRadius,
-                        bottomEnd = DrawerTokens.PanelCornerRadius
-                    ),
-                    shadowElevation = DrawerTokens.PanelElevation * progress,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    MissionTopBarDetails(
-                        state = guidance,
-                        onRevealNextHint = onRevealNextHint,
-                        onRetryLanguageSupport = onRetryLanguageSupport,
-                        modifier = Modifier
-                            .revealFromTop(progress) { state.panelHeightPx = it.toFloat() }
-                            .heightIn(max = maxPanelHeight)
-                    )
-                }
+                MissionTopBarDetails(
+                    state = guidance,
+                    onRevealNextHint = onRevealNextHint,
+                    onRetryLanguageSupport = onRetryLanguageSupport,
+                    modifier = Modifier
+                        .clipToBounds()
+                        .revealFromTop(progress) { state.panelHeightPx = it.toFloat() }
+                        .heightIn(max = maxPanelHeight)
+                )
             }
             MissionDrawerHandle(
                 state = state,
                 expanded = expanded,
-                color = panelColor,
                 onExpand = onExpand,
                 onCollapse = onCollapse
             )
@@ -197,11 +207,47 @@ internal fun MissionTopBarDrawer(
     }
 }
 
+/**
+ * One continuous outline for the bar's bottom edge (or the open panel's) plus the handle tab,
+ * joined by concave fillets, filled with the bar colour and casting a single soft shadow.
+ */
+private fun DrawScope.drawUnifiedBarOutline(edgeY: Float, color: Color, shadowColor: Color) {
+    val tabWidth = DrawerTokens.HandleWidth.toPx()
+    val tabBottom = edgeY + DrawerTokens.HandleHeight.toPx()
+    val corner = DrawerTokens.HandleCornerRadius.toPx()
+    val fillet = DrawerTokens.HandleFilletRadius.toPx()
+    val shadowRadius = DrawerTokens.ShadowRadius.toPx()
+    val left = (size.width - tabWidth) / 2f
+    val right = left + tabWidth
+    val top = -shadowRadius * 4f
+    val path = Path().apply {
+        moveTo(-shadowRadius, top)
+        lineTo(-shadowRadius, edgeY)
+        lineTo(left - fillet, edgeY)
+        quadraticTo(left, edgeY, left, edgeY + fillet)
+        lineTo(left, tabBottom - corner)
+        quadraticTo(left, tabBottom, left + corner, tabBottom)
+        lineTo(right - corner, tabBottom)
+        quadraticTo(right, tabBottom, right, tabBottom - corner)
+        lineTo(right, edgeY + fillet)
+        quadraticTo(right, edgeY, right + fillet, edgeY)
+        lineTo(size.width + shadowRadius, edgeY)
+        lineTo(size.width + shadowRadius, top)
+        close()
+    }
+    drawIntoCanvas { canvas ->
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = color.toArgb()
+            setShadowLayer(shadowRadius, 0f, DrawerTokens.ShadowOffsetY.toPx(), shadowColor.toArgb())
+        }
+        canvas.nativeCanvas.drawPath(path.asAndroidPath(), paint)
+    }
+}
+
 @Composable
 private fun MissionDrawerHandle(
     state: MissionDrawerState,
     expanded: Boolean,
-    color: Color,
     onExpand: () -> Unit,
     onCollapse: () -> Unit
 ) {
@@ -214,27 +260,18 @@ private fun MissionDrawerHandle(
             .clickable(role = Role.Button) { if (expanded) onCollapse() else onExpand() }
             .semantics { contentDescription = description }
     ) {
-        Surface(
-            color = color,
-            shape = RoundedCornerShape(
-                bottomStart = DrawerTokens.HandleCornerRadius,
-                bottomEnd = DrawerTokens.HandleCornerRadius
-            ),
-            shadowElevation = lerp(DrawerTokens.HandleElevation, DrawerTokens.HandleExpandedElevation, state.progress),
-            modifier = Modifier
-                .offset(y = -DrawerTokens.HandleSeamOverlap * state.progress)
-                .size(DrawerTokens.HandleWidth, DrawerTokens.HandleHeight)
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(DrawerTokens.HandleWidth, DrawerTokens.HandleHeight)
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Outlined.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = DrawerTokens.HandleIconAlpha),
-                    modifier = Modifier
-                        .size(DrawerTokens.HandleIconSize)
-                        .graphicsLayer { rotationZ = DrawerTokens.HandleRotationDegrees * state.progress }
-                )
-            }
+            Icon(
+                imageVector = Icons.Outlined.KeyboardArrowDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = DrawerTokens.HandleIconAlpha),
+                modifier = Modifier
+                    .size(DrawerTokens.HandleIconSize)
+                    .graphicsLayer { rotationZ = DrawerTokens.HandleRotationDegrees * state.progress }
+            )
         }
     }
 }
