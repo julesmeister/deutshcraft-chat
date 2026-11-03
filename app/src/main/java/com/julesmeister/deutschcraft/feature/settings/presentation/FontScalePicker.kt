@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import com.julesmeister.deutschcraft.feature.settings.domain.FontScaleOption
+import com.julesmeister.deutschcraft.feature.settings.presentation.LocalUserSettings
 import com.julesmeister.deutschcraft.feature.settings.presentation.theme.SettingsDesignTokens as Tokens
 
 @Composable
@@ -51,7 +52,7 @@ internal fun FontScalePicker(
             }
         }
 
-        FontScalePreview(scale = selectedOption.scale)
+        FontScalePreview()
     }
 }
 
@@ -107,7 +108,8 @@ private fun FontScalePill(
         Text(
             text = Tokens.FontPillLetter,
             style = MaterialTheme.typography.titleMedium.copy(
-                fontSize = MaterialTheme.typography.titleMedium.fontSize * option.scale
+                fontSize = MaterialTheme.typography.titleMedium.fontSize *
+                        (option.scale / LocalUserSettings.current.fontScale)
             ),
             fontWeight = FontWeight.Bold,
             color = content
@@ -119,9 +121,7 @@ private fun FontScalePill(
  * Live preview styled like an incoming chat bubble.
  */
 @Composable
-private fun FontScalePreview(
-    scale: Float
-) {
+private fun FontScalePreview() {
     val colorScheme = MaterialTheme.colorScheme
 
     Box(
@@ -142,9 +142,7 @@ private fun FontScalePreview(
         ) {
             Text(
                 text = Tokens.FontPreviewSentence,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = MaterialTheme.typography.bodyLarge.fontSize * scale
-                ),
+                style = MaterialTheme.typography.bodyLarge,
                 color = colorScheme.onSurface
             )
         }

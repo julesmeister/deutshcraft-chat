@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens as Tokens
+import com.julesmeister.deutschcraft.feature.settings.presentation.LocalUserSettings
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -46,6 +47,7 @@ internal fun MissionTopBarPager(
     onMissionGuidanceClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val reduceAnimations = LocalUserSettings.current.reduceAnimations
     val pages =
         buildMissionTopBarPages(
             missionTitle = missionTitle,
@@ -67,8 +69,12 @@ internal fun MissionTopBarPager(
         pages.size,
         missionTitle,
         currentObjective,
-        currentGuidance
+        currentGuidance,
+        reduceAnimations
     ) {
+        if (reduceAnimations) {
+            return@LaunchedEffect
+        }
         snapshotFlow {
             pagerState.settledPage
         }.collectLatest {
@@ -423,36 +429,38 @@ private fun MissionObjectivePage(
                     TextOverflow.Ellipsis
             )
 
-            Text(
-                text =
-                    guidance,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            top =
-                                Tokens
-                                    .MissionGuidanceTextSpacing
-                        )
-                        .basicMarquee(
-                            iterations =
-                                Int.MAX_VALUE
-                        ),
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelSmall,
-                color =
-                    colors.secondaryText,
-                textAlign =
-                    TextAlign.Start,
-                maxLines =
-                    Tokens.MissionGuidanceMaxLines,
-                softWrap =
-                    false,
-                overflow =
-                    TextOverflow.Clip
-            )
+            if (LocalUserSettings.current.showMissionHints) {
+                Text(
+                    text =
+                        guidance,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                top =
+                                    Tokens
+                                        .MissionGuidanceTextSpacing
+                            )
+                            .basicMarquee(
+                                iterations =
+                                    if (LocalUserSettings.current.reduceAnimations) 0 else Int.MAX_VALUE
+                            ),
+                    style =
+                        MaterialTheme
+                            .typography
+                            .labelSmall,
+                    color =
+                        colors.secondaryText,
+                    textAlign =
+                        TextAlign.Start,
+                    maxLines =
+                        Tokens.MissionGuidanceMaxLines,
+                    softWrap =
+                        false,
+                    overflow =
+                        TextOverflow.Clip
+                )
+            }
         }
     }
 }

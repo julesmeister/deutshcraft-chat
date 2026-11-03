@@ -10,7 +10,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.julesmeister.deutschcraft.feature.chat.presentation.progress.ChatLevelProgressViewModel
 import com.julesmeister.deutschcraft.feature.chat.presentation.progress.LocalChatLevelProgress
-import com.julesmeister.deutschcraft.feature.chat.presentation.theme.LocalChatFontScale
 import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
 
 @Composable
@@ -61,9 +60,6 @@ fun ChatRoute(
     )
 
     CompositionLocalProvider(
-        LocalChatFontScale provides
-                settings.fontScale,
-
         LocalChatLevelProgress provides
                 levelProgressState.withAnimationPreference(
                     reduceAnimations =
@@ -72,7 +68,10 @@ fun ChatRoute(
     ) {
         ChatScreen(
             uiState =
-                uiState,
+                uiState.copy(
+                    currentMissionGuidance = uiState.currentMissionGuidance
+                        .takeIf { settings.showMissionHints }
+                ),
 
             missionGuidanceUiState =
                 missionGuidanceUiState,

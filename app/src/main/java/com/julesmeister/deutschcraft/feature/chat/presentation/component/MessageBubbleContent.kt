@@ -18,8 +18,6 @@ import androidx.compose.ui.text.withStyle
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
-import com.julesmeister.deutschcraft.feature.chat.presentation.theme.LocalChatFontScale
-import com.julesmeister.deutschcraft.feature.chat.presentation.theme.scaledForChat
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -33,19 +31,6 @@ internal fun MessageBubbleContent(
     contentColor: Color,
     modifier: Modifier = Modifier
 ) {
-    /*
-     * Current persisted DeutschCraft font preference.
-     *
-     * Values currently supplied by Settings:
-     *
-     * Small       = 0.90
-     * Normal      = 1.00
-     * Large       = 1.15
-     * Extra large = 1.30
-     */
-    val fontScale =
-        LocalChatFontScale.current
-
     val time =
         remember(
             message.timestamp
@@ -56,23 +41,11 @@ internal fun MessageBubbleContent(
             )
         }
 
-    /*
-     * Timestamp deliberately stays at its normal compact size.
-     *
-     * Enlarging the timestamp together with the message text
-     * would consume too much horizontal bubble width.
-     */
     val timeStyle =
         MaterialTheme
             .typography
             .labelSmall
 
-    /*
-     * Scale both message font size and line height.
-     *
-     * Scaling only the font size would cause Large and Extra
-     * Large text to feel vertically cramped.
-     */
     val baseMessageStyle =
         MaterialTheme
             .typography
@@ -80,20 +53,8 @@ internal fun MessageBubbleContent(
 
     val scaledMessageStyle =
         baseMessageStyle.copy(
-            fontSize =
-                baseMessageStyle
-                    .fontSize
-                    .scaledForChat(
-                        scale =
-                            fontScale
-                    ),
-
             lineHeight =
                 ChatDesignTokens.BubbleContent.MessageLineHeight
-                    .scaledForChat(
-                        scale =
-                            fontScale
-                    )
         )
 
     val hasBesserCorrection =

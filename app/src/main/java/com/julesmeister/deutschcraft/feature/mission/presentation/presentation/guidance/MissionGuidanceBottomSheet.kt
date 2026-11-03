@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.settings.presentation.LocalUserSettings
 
 @OptIn(
     ExperimentalMaterial3Api::class
@@ -56,6 +57,8 @@ fun MissionGuidanceBottomSheet(
     ) {
         return
     }
+
+    val support = state.supportVisibility(LocalUserSettings.current)
 
     val sheetState =
         rememberModalBottomSheetState(
@@ -194,16 +197,18 @@ fun MissionGuidanceBottomSheet(
                 }
             }
 
-            Text(
-                text =
-                    "Need a little help?",
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleSmall,
-                fontWeight =
-                    FontWeight.SemiBold
-            )
+            if (support.hasSupport) {
+                Text(
+                    text =
+                        "Need a little help?",
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleSmall,
+                    fontWeight =
+                        FontWeight.SemiBold
+                )
+            }
 
             FlowRow(
                 horizontalArrangement =
@@ -216,9 +221,7 @@ fun MissionGuidanceBottomSheet(
                     )
             ) {
                 if (
-                    state.hasMoreHints ||
-                    state.revealedHints
-                        .isNotEmpty()
+                    support.hints
                 ) {
                     AssistChip(
                         onClick =
@@ -264,8 +267,7 @@ fun MissionGuidanceBottomSheet(
                 }
 
                 if (
-                    state.targetVocabulary
-                        .isNotEmpty()
+                    support.vocabulary
                 ) {
                     AssistChip(
                         onClick =
@@ -296,8 +298,7 @@ fun MissionGuidanceBottomSheet(
                 }
 
                 if (
-                    state.examplePhrases
-                        .isNotEmpty()
+                    support.examples
                 ) {
                     AssistChip(
                         onClick =
@@ -330,7 +331,7 @@ fun MissionGuidanceBottomSheet(
 
             AnimatedVisibility(
                 visible =
-                    state.revealedHints
+                    support.hints && state.revealedHints
                         .isNotEmpty()
             ) {
                 GuidanceSection(
@@ -353,7 +354,7 @@ fun MissionGuidanceBottomSheet(
 
             AnimatedVisibility(
                 visible =
-                    state.isVocabularyVisible &&
+                    support.vocabulary && state.isVocabularyVisible &&
                             state.targetVocabulary
                                 .isNotEmpty()
             ) {
@@ -376,7 +377,7 @@ fun MissionGuidanceBottomSheet(
 
             AnimatedVisibility(
                 visible =
-                    state.isExamplesVisible &&
+                    support.examples && state.isExamplesVisible &&
                             state.examplePhrases
                                 .isNotEmpty()
             ) {

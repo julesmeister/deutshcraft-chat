@@ -449,6 +449,19 @@ Settings UI
 
 Settings are persistent across application launches.
 
+Font size multiplies Android's system font scale throughout the app; chat and
+the font preview do not apply it a second time. Reduce animations disables
+Compose animation durations app-wide while retaining Android's own animator
+duration scale when the preference is off. The mission pager also stops
+automatic rotation and scrolling guidance text in reduced-motion mode.
+
+Mission hints, example phrases, and target vocabulary switches control the
+corresponding learner-facing mission guidance sections. Turning support off
+hides its controls and previously revealed content without deleting saved hint
+usage, changing independence analytics, or removing context from AI prompts.
+Mission hints also control the chat top-bar guidance text. Progress language
+is selectable from Settings as well as from the progress dashboard.
+
 ---
 
 # Learning Support

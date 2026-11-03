@@ -51,8 +51,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatGlassColors
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
-import com.julesmeister.deutschcraft.feature.chat.presentation.theme.LocalChatFontScale
-import com.julesmeister.deutschcraft.feature.chat.presentation.theme.scaledForChat
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
@@ -74,17 +72,6 @@ internal fun ChatGlassInputField(
 ) {
     val colorScheme =
         MaterialTheme.colorScheme
-
-    /*
-     * Persisted DeutschCraft chat font preference.
-     *
-     * SMALL       = 0.90
-     * NORMAL      = 1.00
-     * LARGE       = 1.15
-     * EXTRA_LARGE = 1.30
-     */
-    val fontScale =
-        LocalChatFontScale.current
 
     val interactionSource =
         remember {
@@ -312,30 +299,8 @@ internal fun ChatGlassInputField(
             .typography
             .bodyLarge
 
-    val scaledInputFontSize =
-        baseInputTextStyle
-            .fontSize
-            .scaledForChat(
-                scale =
-                    fontScale
-            )
-
-    val scaledInputLineHeight =
-        baseInputTextStyle
-            .lineHeight
-            .scaledForChat(
-                scale =
-                    fontScale
-            )
-
     val inputTextStyle =
         baseInputTextStyle
-            .copy(
-                fontSize =
-                    scaledInputFontSize,
-                lineHeight =
-                    scaledInputLineHeight
-            )
             .merge(
                 TextStyle(
                     lineHeightStyle =
