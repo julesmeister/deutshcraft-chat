@@ -35,15 +35,15 @@ class ChatSessionMessageController
 
     fun updateInput(
         value: TextFieldValue,
-        uiState:
-        MutableStateFlow<ChatUiState>
+        uiState: MutableStateFlow<ChatUiState>
     ) {
         val currentState =
             uiState.value
 
         if (
             currentState.isInitializing ||
-            currentState.isSubmittingBesserRefinement
+            currentState.isSubmittingBesserRefinement ||
+            currentState.missionVariation.isStarting
         ) {
             return
         }
@@ -58,13 +58,15 @@ class ChatSessionMessageController
 
     fun selectSuggestion(
         suggestionId: String,
-        uiState:
-        MutableStateFlow<ChatUiState>
+        uiState: MutableStateFlow<ChatUiState>
     ) {
         val currentState =
             uiState.value
 
-        if (currentState.isBesserRefinementMode) {
+        if (
+            currentState.isBesserRefinementMode ||
+            currentState.missionVariation.isStarting
+        ) {
             return
         }
 
@@ -80,8 +82,8 @@ class ChatSessionMessageController
                     isEnabled =
                         !currentState.isInitializing &&
                                 !currentState.isSending &&
-                                !currentState
-                                    .isSubmittingBesserRefinement
+                                !currentState.isStartingMission &&
+                                !currentState.isSubmittingBesserRefinement
                 )
                 ?: return
 
@@ -93,23 +95,28 @@ class ChatSessionMessageController
         }
     }
 
+    fun clearSuggestions(
+        conversationId: String
+    ) {
+        messageSender.clearSuggestions(
+            conversationId =
+                conversationId
+        )
+    }
+
     fun send(
         scope: CoroutineScope,
         runtime: ChatSessionRuntime,
-        uiState:
-        MutableStateFlow<ChatUiState>,
-        onMissionOpportunityCheckRequested:
-            (
+        uiState: MutableStateFlow<ChatUiState>,
+        onMissionOpportunityCheckRequested: (
             conversationId: String,
             scope: CoroutineScope
         ) -> Unit,
-        onMissionCompleted:
-            (
+        onMissionCompleted: (
             missionTitle: String,
             analytics: MissionAnalytics
         ) -> Unit,
-        onError:
-            (message: String) -> Unit
+        onError: (message: String) -> Unit
     ) {
         val conversationId =
             runtime.activeConversationId
@@ -134,6 +141,8 @@ class ChatSessionMessageController
             messageText.isBlank() ||
             currentState.isInitializing ||
             currentState.isSending ||
+            currentState.isStartingMission ||
+            currentState.missionVariation.isStarting ||
             currentState.isSubmittingBesserRefinement ||
             runtime.isSending
         ) {
@@ -204,15 +213,12 @@ class ChatSessionMessageController
         messageText: String,
         scope: CoroutineScope,
         runtime: ChatSessionRuntime,
-        uiState:
-        MutableStateFlow<ChatUiState>,
-        onMissionOpportunityCheckRequested:
-            (
+        uiState: MutableStateFlow<ChatUiState>,
+        onMissionOpportunityCheckRequested: (
             conversationId: String,
             scope: CoroutineScope
         ) -> Unit,
-        onMissionCompleted:
-            (
+        onMissionCompleted: (
             missionTitle: String,
             analytics: MissionAnalytics
         ) -> Unit
@@ -259,17 +265,11 @@ class ChatSessionMessageController
                     )
 
                     append(
-                        ", composerUnlocked=true"
-                    )
-
-                    append(
                         ", firstSuggestionCount="
                     )
 
                     append(
-                        immediateResult
-                            .firstSuggestions
-                            .size
+                        immediateResult.firstSuggestions.size
                     )
                 }
             )
@@ -277,160 +277,137 @@ class ChatSessionMessageController
             runtime.cancelSuggestionJob()
 
             runtime.suggestionJob =
-                messageSender
-                    .startSuggestionPresentation(
-                        scope =
-                            scope,
+                messageSender.startSuggestionPresentation(
+                    scope =
+                        scope,
 
-                        conversationId =
-                            conversationId,
+                    conversationId =
+                        conversationId,
 
-                        assistantMessageId =
-                            immediateResult
-                                .assistantMessageId,
+                    assistantMessageId =
+                        immediateResult.assistantMessageId,
 
-                        remainingSuggestions =
-                            immediateResult
-                                .remainingSuggestions,
+                    remainingSuggestions =
+                        immediateResult.remainingSuggestions,
 
-                        onSuggestionsUpdated = {
-                                assistantMessageId,
-                                suggestions ->
+                    onSuggestionsUpdated = {
+                            assistantMessageId,
+                            suggestions ->
 
-                            val latestAssistantMessageId =
-                                uiState
-                                    .value
-                                    .messages
-                                    .lastOrNull { message ->
-                                        message.sender ==
-                                                MessageSender.ASSISTANT
-                                    }
-                                    ?.id
-
-                            if (
-                                latestAssistantMessageId ==
-                                null ||
-                                latestAssistantMessageId ==
-                                assistantMessageId
-                            ) {
-                                uiState.update { state ->
-                                    state.withProgressiveSuggestions(
-                                        suggestions =
-                                            suggestions
-                                    )
+                        val latestAssistantMessageId =
+                            uiState
+                                .value
+                                .messages
+                                .lastOrNull { message ->
+                                    message.sender ==
+                                            MessageSender.ASSISTANT
                                 }
+                                ?.id
+
+                        if (
+                            latestAssistantMessageId == null ||
+                            latestAssistantMessageId ==
+                            assistantMessageId
+                        ) {
+                            uiState.update { state ->
+                                state.withProgressiveSuggestions(
+                                    suggestions =
+                                        suggestions
+                                )
                             }
                         }
-                    )
+                    }
+                )
 
             runtime.cancelPostSendLearningJob()
 
             runtime.postSendLearningJob =
-                messageSender
-                    .startPostSendLearning(
-                        scope =
-                            scope,
+                messageSender.startPostSendLearning(
+                    scope =
+                        scope,
 
-                        conversationId =
-                            conversationId,
+                    conversationId =
+                        conversationId,
 
-                        submittedMessageText =
-                            messageText,
+                    submittedMessageText =
+                        messageText,
 
-                        activeMission =
-                            activeMissionAtSendStart,
+                    activeMission =
+                        activeMissionAtSendStart,
 
-                        suggestions =
-                            immediateResult
-                                .finalSuggestions,
+                    suggestions =
+                        immediateResult.finalSuggestions,
 
-                        warning =
-                            immediateResult.warning,
+                    warning =
+                        immediateResult.warning,
 
-                        onCompleted = { result ->
-                            val completedMissionTitle =
-                                result.completedMissionTitle
+                    onCompleted = { result ->
+                        val completedMissionTitle =
+                            result.completedMissionTitle
 
-                            val completedMissionAnalytics =
-                                result.completedMissionAnalytics
+                        val completedMissionAnalytics =
+                            result.completedMissionAnalytics
 
-                            if (
-                                !completedMissionTitle
-                                    .isNullOrBlank() &&
-                                completedMissionAnalytics !=
-                                null
-                            ) {
-                                onMissionCompleted(
-                                    completedMissionTitle,
-                                    completedMissionAnalytics
-                                )
+                        if (
+                            !completedMissionTitle.isNullOrBlank() &&
+                            completedMissionAnalytics != null
+                        ) {
+                            onMissionCompleted(
+                                completedMissionTitle,
+                                completedMissionAnalytics
+                            )
 
-                                Log.i(
-                                    CONTROLLER_TAG,
-                                    buildString {
-                                        append(
-                                            "Completed mission forwarded "
-                                        )
+                            Log.i(
+                                CONTROLLER_TAG,
+                                buildString {
+                                    append(
+                                        "Completed mission forwarded. "
+                                    )
 
-                                        append(
-                                            "to presentation. missionId="
-                                        )
+                                    append(
+                                        "missionId="
+                                    )
 
-                                        append(
-                                            completedMissionAnalytics
-                                                .missionId
-                                        )
+                                    append(
+                                        completedMissionAnalytics.missionId
+                                    )
 
-                                        append(
-                                            ", title="
-                                        )
+                                    append(
+                                        ", title="
+                                    )
 
-                                        append(
-                                            completedMissionTitle
-                                        )
-
-                                        append(
-                                            ", overall="
-                                        )
-
-                                        append(
-                                            completedMissionAnalytics
-                                                .overallScore
-                                        )
-                                    }
-                                )
-                            }
-
-                            if (
-                                activeMissionAtSendStart ==
-                                null
-                            ) {
-                                onMissionOpportunityCheckRequested(
-                                    conversationId,
-                                    scope
-                                )
-                            }
-
-                            if (
-                                !result.warning.isNullOrBlank()
-                            ) {
-                                uiState.update { state ->
-                                    state.copy(
-                                        errorMessage =
-                                            result.warning
+                                    append(
+                                        completedMissionTitle
                                     )
                                 }
-                            }
-                        },
-
-                        onFailure = { throwable ->
-                            Log.e(
-                                CONTROLLER_TAG,
-                                "Supplementary post-send learning failed.",
-                                throwable
                             )
                         }
-                    )
+
+                        if (activeMissionAtSendStart == null) {
+                            onMissionOpportunityCheckRequested(
+                                conversationId,
+                                scope
+                            )
+                        }
+
+                        if (!result.warning.isNullOrBlank()) {
+                            uiState.update { state ->
+                                state.copy(
+                                    errorMessage =
+                                        result.warning
+                                )
+                            }
+                        }
+                    },
+
+                    onFailure = { throwable ->
+                        Log.e(
+                            CONTROLLER_TAG,
+                            "Supplementary post-send learning failed.",
+                            throwable
+                        )
+                    }
+                )
         } catch (
             cancellationException:
             CancellationException
@@ -464,26 +441,21 @@ class ChatSessionMessageController
         scope: CoroutineScope,
         refinement: BesserRefinementUiState,
         refinedMessageContent: String,
-        uiState:
-        MutableStateFlow<ChatUiState>
+        uiState: MutableStateFlow<ChatUiState>
     ) {
         val normalizedRefinement =
             refinedMessageContent.trim()
 
         if (
             normalizedRefinement.isBlank() ||
-            uiState
-                .value
-                .isSubmittingBesserRefinement
+            uiState.value.isSubmittingBesserRefinement
         ) {
             return
         }
 
         if (
             normalizedRefinement ==
-            refinement
-                .originalMessageContent
-                .trim()
+            refinement.originalMessageContent.trim()
         ) {
             uiState.update { state ->
                 state.besserRefinementNeedsRevision(
@@ -541,57 +513,6 @@ class ChatSessionMessageController
                             )
                         }
                         .getOrNull()
-
-                if (evaluation != null) {
-                    Log.i(
-                        CONTROLLER_TAG,
-                        buildString {
-                            append(
-                                "Besser evaluation. "
-                            )
-
-                            append(
-                                "challengeId="
-                            )
-
-                            append(
-                                refinement.challengeId
-                            )
-
-                            append(
-                                ", capabilityId="
-                            )
-
-                            append(
-                                refinement.capabilityId
-                            )
-
-                            append(
-                                ", score="
-                            )
-
-                            append(
-                                evaluation.score
-                            )
-
-                            append(
-                                ", verdict="
-                            )
-
-                            append(
-                                evaluation.verdict
-                            )
-
-                            append(
-                                ", evidence="
-                            )
-
-                            append(
-                                evaluation.evidence
-                            )
-                        }
-                    )
-                }
 
                 when (evaluation?.verdict) {
                     RefinementVerdict.PARTIAL -> {
@@ -692,8 +613,7 @@ class ChatSessionMessageController
         normalizedRefinement: String,
         revealedHintCount: Int,
         evaluation: BesserRefinementEvaluation?,
-        uiState:
-        MutableStateFlow<ChatUiState>
+        uiState: MutableStateFlow<ChatUiState>
     ) {
         val assistanceLevel =
             determineBesserAssistanceLevel(
@@ -741,44 +661,11 @@ class ChatSessionMessageController
                         )
 
                         append(
-                            ", capabilityId="
-                        )
-
-                        append(
-                            refinement.capabilityId
-                        )
-
-                        append(
                             ", assistance="
                         )
 
                         append(
                             assistanceLevel.name
-                        )
-
-                        append(
-                            ", revealedHintCount="
-                        )
-
-                        append(
-                            revealedHintCount
-                        )
-
-                        append(
-                            ", evaluationScore="
-                        )
-
-                        append(
-                            evaluation?.score
-                        )
-
-                        append(
-                            ", evaluationPersisted="
-                        )
-
-                        append(
-                            evaluation !=
-                                    null
                         )
                     }
                 )
@@ -804,19 +691,14 @@ class ChatSessionMessageController
         revealedHintCount: Int
     ): AssistanceLevel {
         return when {
-            revealedHintCount <=
-                    0 -> {
+            revealedHintCount <= 0 ->
                 AssistanceLevel.PROMPTED
-            }
 
-            revealedHintCount ==
-                    1 -> {
+            revealedHintCount == 1 ->
                 AssistanceLevel.SCAFFOLDED
-            }
 
-            else -> {
+            else ->
                 AssistanceLevel.MODELED
-            }
         }
     }
 

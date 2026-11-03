@@ -1,10 +1,15 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/presentation/ChatUiState.kt
+
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import androidx.compose.ui.text.input.TextFieldValue
 import com.julesmeister.deutschcraft.feature.besser.presentation.BesserChallengeUiModel
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
+import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestionAction
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.MissionOpportunity
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationMode
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationUiState
 
 data class ChatUiState(
     val messages: List<ChatMessage> =
@@ -13,38 +18,31 @@ data class ChatUiState(
     val messageInput: TextFieldValue =
         TextFieldValue(),
 
+    /*
+     * Contains only ordinary assistant-generated suggestions
+     * and explicit completed-mission continuation actions.
+     *
+     * The active-mission branch action is derived through
+     * visibleSuggestions so it cannot be overwritten by
+     * progressive assistant suggestion updates.
+     */
     val suggestions: List<ReplySuggestion> =
         emptyList(),
 
-    /*
-     * =======================================================
-     * BESSER
-     * =======================================================
-     */
+    val missionVariation:
+    MissionVariationUiState =
+        MissionVariationUiState(),
 
     val besserChallenges:
     Map<String, BesserChallengeUiModel> =
         emptyMap(),
 
-    /*
-     * Non-null while the learner is actively rewriting a
-     * sentence for an accepted Besser challenge.
-     *
-     * Refinement submission is intentionally different from
-     * ordinary chat sending.
-     */
     val activeBesserRefinement:
     BesserRefinementUiState? =
         null,
 
     val isSubmittingBesserRefinement: Boolean =
         false,
-
-    /*
-     * =======================================================
-     * MISSION OFFER
-     * =======================================================
-     */
 
     val missionOffer: MissionOpportunity? =
         null,
@@ -54,12 +52,6 @@ data class ChatUiState(
 
     val isStartingMission: Boolean =
         false,
-
-    /*
-     * =======================================================
-     * ACTIVE MISSION
-     * =======================================================
-     */
 
     val activeMissionId: String? =
         null,
@@ -83,12 +75,6 @@ data class ChatUiState(
     val adaptiveLearningFeedbackEvent:
     AdaptiveLearningFeedbackEvent? =
         null,
-
-    /*
-     * =======================================================
-     * RUNTIME PRESENTATION STATE
-     * =======================================================
-     */
 
     val isInitializing: Boolean =
         true,
@@ -118,4 +104,117 @@ data class ChatUiState(
         get() =
             activeBesserRefinement
                 ?.instruction
+
+    val hasActiveMission: Boolean
+        get() =
+            activeMissionId !=
+                    null
+
+    val isMissionVariationBusy: Boolean
+        get() =
+            isStartingMission ||
+                    missionVariation.isStarting
+
+    /*
+     * Indicates that the current state already represents a
+     * completed-mission continuation.
+     *
+     * In that case the state contains explicit suggestions such
+     * as:
+     *
+     * - Noch eine Runde?
+     * - Für jetzt fertig
+     *
+     * The active-mission branch suggestion must not be added on
+     * top of those continuation actions.
+     */
+    val hasCompletedMissionContinuation: Boolean
+        get() =
+            missionVariation
+                .context
+                ?.mode ==
+                    MissionVariationMode
+                        .EXTEND_COMPLETED_MISSION
+
+    /*
+     * The active-mission branch action is a presentation-level
+     * suggestion.
+     *
+     * It is not stored in ReplySuggestionCache and therefore
+     * cannot be removed when progressive Qwen suggestions
+     * replace the ordinary suggestion list.
+     */
+    val shouldShowActiveMissionBranchSuggestion: Boolean
+        get() =
+            hasActiveMission &&
+                    !hasCompletedMissionContinuation &&
+                    !isBesserRefinementMode &&
+                    !isInitializing &&
+                    !isMissionVariationBusy
+
+    /*
+     * Final suggestion list rendered by ChatScreen.
+     *
+     * The action is kept last so ordinary conversational replies
+     * remain the primary choices.
+     */
+    val visibleSuggestions: List<ReplySuggestion>
+        get() {
+            val normalizedSuggestions =
+                suggestions
+                    .filterNot { suggestion ->
+                        suggestion.id ==
+                                ACTIVE_MISSION_BRANCH_SUGGESTION_ID
+                    }
+                    .distinctBy { suggestion ->
+                        suggestion.id
+                    }
+
+            if (
+                !shouldShowActiveMissionBranchSuggestion
+            ) {
+                return normalizedSuggestions
+            }
+
+            return (
+                    normalizedSuggestions +
+                            activeMissionBranchSuggestion
+                    )
+                .takeLast(
+                    MAXIMUM_VISIBLE_SUGGESTION_COUNT
+                )
+        }
+
+    val hasVisibleSuggestionContent: Boolean
+        get() =
+            missionOffer !=
+                    null ||
+                    visibleSuggestions.isNotEmpty()
+
+    private val activeMissionBranchSuggestion:
+            ReplySuggestion
+        get() =
+            ReplySuggestion(
+                id =
+                    ACTIVE_MISSION_BRANCH_SUGGESTION_ID,
+
+                text =
+                    ACTIVE_MISSION_BRANCH_SUGGESTION_TEXT,
+
+                action =
+                    ReplySuggestionAction
+                        .OpenMissionVariations
+            )
+
+    companion object {
+
+        const val ACTIVE_MISSION_BRANCH_SUGGESTION_ID =
+            "active-mission-open-variations"
+
+        private const val ACTIVE_MISSION_BRANCH_SUGGESTION_TEXT =
+            "✦ Andere Richtung"
+
+        private const val MAXIMUM_VISIBLE_SUGGESTION_COUNT =
+            3
+    }
 }

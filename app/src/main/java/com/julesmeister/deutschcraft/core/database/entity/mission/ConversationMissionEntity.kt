@@ -10,55 +10,36 @@ import androidx.room.PrimaryKey
 import com.julesmeister.deutschcraft.core.database.entity.ConversationEntity
 
 @Entity(
-    tableName =
-        "conversation_missions",
+    tableName = "conversation_missions",
     foreignKeys = [
         ForeignKey(
-            entity =
-                ConversationEntity::class,
-            parentColumns = [
-                "id"
-            ],
-            childColumns = [
-                "conversationId"
-            ],
-            onDelete =
-                ForeignKey.CASCADE
+            entity = ConversationEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["conversationId"],
+            onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
-            entity =
-                MissionTemplateEntity::class,
-            parentColumns = [
-                "id"
-            ],
-            childColumns = [
-                "missionTemplateId"
-            ],
-            onDelete =
-                ForeignKey.RESTRICT
+            entity = MissionTemplateEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["missionTemplateId"],
+            onDelete = ForeignKey.RESTRICT
         )
     ],
     indices = [
         Index(
-            value = [
-                "conversationId"
-            ]
+            value = ["conversationId"]
         ),
         Index(
-            value = [
-                "missionTemplateId"
-            ]
+            value = ["missionTemplateId"]
         ),
         Index(
-            value = [
-                "conversationId",
-                "status"
-            ]
+            value = ["conversationId", "status"]
         ),
         Index(
-            value = [
-                "sourceRecommendationId"
-            ]
+            value = ["sourceRecommendationId"]
+        ),
+        Index(
+            value = ["rootMissionTemplateId"]
         )
     ]
 )
@@ -68,28 +49,43 @@ data class ConversationMissionEntity(
 
     val conversationId: String,
 
+    /*
+     * The template currently driving the active branch.
+     *
+     * This may change when the learner selects another
+     * direction.
+     */
     val missionTemplateId: String,
 
+    /*
+     * Immutable semantic anchor for the mission attempt.
+     *
+     * For rows created before database version 18, this is
+     * initially null and falls back to missionTemplateId.
+     *
+     * The first branch operation persists the original
+     * missionTemplateId here before replacing the current
+     * branch template.
+     */
     @ColumnInfo(
-        defaultValue =
-            "NULL"
+        defaultValue = "NULL"
     )
-    val sourceRecommendationId: String? =
-        null,
+    val rootMissionTemplateId: String? = null,
 
     @ColumnInfo(
-        defaultValue =
-            "'[]'"
+        defaultValue = "NULL"
     )
-    val targetCapabilityIdsJson: String =
-        "[]",
+    val sourceRecommendationId: String? = null,
 
     @ColumnInfo(
-        defaultValue =
-            "'[]'"
+        defaultValue = "'[]'"
     )
-    val adaptiveFocusKeysJson: String =
-        "[]",
+    val targetCapabilityIdsJson: String = "[]",
+
+    @ColumnInfo(
+        defaultValue = "'[]'"
+    )
+    val adaptiveFocusKeysJson: String = "[]",
 
     val status: String,
 

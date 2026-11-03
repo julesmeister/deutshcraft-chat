@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/presentation/ChatViewModel.kt
+
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import androidx.lifecycle.SavedStateHandle
@@ -5,11 +7,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.julesmeister.deutschcraft.app.navigation.ChatDestination
+import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.AcceptBesserChallengeUseCase
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.RevealNextBesserHintUseCase
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.SkipBesserChallengeUseCase
 import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultController
 import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultUiState
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationContext
 import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceController
 import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceUiState
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhrase
@@ -41,20 +45,8 @@ class ChatViewModel
     private val markedPhraseController:
     MarkedPhraseController,
 
-    /*
-     * =======================================================
-     * SETTINGS
-     * =======================================================
-     */
-
     private val settingsRepository:
     SettingsRepository,
-
-    /*
-     * =======================================================
-     * BESSER
-     * =======================================================
-     */
 
     private val acceptBesserChallengeUseCase:
     AcceptBesserChallengeUseCase,
@@ -66,67 +58,24 @@ class ChatViewModel
     SkipBesserChallengeUseCase
 ) : ViewModel() {
 
-    /*
-     * =======================================================
-     * CONVERSATION
-     * =======================================================
-     */
-
     private val conversationId: String =
         savedStateHandle
             .toRoute<ChatDestination>()
             .conversationId
 
-    /*
-     * =======================================================
-     * MAIN CHAT STATE
-     * =======================================================
-     */
-
-    val uiState:
-            StateFlow<ChatUiState> =
+    val uiState: StateFlow<ChatUiState> =
         coordinator.uiState
 
-    /*
-     * =======================================================
-     * CHAT SETTINGS
-     * =======================================================
-     *
-     * DataStore remains the single persisted source of truth.
-     *
-     * ChatRoute collects this Flow and provides fontScale to
-     * the chat UI through LocalChatFontScale.
-     */
-
-    val settings:
-            Flow<UserSettings> =
+    val settings: Flow<UserSettings> =
         settingsRepository.settings
-
-    /*
-     * =======================================================
-     * MISSION RESULT
-     * =======================================================
-     */
 
     val missionResultUiState:
             StateFlow<MissionResultUiState> =
         missionResultController.uiState
 
-    /*
-     * =======================================================
-     * MISSION GUIDANCE
-     * =======================================================
-     */
-
     val missionGuidanceUiState:
             StateFlow<MissionGuidanceUiState> =
         missionGuidanceController.uiState
-
-    /*
-     * =======================================================
-     * MARKED PHRASES
-     * =======================================================
-     */
 
     val markedPhrases:
             StateFlow<Map<String, List<MarkedPhrase>>> =
@@ -155,12 +104,6 @@ class ChatViewModel
         )
     }
 
-    /*
-     * =======================================================
-     * CHAT
-     * =======================================================
-     */
-
     fun onAction(
         action: ChatUiAction
     ) {
@@ -172,12 +115,6 @@ class ChatViewModel
                 viewModelScope
         )
     }
-
-    /*
-     * =======================================================
-     * BESSER
-     * =======================================================
-     */
 
     fun improveBesserChallenge(
         challengeId: String
@@ -191,8 +128,8 @@ class ChatViewModel
                 .value
                 .besserChallenges
                 .values
-                .firstOrNull { challenge ->
-                    challenge.id ==
+                .firstOrNull { candidate ->
+                    candidate.id ==
                             challengeId
                 }
                 ?: run {
@@ -223,13 +160,10 @@ class ChatViewModel
         }
 
         viewModelScope.launch {
-            val result =
-                acceptBesserChallengeUseCase(
-                    challengeId =
-                        challengeId
-                )
-
-            result
+            acceptBesserChallengeUseCase(
+                challengeId =
+                    challengeId
+            )
                 .onSuccess {
                     val started =
                         coordinator.startBesserRefinement(
@@ -244,7 +178,7 @@ class ChatViewModel
                         )
                     }
                 }
-                .onFailure { throwable: Throwable ->
+                .onFailure { throwable ->
                     coordinator.showBesserError(
                         message =
                             throwable.message
@@ -262,19 +196,17 @@ class ChatViewModel
         }
 
         viewModelScope.launch {
-            val result =
-                revealNextBesserHintUseCase(
-                    challengeId =
-                        challengeId
-                )
-
-            result.onFailure { throwable: Throwable ->
-                coordinator.showBesserError(
-                    message =
-                        throwable.message
-                            ?: "The next Besser hint could not be revealed."
-                )
-            }
+            revealNextBesserHintUseCase(
+                challengeId =
+                    challengeId
+            )
+                .onFailure { throwable ->
+                    coordinator.showBesserError(
+                        message =
+                            throwable.message
+                                ?: "The next Besser hint could not be revealed."
+                    )
+                }
         }
     }
 
@@ -286,27 +218,19 @@ class ChatViewModel
         }
 
         viewModelScope.launch {
-            val result =
-                skipBesserChallengeUseCase(
-                    challengeId =
-                        challengeId
-                )
-
-            result.onFailure { throwable: Throwable ->
-                coordinator.showBesserError(
-                    message =
-                        throwable.message
-                            ?: "The Besser challenge could not be skipped."
-                )
-            }
+            skipBesserChallengeUseCase(
+                challengeId =
+                    challengeId
+            )
+                .onFailure { throwable ->
+                    coordinator.showBesserError(
+                        message =
+                            throwable.message
+                                ?: "The Besser challenge could not be skipped."
+                    )
+                }
         }
     }
-
-    /*
-     * =======================================================
-     * MARKED PHRASES
-     * =======================================================
-     */
 
     fun markPhrase(
         messageId: String,
@@ -347,12 +271,6 @@ class ChatViewModel
         )
     }
 
-    /*
-     * =======================================================
-     * MISSION GUIDANCE
-     * =======================================================
-     */
-
     fun openMissionGuidance() {
         missionGuidanceController.show()
     }
@@ -373,25 +291,68 @@ class ChatViewModel
         missionGuidanceController.toggleExamples()
     }
 
-    /*
-     * =======================================================
-     * MISSION RESULT
-     * =======================================================
-     */
-
     fun dismissMissionResult() {
         missionResultController.dismiss()
     }
 
     fun continueAfterMissionResult() {
+        val result =
+            missionResultUiState.value
+
+        val missionId =
+            result
+                .missionId
+                ?.trim()
+                ?.takeIf(
+                    String::isNotBlank
+                )
+
+        if (missionId != null) {
+            coordinator.showMissionContinuation(
+                context =
+                    MissionVariationContext(
+                        completedMissionId =
+                            missionId,
+
+                        missionTitle =
+                            result
+                                .missionTitle
+                                .trim()
+                                .ifBlank {
+                                    DEFAULT_MISSION_TITLE
+                                },
+
+                        cefrLevel =
+                            result
+                                .cefrLevelLabel
+                                .toCefrLevel(),
+
+                        overallScore =
+                            result.safeOverallScore,
+
+                        grammarScore =
+                            result.grammarScore,
+
+                        vocabularyScore =
+                            result.vocabularyScore,
+
+                        strongObjectiveTitles =
+                            result.strongObjectiveTitles,
+
+                        improvementObjectiveTitles =
+                            result.improvementObjectiveTitles,
+
+                        demonstratedVocabulary =
+                            result.correctlyUsedTargetVocabulary,
+
+                        unusedTargetVocabulary =
+                            result.unusedTargetVocabulary
+                    )
+            )
+        }
+
         missionResultController.dismiss()
     }
-
-    /*
-     * =======================================================
-     * CLEANUP
-     * =======================================================
-     */
 
     override fun onCleared() {
         coordinator.stop()
@@ -403,5 +364,24 @@ class ChatViewModel
         missionResultController.clear()
 
         super.onCleared()
+    }
+
+    private fun String.toCefrLevel():
+            CefrLevel {
+
+        return runCatching {
+            CefrLevel.valueOf(
+                trim().uppercase()
+            )
+        }
+            .getOrDefault(
+                CefrLevel.A1
+            )
+    }
+
+    private companion object {
+
+        const val DEFAULT_MISSION_TITLE =
+            "Conversation mission"
     }
 }

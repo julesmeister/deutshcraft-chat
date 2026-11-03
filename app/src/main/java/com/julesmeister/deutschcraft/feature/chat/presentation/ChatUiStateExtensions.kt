@@ -5,9 +5,14 @@ package com.julesmeister.deutschcraft.feature.chat.presentation
 import androidx.compose.ui.text.input.TextFieldValue
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
+import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestionAction
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionObjectiveProgress
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.MissionOpportunity
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationContext
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationOption
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationType
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationUiState
 
 internal fun ChatUiState.initializationSucceeded():
         ChatUiState {
@@ -47,6 +52,12 @@ internal fun ChatUiState.initializationFailed(
         isSubmittingBesserRefinement =
             false,
 
+        missionVariation =
+            missionVariation.copy(
+                isStarting =
+                    false
+            ),
+
         errorMessage =
             message
     )
@@ -72,11 +83,6 @@ internal fun ChatUiState.withInput(
     )
 }
 
-/*
- * The actual conversation send has started.
- *
- * Composer input is cleared while Qwen generates Emil's reply.
- */
 internal fun ChatUiState.sendingStarted():
         ChatUiState {
 
@@ -86,6 +92,9 @@ internal fun ChatUiState.sendingStarted():
 
         suggestions =
             emptyList(),
+
+        missionVariation =
+            MissionVariationUiState(),
 
         isSending =
             true,
@@ -101,15 +110,6 @@ internal fun ChatUiState.sendingStarted():
     )
 }
 
-/*
- * Emil's message has already been persisted.
- *
- * The composer becomes usable immediately even though:
- *
- * - post-send learning processing may still be running
- * - remaining suggestions may still be appearing
- * - Besser generation may still be running
- */
 internal fun ChatUiState.assistantReplyPersisted(
     initialSuggestions: List<ReplySuggestion>
 ): ChatUiState {
@@ -124,10 +124,6 @@ internal fun ChatUiState.assistantReplyPersisted(
         isAssistantTyping =
             false,
 
-        /*
-         * Supplementary learning analysis may continue in the
-         * background, but it must not lock the composer.
-         */
         isAssessing =
             false,
 
@@ -136,20 +132,20 @@ internal fun ChatUiState.assistantReplyPersisted(
     )
 }
 
-/*
- * Replaces the currently visible progressive suggestion list.
- *
- * This does not change composer availability.
- */
 internal fun ChatUiState.withProgressiveSuggestions(
     suggestions: List<ReplySuggestion>
 ): ChatUiState {
+
+    if (missionVariation.hasContinuation) {
+        return this
+    }
 
     return copy(
         suggestions =
             suggestions
                 .distinctBy { suggestion ->
-                    suggestion.text
+                    suggestion
+                        .text
                         .trim()
                         .lowercase()
                 }
@@ -159,12 +155,6 @@ internal fun ChatUiState.withProgressiveSuggestions(
     )
 }
 
-/*
- * Finalizes supplementary post-send work.
- *
- * The composer should already have been unlocked by
- * assistantReplyPersisted().
- */
 internal fun ChatUiState.sendingSucceeded(
     suggestions: List<ReplySuggestion>,
     warning: String?
@@ -225,6 +215,9 @@ internal fun ChatUiState.besserRefinementStarted(
         suggestions =
             emptyList(),
 
+        missionVariation =
+            MissionVariationUiState(),
+
         isSubmittingBesserRefinement =
             false,
 
@@ -255,8 +248,7 @@ internal fun ChatUiState.besserRefinementSubmissionStarted():
         ChatUiState {
 
     if (
-        activeBesserRefinement ==
-        null ||
+        activeBesserRefinement == null ||
         isSubmittingBesserRefinement
     ) {
         return this
@@ -326,14 +318,52 @@ internal fun ChatUiState.besserRefinementSubmissionFailed(
     )
 }
 
+internal fun ChatUiState.besserRefinementNeedsRevision(
+    feedback: String,
+    score: Int?
+): ChatUiState {
+
+    val refinement =
+        activeBesserRefinement
+            ?: return copy(
+                isSubmittingBesserRefinement =
+                    false
+            )
+
+    return copy(
+        activeBesserRefinement =
+            refinement.copy(
+                feedback =
+                    feedback,
+
+                lastScore =
+                    score
+            ),
+
+        isSubmittingBesserRefinement =
+            false,
+
+        isSending =
+            false,
+
+        isAssistantTyping =
+            false,
+
+        isAssessing =
+            false,
+
+        errorMessage =
+            null
+    )
+}
+
 internal fun ChatUiState.missionCheckStarted():
         ChatUiState {
 
     if (
-        activeMissionId !=
-        null ||
-        missionOffer !=
-        null
+        activeMissionId != null ||
+        missionOffer != null ||
+        missionVariation.hasContinuation
     ) {
         return this
     }
@@ -351,8 +381,8 @@ internal fun ChatUiState.missionCheckFinished(
     return copy(
         missionOffer =
             if (
-                activeMissionId ==
-                null
+                activeMissionId == null &&
+                !missionVariation.hasContinuation
             ) {
                 offer
             } else {
@@ -380,8 +410,7 @@ internal fun ChatUiState.missionStartStarted():
         ChatUiState {
 
     if (
-        missionOffer ==
-        null ||
+        missionOffer == null ||
         isStartingMission
     ) {
         return this
@@ -407,7 +436,10 @@ internal fun ChatUiState.missionStartSucceeded():
             false,
 
         isCheckingMissionOpportunity =
-            false
+            false,
+
+        errorMessage =
+            null
     )
 }
 
@@ -438,8 +470,7 @@ internal fun ChatUiState.withCurrentStreak(
 
 internal fun ChatUiState.withActiveMission(
     mission: ConversationMission?,
-    newlyCompletedObjective:
-    MissionObjectiveProgress?
+    newlyCompletedObjective: MissionObjectiveProgress?
 ): ChatUiState {
 
     if (mission == null) {
@@ -491,6 +522,16 @@ internal fun ChatUiState.withActiveMission(
         missionOffer =
             null,
 
+        suggestions =
+            if (missionVariation.hasContinuation) {
+                emptyList()
+            } else {
+                suggestions
+            },
+
+        missionVariation =
+            MissionVariationUiState(),
+
         isCheckingMissionOpportunity =
             false,
 
@@ -513,7 +554,7 @@ internal fun ChatUiState.withActiveMission(
 
         currentMissionGuidance =
             currentObjective
-                ?.description
+                ?.displayGuidance
                 ?.trim()
                 ?.takeIf(
                     String::isNotBlank
@@ -533,7 +574,10 @@ internal fun ChatUiState.withActiveMission(
 
         objectiveCompletionEvent =
             completionEvent
-                ?: objectiveCompletionEvent
+                ?: objectiveCompletionEvent,
+
+        errorMessage =
+            null
     )
 }
 
@@ -545,10 +589,8 @@ internal fun ChatUiState.objectiveCompletionShown(
         objectiveCompletionEvent
 
     if (
-        activeEvent ==
-        null ||
-        activeEvent.eventId !=
-        eventId
+        activeEvent == null ||
+        activeEvent.eventId != eventId
     ) {
         return this
     }
@@ -568,43 +610,136 @@ internal fun ChatUiState.errorDismissed():
     )
 }
 
-/*
- * The rewrite was evaluated but did not yet demonstrate the
- * targeted capability.
- *
- * Refinement stays open and the composer keeps the attempt.
- * Feedback is shown in the refinement header, not as an error.
- */
-internal fun ChatUiState.besserRefinementNeedsRevision(
-    feedback: String,
-    score: Int?
+internal fun ChatUiState.missionContinuationAvailable(
+    context: MissionVariationContext
 ): ChatUiState {
-    val refinement =
-        activeBesserRefinement
-            ?: return copy(
-                isSubmittingBesserRefinement =
-                    false
-            )
+
+    val options =
+        buildMissionVariationOptions(
+            context =
+                context
+        )
 
     return copy(
-        activeBesserRefinement =
-            refinement.copy(
-                feedback =
-                    feedback,
-                lastScore =
-                    score
+        missionOffer =
+            null,
+
+        isCheckingMissionOpportunity =
+            false,
+
+        isStartingMission =
+            false,
+
+        suggestions =
+            listOf(
+                ReplySuggestion(
+                    id =
+                        MISSION_CONTINUATION_SUGGESTION_ID,
+
+                    text =
+                        "↻ Noch eine Runde?",
+
+                    action =
+                        ReplySuggestionAction
+                            .OpenMissionVariations
+                ),
+
+                ReplySuggestion(
+                    id =
+                        MISSION_CONTINUATION_DISMISS_SUGGESTION_ID,
+
+                    text =
+                        "✓ Für jetzt fertig",
+
+                    action =
+                        ReplySuggestionAction
+                            .DismissMissionContinuation
+                )
             ),
 
-        isSubmittingBesserRefinement =
-            false,
+        missionVariation =
+            MissionVariationUiState(
+                context =
+                    context,
 
-        isSending =
-            false,
+                options =
+                    options,
 
-        isAssistantTyping =
-            false,
+                isPickerVisible =
+                    false,
 
-        isAssessing =
+                isStarting =
+                    false
+            ),
+
+        errorMessage =
+            null
+    )
+}
+
+internal fun ChatUiState.missionVariationPickerOpened():
+        ChatUiState {
+
+    if (
+        !missionVariation.hasContinuation ||
+        missionVariation.isStarting
+    ) {
+        return this
+    }
+
+    return copy(
+        missionVariation =
+            missionVariation.copy(
+                isPickerVisible =
+                    true
+            )
+    )
+}
+
+internal fun ChatUiState.missionVariationPickerDismissed():
+        ChatUiState {
+
+    if (!missionVariation.isPickerVisible) {
+        return this
+    }
+
+    return copy(
+        missionVariation =
+            missionVariation.copy(
+                isPickerVisible =
+                    false
+            )
+    )
+}
+
+internal fun ChatUiState.missionVariationStartStarted():
+        ChatUiState {
+
+    if (
+        !missionVariation.hasContinuation ||
+        missionVariation.isStarting ||
+        isStartingMission
+    ) {
+        return this
+    }
+
+    return copy(
+        suggestions =
+            emptyList(),
+
+        missionVariation =
+            missionVariation.copy(
+                isPickerVisible =
+                    false,
+
+                isStarting =
+                    true
+            ),
+
+        isStartingMission =
+            true,
+
+        isCheckingMissionOpportunity =
             false,
 
         errorMessage =
@@ -612,5 +747,167 @@ internal fun ChatUiState.besserRefinementNeedsRevision(
     )
 }
 
+internal fun ChatUiState.missionVariationStartSucceeded():
+        ChatUiState {
+
+    return copy(
+        suggestions =
+            emptyList(),
+
+        missionOffer =
+            null,
+
+        missionVariation =
+            MissionVariationUiState(),
+
+        isStartingMission =
+            false,
+
+        isCheckingMissionOpportunity =
+            false,
+
+        errorMessage =
+            null
+    )
+}
+
+internal fun ChatUiState.missionVariationStartFailed(
+    message: String
+): ChatUiState {
+
+    return copy(
+        missionVariation =
+            missionVariation.copy(
+                isPickerVisible =
+                    false,
+
+                isStarting =
+                    false
+            ),
+
+        isStartingMission =
+            false,
+
+        errorMessage =
+            message
+    )
+}
+
+internal fun ChatUiState.missionContinuationDismissed():
+        ChatUiState {
+
+    return copy(
+        suggestions =
+            suggestions.filterNot { suggestion ->
+                suggestion.id ==
+                        MISSION_CONTINUATION_SUGGESTION_ID ||
+                        suggestion.id ==
+                        MISSION_CONTINUATION_DISMISS_SUGGESTION_ID
+            },
+
+        missionVariation =
+            MissionVariationUiState(),
+
+        errorMessage =
+            null
+    )
+}
+
+private fun buildMissionVariationOptions(
+    context: MissionVariationContext
+): List<MissionVariationOption> {
+
+    val complication =
+        MissionVariationOption(
+            type =
+                MissionVariationType.COMPLICATION,
+
+            title =
+                "Neue Situation",
+
+            description =
+                "Etwas ändert sich unerwartet und du musst neu reagieren."
+        )
+
+    val vocabulary =
+        MissionVariationOption(
+            type =
+                MissionVariationType.NEW_VOCABULARY,
+
+            title =
+                "Neue Wörter",
+
+            description =
+                if (
+                    context
+                        .unusedTargetVocabulary
+                        .isNotEmpty()
+                ) {
+                    "Nutze Wortschatz, der im ersten Gespräch noch nicht vorkam."
+                } else {
+                    "Erweitere dasselbe Thema mit präziserem Wortschatz."
+                }
+        )
+
+    val grammar =
+        MissionVariationOption(
+            type =
+                MissionVariationType.GRAMMAR_STRETCH,
+
+            title =
+                "Grammatik-Stufe",
+
+            description =
+                "Begründe, vergleiche und formuliere Bedingungen."
+        )
+
+    return when {
+        context.unusedTargetVocabulary.isNotEmpty() &&
+                context.safeVocabularyScore <=
+                context.safeGrammarScore -> {
+            listOf(
+                vocabulary,
+                grammar,
+                complication
+            )
+        }
+
+        context.safeGrammarScore <
+                context.safeVocabularyScore -> {
+            listOf(
+                grammar,
+                vocabulary,
+                complication
+            )
+        }
+
+        context.safeOverallScore >=
+                STRONG_VARIATION_SCORE_THRESHOLD -> {
+            listOf(
+                complication,
+                grammar,
+                vocabulary
+            )
+        }
+
+        else -> {
+            listOf(
+                complication,
+                vocabulary,
+                grammar
+            )
+        }
+    }
+}
+
+internal const val MISSION_CONTINUATION_SUGGESTION_ID =
+    "mission-continuation-open"
+
+internal const val MISSION_CONTINUATION_DISMISS_SUGGESTION_ID =
+    "mission-continuation-dismiss"
+
 private const val MAXIMUM_VISIBLE_SUGGESTIONS =
     3
+
+private const val STRONG_VARIATION_SCORE_THRESHOLD =
+    75

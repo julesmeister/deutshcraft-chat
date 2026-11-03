@@ -42,17 +42,21 @@ interface MissionRepository {
         sourceRecommendationId: String? =
             null,
 
-        targetCapabilityIds:
-        Set<String> =
+        targetCapabilityIds: Set<String> =
             emptySet(),
 
-        adaptiveFocusKeys:
-        Set<String> =
+        adaptiveFocusKeys: Set<String> =
             emptySet()
     ): String
 
     suspend fun startMission(
         conversationMissionId: String
+    )
+
+    suspend fun replaceActiveMissionBranch(
+        conversationMissionId: String,
+
+        replacementTemplate: MissionTemplate
     )
 
     suspend fun dismissMission(
@@ -61,8 +65,11 @@ interface MissionRepository {
 
     suspend fun completeObjective(
         conversationMissionId: String,
+
         objectiveId: String,
+
         messageId: String,
+
         confidence: Float
     )
 

@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/core/database/dao/MissionDao.kt
+
 package com.julesmeister.deutschcraft.core.database.dao
 
 import androidx.room.Dao
@@ -26,8 +28,7 @@ interface MissionDao {
 
     @Upsert
     suspend fun upsertMissionObjectives(
-        objectives:
-        List<MissionObjectiveEntity>
+        objectives: List<MissionObjectiveEntity>
     )
 
     @Query(
@@ -67,20 +68,17 @@ interface MissionDao {
 
     @Upsert
     suspend fun upsertConversationMission(
-        conversationMission:
-        ConversationMissionEntity
+        conversationMission: ConversationMissionEntity
     )
 
     @Upsert
     suspend fun upsertObjectiveProgress(
-        progress:
-        MissionObjectiveProgressEntity
+        progress: MissionObjectiveProgressEntity
     )
 
     @Upsert
     suspend fun upsertObjectiveProgressList(
-        progress:
-        List<MissionObjectiveProgressEntity>
+        progress: List<MissionObjectiveProgressEntity>
     )
 
     @Transaction
@@ -123,6 +121,43 @@ interface MissionDao {
     suspend fun getConversationMission(
         conversationMissionId: String
     ): ConversationMissionWithDetails?
+
+    /*
+     * Stores the original template on the first branch and
+     * updates only the current branch template afterwards.
+     *
+     * This prevents repeated branching from replacing the
+     * semantic root mission.
+     */
+    @Query(
+        """
+        UPDATE conversation_missions
+        SET rootMissionTemplateId =
+                COALESCE(
+                    rootMissionTemplateId,
+                    missionTemplateId
+                ),
+            missionTemplateId = :newMissionTemplateId,
+            updatedAt = :updatedAt
+        WHERE id = :conversationMissionId
+          AND status = 'ACTIVE'
+        """
+    )
+    suspend fun replaceActiveMissionTemplate(
+        conversationMissionId: String,
+        newMissionTemplateId: String,
+        updatedAt: Long
+    ): Int
+
+    @Query(
+        """
+        DELETE FROM mission_objective_progress
+        WHERE conversationMissionId = :conversationMissionId
+        """
+    )
+    suspend fun deleteObjectiveProgressForMission(
+        conversationMissionId: String
+    )
 
     @Query(
         """
@@ -180,8 +215,7 @@ interface MissionDao {
             completedByMessageId = :messageId,
             confidence = :confidence,
             updatedAt = :updatedAt
-        WHERE conversationMissionId =
-            :conversationMissionId
+        WHERE conversationMissionId = :conversationMissionId
           AND objectiveId = :objectiveId
         """
     )
@@ -222,11 +256,11 @@ interface MissionDao {
     @Transaction
     @Query(
         """
-    SELECT *
-    FROM conversation_missions
-    WHERE status = 'COMPLETED'
-    ORDER BY completedAt DESC, updatedAt DESC
-    """
+        SELECT *
+        FROM conversation_missions
+        WHERE status = 'COMPLETED'
+        ORDER BY completedAt DESC, updatedAt DESC
+        """
     )
     fun observeCompletedMissions():
             Flow<List<ConversationMissionWithDetails>>

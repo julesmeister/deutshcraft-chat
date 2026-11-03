@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/app/navigation/ChatNavigation.kt
+
 package com.julesmeister.deutschcraft.app.navigation
 
 import androidx.navigation.NavGraphBuilder
@@ -12,12 +14,15 @@ internal fun NavGraphBuilder.chatDestination(
         enterTransition = {
             forwardEnterTransition()
         },
+
         exitTransition = {
             secondaryScreenExitTransition()
         },
+
         popEnterTransition = {
             secondaryScreenEnterTransition()
         },
+
         popExitTransition = {
             backExitTransition()
         }
@@ -28,8 +33,7 @@ internal fun NavGraphBuilder.chatDestination(
                     navController =
                         navController
                 )
-            },
-
+            }
         )
     }
 }
@@ -37,16 +41,28 @@ internal fun NavGraphBuilder.chatDestination(
 private fun returnFromChat(
     navController: NavHostController
 ) {
-    val returnedToPreviousDestination =
-        navController.popBackStack()
+    val returnedToThreadList =
+        navController.popBackStack(
+            route =
+                ThreadListDestination,
 
-    if (returnedToPreviousDestination) {
+            inclusive =
+                false
+        )
+
+    if (returnedToThreadList) {
         return
     }
 
     navController.navigate(
         ThreadListDestination
     ) {
-        launchSingleTop = true
+        popUpTo<ChatDestination> {
+            inclusive =
+                true
+        }
+
+        launchSingleTop =
+            true
     }
 }

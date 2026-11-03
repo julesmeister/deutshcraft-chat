@@ -1,11 +1,21 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/presentation/ChatSessionCoordinator.kt
+
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import android.util.Log
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.feature.besser.presentation.BesserChallengeUiModel
+import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestionAction
 import com.julesmeister.deutschcraft.feature.learninganalytics.domain.MissionAnalytics
 import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultController
+import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationContext
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationMode
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationOption
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationType
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationUiState
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -38,20 +48,13 @@ class ChatSessionCoordinator
             ChatUiState()
         )
 
-    val uiState:
-            StateFlow<ChatUiState> =
+    val uiState: StateFlow<ChatUiState> =
         _uiState.asStateFlow()
 
     private val runtime =
         ChatSessionRuntime()
 
-    /*
-     * Non-null while the current screen is showing an
-     * in-memory greeting for a conversation that does not yet
-     * exist in Room.
-     */
-    private var provisionalGreetingMessageId:
-            String? =
+    private var provisionalGreetingMessageId: String? =
         null
 
     fun start(
@@ -101,9 +104,36 @@ class ChatSessionCoordinator
             }
 
             is ChatUiAction.SuggestionSelected -> {
-                messageController.selectSuggestion(
+                handleSuggestionSelection(
                     suggestionId =
-                        action.suggestionId,
+                        action.suggestionId
+                )
+            }
+
+            ChatUiAction.OpenMissionVariationPicker -> {
+                openMissionVariationPicker()
+            }
+
+            ChatUiAction.DismissMissionVariationPicker -> {
+                _uiState.update { state ->
+                    state.missionVariationPickerDismissed()
+                }
+            }
+
+            ChatUiAction.DismissMissionContinuation -> {
+                dismissMissionContinuation()
+            }
+
+            is ChatUiAction.StartMissionVariation -> {
+                missionController.startMissionVariation(
+                    variationType =
+                        action.variationType,
+
+                    scope =
+                        scope,
+
+                    runtime =
+                        runtime,
 
                     uiState =
                         _uiState
@@ -160,14 +190,13 @@ class ChatSessionCoordinator
             }
 
             is ChatUiAction.ObjectiveCompletionShown -> {
-                missionController
-                    .consumeObjectiveCompletion(
-                        eventId =
-                            action.eventId,
+                missionController.consumeObjectiveCompletion(
+                    eventId =
+                        action.eventId,
 
-                        uiState =
-                            _uiState
-                    )
+                    uiState =
+                        _uiState
+                )
             }
 
             is ChatUiAction.AdaptiveLearningFeedbackShown -> {
@@ -183,6 +212,333 @@ class ChatSessionCoordinator
         }
     }
 
+    fun showMissionContinuation(
+        context: MissionVariationContext
+    ) {
+        runtime.cancelSuggestionJob()
+
+        runtime
+            .activeConversationId
+            ?.let { conversationId ->
+                messageController.clearSuggestions(
+                    conversationId =
+                        conversationId
+                )
+            }
+
+        _uiState.update { state ->
+            state.missionContinuationAvailable(
+                context =
+                    context
+            )
+        }
+    }
+
+    private fun handleSuggestionSelection(
+        suggestionId: String
+    ) {
+        if (
+            suggestionId ==
+            ChatUiState
+                .ACTIVE_MISSION_BRANCH_SUGGESTION_ID
+        ) {
+            openActiveMissionVariationPicker()
+
+            return
+        }
+
+        val suggestion =
+            _uiState
+                .value
+                .suggestions
+                .firstOrNull { candidate ->
+                    candidate.id ==
+                            suggestionId
+                }
+                ?: return
+
+        when (suggestion.action) {
+            ReplySuggestionAction.FillComposer -> {
+                messageController.selectSuggestion(
+                    suggestionId =
+                        suggestionId,
+
+                    uiState =
+                        _uiState
+                )
+            }
+
+            ReplySuggestionAction.OpenMissionVariations -> {
+                openMissionVariationPicker()
+            }
+
+            ReplySuggestionAction.DismissMissionContinuation -> {
+                dismissMissionContinuation()
+            }
+        }
+    }
+
+    private fun openMissionVariationPicker() {
+        val variationContext =
+            _uiState
+                .value
+                .missionVariation
+                .context
+
+        if (variationContext != null) {
+            _uiState.update { state ->
+                state.missionVariationPickerOpened()
+            }
+
+            return
+        }
+
+        openActiveMissionVariationPicker()
+    }
+
+    private fun openActiveMissionVariationPicker() {
+        val activeMission =
+            runtime.activeMission
+                ?: run {
+                    showError(
+                        message =
+                            ACTIVE_MISSION_UNAVAILABLE_ERROR
+                    )
+
+                    return
+                }
+
+        val currentState =
+            _uiState.value
+
+        if (
+            currentState.isInitializing ||
+            currentState.isSending ||
+            currentState.isStartingMission ||
+            currentState.isSubmittingBesserRefinement ||
+            currentState.missionVariation.isStarting
+        ) {
+            return
+        }
+
+        val context =
+            activeMission.toVariationContext()
+
+        _uiState.update { state ->
+            state.copy(
+                missionVariation =
+                    MissionVariationUiState(
+                        context =
+                            context,
+
+                        options =
+                            createActiveMissionVariationOptions(),
+
+                        isPickerVisible =
+                            true,
+
+                        isStarting =
+                            false
+                    ),
+
+                errorMessage =
+                    null
+            )
+        }
+
+        Log.d(
+            COORDINATOR_TAG,
+            buildString {
+                append(
+                    "Active mission variation picker opened. "
+                )
+
+                append(
+                    "missionId="
+                )
+
+                append(
+                    activeMission.id
+                )
+
+                append(
+                    ", rootTemplateId="
+                )
+
+                append(
+                    activeMission
+                        .resolvedRootMissionTemplateId
+                )
+
+                append(
+                    ", currentTemplateId="
+                )
+
+                append(
+                    activeMission.template.id
+                )
+            }
+        )
+    }
+
+    private fun ConversationMission.toVariationContext():
+            MissionVariationContext {
+
+        return MissionVariationContext(
+            mode =
+                MissionVariationMode
+                    .BRANCH_ACTIVE_MISSION,
+
+            sourceMissionId =
+                id,
+
+            missionTitle =
+                template
+                    .title
+                    .trim()
+                    .ifBlank {
+                        DEFAULT_MISSION_TITLE
+                    },
+
+            cefrLevel =
+                template
+                    .difficulty
+                    .name
+                    .toCefrLevel(),
+
+            overallScore =
+                0,
+
+            grammarScore =
+                0,
+
+            vocabularyScore =
+                0,
+
+            strongObjectiveTitles =
+                objectiveProgress
+                    .filter { progress ->
+                        progress.isCompleted
+                    }
+                    .map { progress ->
+                        progress.objective.title
+                    }
+                    .sanitizedValues(),
+
+            improvementObjectiveTitles =
+                objectiveProgress
+                    .filterNot { progress ->
+                        progress.isCompleted
+                    }
+                    .map { progress ->
+                        progress.objective.title
+                    }
+                    .sanitizedValues(),
+
+            demonstratedVocabulary =
+                emptyList(),
+
+            unusedTargetVocabulary =
+                objectiveProgress
+                    .filterNot { progress ->
+                        progress.isCompleted
+                    }
+                    .flatMap { progress ->
+                        progress
+                            .objective
+                            .targetVocabulary
+                    }
+                    .sanitizedValues()
+        )
+    }
+
+    private fun createActiveMissionVariationOptions():
+            List<MissionVariationOption> {
+
+        return listOf(
+            MissionVariationOption(
+                type =
+                    MissionVariationType
+                        .COMPLICATION,
+
+                title =
+                    "Neue Situation",
+
+                description =
+                    "Entdecke eine andere, noch nicht besprochene " +
+                            "Seite derselben Mission."
+            ),
+
+            MissionVariationOption(
+                type =
+                    MissionVariationType
+                        .NEW_VOCABULARY,
+
+                title =
+                    "Neue Wörter",
+
+                description =
+                    "Führe die Mission in eine Richtung mit neuem, " +
+                            "passendem Wortschatz."
+            ),
+
+            MissionVariationOption(
+                type =
+                    MissionVariationType
+                        .GRAMMAR_STRETCH,
+
+                title =
+                    "Grammatik-Stufe",
+
+                description =
+                    "Vertiefe dieselbe Mission mit natürlicheren " +
+                            "und anspruchsvolleren Strukturen."
+            )
+        )
+    }
+
+    private fun String.toCefrLevel():
+            CefrLevel {
+
+        return runCatching {
+            CefrLevel.valueOf(
+                trim().uppercase()
+            )
+        }
+            .getOrDefault(
+                CefrLevel.A1
+            )
+    }
+
+    private fun List<String>.sanitizedValues():
+            List<String> {
+
+        return asSequence()
+            .map(
+                String::trim
+            )
+            .filter(
+                String::isNotBlank
+            )
+            .distinct()
+            .toList()
+    }
+
+    private fun dismissMissionContinuation() {
+        runtime
+            .activeConversationId
+            ?.let { conversationId ->
+                messageController.clearSuggestions(
+                    conversationId =
+                        conversationId
+                )
+            }
+
+        _uiState.update { state ->
+            state.missionContinuationDismissed()
+        }
+    }
+
     fun stop() {
         provisionalGreetingMessageId =
             null
@@ -191,12 +547,6 @@ class ChatSessionCoordinator
 
         sessionObservers.stop()
     }
-
-    /*
-     * =======================================================
-     * INITIALIZATION
-     * =======================================================
-     */
 
     private suspend fun initialize(
         requestedConversationId: String,
@@ -221,8 +571,7 @@ class ChatSessionCoordinator
             val cachedMissionOffer =
                 missionController.restoreOffer(
                     conversationId =
-                        initializationResult
-                            .conversationId
+                        initializationResult.conversationId
                 )
 
             _uiState.update { state ->
@@ -242,8 +591,7 @@ class ChatSessionCoordinator
 
             observeConversation(
                 conversationId =
-                    initializationResult
-                        .conversationId,
+                    initializationResult.conversationId,
 
                 scope =
                     scope
@@ -252,33 +600,6 @@ class ChatSessionCoordinator
             _uiState.update { state ->
                 state.initializationSucceeded()
             }
-
-            Log.d(
-                COORDINATOR_TAG,
-                buildString {
-                    append(
-                        "Chat initialized. "
-                    )
-
-                    append(
-                        "conversationId="
-                    )
-
-                    append(
-                        initializationResult
-                            .conversationId
-                    )
-
-                    append(
-                        ", provisional="
-                    )
-
-                    append(
-                        initializationResult
-                            .isProvisional
-                    )
-                }
-            )
         } catch (
             cancellationException:
             CancellationException
@@ -306,12 +627,6 @@ class ChatSessionCoordinator
                 null
         }
     }
-
-    /*
-     * =======================================================
-     * OBSERVATION
-     * =======================================================
-     */
 
     private fun observeConversation(
         conversationId: String,
@@ -352,20 +667,14 @@ class ChatSessionCoordinator
         )
     }
 
-    /*
-     * =======================================================
-     * MESSAGE UPDATES
-     * =======================================================
-     */
-
     private fun applyMessageUpdate(
         update: ChatMessagesUpdate
     ) {
-        val currentProvisionalGreetingId =
+        val provisionalId =
             provisionalGreetingMessageId
 
         if (
-            currentProvisionalGreetingId !=
+            provisionalId !=
             null &&
             update.messages.isEmpty()
         ) {
@@ -373,33 +682,12 @@ class ChatSessionCoordinator
         }
 
         if (
-            currentProvisionalGreetingId !=
+            provisionalId !=
             null &&
             update.messages.isNotEmpty()
         ) {
             provisionalGreetingMessageId =
                 null
-
-            Log.d(
-                COORDINATOR_TAG,
-                buildString {
-                    append(
-                        "Provisional greeting replaced by "
-                    )
-
-                    append(
-                        "persisted conversation messages. "
-                    )
-
-                    append(
-                        "persistedMessageCount="
-                    )
-
-                    append(
-                        update.messages.size
-                    )
-                }
-            )
         }
 
         _uiState.update { state ->
@@ -409,12 +697,6 @@ class ChatSessionCoordinator
             )
         }
     }
-
-    /*
-     * =======================================================
-     * BESSER
-     * =======================================================
-     */
 
     private fun applyBesserChallengeUpdate(
         challenges:
@@ -428,25 +710,15 @@ class ChatSessionCoordinator
         }
     }
 
-    /*
-     * =======================================================
-     * BESSER REFINEMENT
-     * =======================================================
-     */
-
     fun startBesserRefinement(
         challengeId: String
     ): Boolean {
         val currentState =
             _uiState.value
 
-        /*
-         * Do not replace a refinement currently being
-         * submitted.
-         */
         if (
-            currentState
-                .isSubmittingBesserRefinement
+            currentState.isSubmittingBesserRefinement ||
+            currentState.missionVariation.isStarting
         ) {
             return false
         }
@@ -455,8 +727,8 @@ class ChatSessionCoordinator
             currentState
                 .besserChallenges
                 .values
-                .firstOrNull { challenge ->
-                    challenge.id ==
+                .firstOrNull { candidate ->
+                    candidate.id ==
                             challengeId
                 }
                 ?: return false
@@ -518,78 +790,21 @@ class ChatSessionCoordinator
             )
         }
 
-        Log.i(
-            COORDINATOR_TAG,
-            buildString {
-                append(
-                    "Started Besser refinement. "
-                )
-
-                append(
-                    "challengeId="
-                )
-
-                append(
-                    challenge.id
-                )
-
-                append(
-                    ", messageId="
-                )
-
-                append(
-                    challenge.messageId
-                )
-
-                append(
-                    ", capabilityId="
-                )
-
-                append(
-                    challenge.capabilityId
-                )
-            }
-        )
-
         return true
     }
 
     private fun cancelBesserRefinement() {
-        val currentState =
-            _uiState.value
-
         if (
-            currentState
+            _uiState
+                .value
                 .isSubmittingBesserRefinement
         ) {
             return
         }
 
-        val refinement =
-            currentState
-                .activeBesserRefinement
-                ?: return
-
         _uiState.update { state ->
             state.besserRefinementCancelled()
         }
-
-        Log.d(
-            COORDINATOR_TAG,
-            buildString {
-                append(
-                    "Cancelled Besser refinement. "
-                )
-
-                append(
-                    "challengeId="
-                )
-
-                append(
-                    refinement.challengeId
-                )
-            }
-        )
     }
 
     fun showBesserError(
@@ -600,12 +815,6 @@ class ChatSessionCoordinator
                 message
         )
     }
-
-    /*
-     * =======================================================
-     * STREAK
-     * =======================================================
-     */
 
     private fun applyStreakUpdate(
         streakDays: Int
@@ -618,12 +827,6 @@ class ChatSessionCoordinator
         }
     }
 
-    /*
-     * =======================================================
-     * MISSION RESULT
-     * =======================================================
-     */
-
     private fun showMissionResult(
         missionTitle: String,
         analytics: MissionAnalytics
@@ -634,31 +837,6 @@ class ChatSessionCoordinator
 
             analytics =
                 analytics
-        )
-
-        Log.i(
-            COORDINATOR_TAG,
-            buildString {
-                append(
-                    "Showing completed mission result. "
-                )
-
-                append(
-                    "missionId="
-                )
-
-                append(
-                    analytics.missionId
-                )
-
-                append(
-                    ", overall="
-                )
-
-                append(
-                    analytics.overallScore
-                )
-            }
         )
     }
 
@@ -681,21 +859,14 @@ class ChatSessionCoordinator
         )
     }
 
-    /*
-     * =======================================================
-     * ADAPTIVE LEARNING
-     * =======================================================
-     */
-
     private fun consumeAdaptiveLearningFeedback(
         eventId: String
     ) {
         _uiState.update { state ->
-            val currentEvent =
-                state.adaptiveLearningFeedbackEvent
-
             if (
-                currentEvent?.eventId !=
+                state
+                    .adaptiveLearningFeedbackEvent
+                    ?.eventId !=
                 eventId
             ) {
                 state
@@ -707,12 +878,6 @@ class ChatSessionCoordinator
             }
         }
     }
-
-    /*
-     * =======================================================
-     * ERROR
-     * =======================================================
-     */
 
     private fun dismissError() {
         _uiState.update { state ->
@@ -737,11 +902,15 @@ class ChatSessionCoordinator
             "ChatSessionCoordinator"
 
         const val LOAD_ERROR =
-            "DeutschCraft could not load " +
-                    "the conversation."
+            "DeutschCraft could not load the conversation."
 
         const val MESSAGE_LOAD_ERROR =
-            "The saved conversation could not " +
-                    "be loaded."
+            "The saved conversation could not be loaded."
+
+        const val ACTIVE_MISSION_UNAVAILABLE_ERROR =
+            "Die aktive Mission ist noch nicht verfügbar."
+
+        const val DEFAULT_MISSION_TITLE =
+            "Gesprächsmission"
     }
 }

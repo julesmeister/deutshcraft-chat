@@ -1,6 +1,9 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/presentation/ChatUiAction.kt
+
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import androidx.compose.ui.text.input.TextFieldValue
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationType
 
 sealed interface ChatUiAction {
 
@@ -15,13 +18,19 @@ sealed interface ChatUiAction {
         val suggestionId: String
     ) : ChatUiAction
 
-    /*
-     * Leaves Besser refinement mode without skipping the
-     * underlying challenge.
-     *
-     * The accepted challenge remains available and can be
-     * reopened with Verbessern.
-     */
+    data object OpenMissionVariationPicker :
+        ChatUiAction
+
+    data object DismissMissionVariationPicker :
+        ChatUiAction
+
+    data object DismissMissionContinuation :
+        ChatUiAction
+
+    data class StartMissionVariation(
+        val variationType: MissionVariationType
+    ) : ChatUiAction
+
     data object CancelBesserRefinement :
         ChatUiAction
 

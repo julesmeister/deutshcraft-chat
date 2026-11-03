@@ -7,25 +7,30 @@ data class ConversationMission(
 
     val conversationId: String,
 
-    val template:
-    MissionTemplate,
+    /*
+     * Template that currently drives the conversation.
+     */
+    val template: MissionTemplate,
 
-    val sourceRecommendationId: String? =
-        null,
+    /*
+     * Permanent original mission template.
+     *
+     * Null is valid for legacy missions and means that the
+     * current template is still the root.
+     */
+    val rootMissionTemplateId: String? = null,
 
-    val targetCapabilityIds:
-    Set<String> =
+    val sourceRecommendationId: String? = null,
+
+    val targetCapabilityIds: Set<String> =
         emptySet(),
 
-    val adaptiveFocusKeys:
-    Set<String> =
+    val adaptiveFocusKeys: Set<String> =
         emptySet(),
 
-    val status:
-    MissionStatus,
+    val status: MissionStatus,
 
-    val objectiveProgress:
-    List<MissionObjectiveProgress>,
+    val objectiveProgress: List<MissionObjectiveProgress>,
 
     val startedAt: Long?,
 
@@ -37,6 +42,15 @@ data class ConversationMission(
 
     val updatedAt: Long
 ) {
+
+    val resolvedRootMissionTemplateId: String
+        get() =
+            rootMissionTemplateId
+                ?.trim()
+                ?.takeIf(
+                    String::isNotBlank
+                )
+                ?: template.id
 
     val hasLearningTargets: Boolean
         get() =
@@ -75,11 +89,8 @@ data class ConversationMission(
                                     requiredObjectives.size
                             )
                         .coerceIn(
-                            minimumValue =
-                                0,
-
-                            maximumValue =
-                                100
+                            minimumValue = 0,
+                            maximumValue = 100
                         )
                 }
 
@@ -101,8 +112,7 @@ data class ConversationMission(
             )
         }
 
-    val currentObjective:
-            MissionObjectiveProgress?
+    val currentObjective: MissionObjectiveProgress?
         get() =
             objectiveProgress
                 .sortedBy { progress ->

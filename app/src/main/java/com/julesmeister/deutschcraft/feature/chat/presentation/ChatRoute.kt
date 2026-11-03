@@ -2,6 +2,7 @@
 
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -14,16 +15,9 @@ import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
 
 @Composable
 fun ChatRoute(
-    onBackClick:
-        () -> Unit,
-
-    viewModel:
-    ChatViewModel =
-        hiltViewModel(),
-
-    levelProgressViewModel:
-    ChatLevelProgressViewModel =
-        hiltViewModel()
+    onBackClick: () -> Unit,
+    viewModel: ChatViewModel = hiltViewModel(),
+    levelProgressViewModel: ChatLevelProgressViewModel = hiltViewModel()
 ) {
     val uiState by
     viewModel
@@ -57,6 +51,14 @@ fun ChatRoute(
             initialValue =
                 UserSettings()
         )
+
+    BackHandler(
+        enabled =
+            true,
+
+        onBack =
+            onBackClick
+    )
 
     CompositionLocalProvider(
         LocalChatFontScale provides

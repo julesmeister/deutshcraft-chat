@@ -1,7 +1,12 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/presentation/ChatSessionMissionController.kt
+
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import android.util.Log
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.MissionOpportunity
+import com.julesmeister.deutschcraft.feature.mission.domain.usecase.StartMissionVariationUseCase
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationMode
+import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationType
 import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceController
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -10,78 +15,40 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/*
- * Owns mission-specific chat-session behavior.
- *
- * Responsibilities:
- *
- * - Restore cached mission offers
- * - Detect contextual mission opportunities
- * - Accept mission offers
- * - Dismiss mission offers
- * - Apply Room-backed active-mission updates
- * - Keep ChatSessionRuntime synchronized
- * - Keep ChatUiState synchronized
- * - Keep MissionGuidanceController synchronized
- * - Consume objective-completion presentation events
- */
 class ChatSessionMissionController
 @Inject constructor(
     private val missionOfferCoordinator:
     ChatMissionOfferCoordinator,
 
     private val missionGuidanceController:
-    MissionGuidanceController
+    MissionGuidanceController,
+
+    private val startMissionVariationUseCase:
+    StartMissionVariationUseCase
 ) {
 
     fun restoreOffer(
         conversationId: String
     ): MissionOpportunity? {
+
         return missionOfferCoordinator.restoreOffer(
             conversationId =
                 conversationId
         )
     }
 
-    /*
-     * Applies the authoritative mission state emitted by the
-     * Room-backed session observer.
-     *
-     * This is also the correct place to update Mission
-     * Guidance because it receives:
-     *
-     * - mission start
-     * - objective progress changes
-     * - current-objective changes
-     * - mission completion
-     *
-     * independently of the UI lifecycle.
-     */
     fun applyMissionUpdate(
-        update:
-        ChatMissionUpdate,
-        runtime:
-        ChatSessionRuntime,
-        uiState:
-        MutableStateFlow<ChatUiState>
+        update: ChatMissionUpdate,
+        runtime: ChatSessionRuntime,
+        uiState: MutableStateFlow<ChatUiState>
     ) {
         val mission =
             update.mission
 
-        /*
-         * Retain the complete mission domain model.
-         *
-         * ChatMessageSender uses this exact snapshot when the
-         * learner sends the next message.
-         */
         runtime.activeMission =
             mission
 
         if (mission != null) {
-            /*
-             * A real active mission supersedes a cached
-             * contextual mission offer.
-             */
             runtime
                 .activeConversationId
                 ?.let { conversationId ->
@@ -91,29 +58,8 @@ class ChatSessionMissionController
                     )
                 }
 
-            /*
-             * Once a mission is active, normal contextual
-             * mission detection must stop.
-             */
             runtime.cancelMissionCheck()
 
-            /*
-             * Keep learner guidance synchronized with the
-             * latest Room-backed mission.
-             *
-             * This updates:
-             *
-             * - mission title
-             * - mission progress
-             * - current objective
-             * - coaching hints
-             * - target vocabulary
-             * - example phrases
-             *
-             * Existing revealed-hint state should be restored
-             * by MissionGuidanceController from persisted hint
-             * usage.
-             */
             missionGuidanceController.updateMission(
                 mission =
                     mission
@@ -125,44 +71,41 @@ class ChatSessionMissionController
                     append(
                         "Active mission updated. "
                     )
+
                     append(
                         "missionId="
                     )
+
                     append(
                         mission.id
                     )
+
+                    append(
+                        ", rootTemplateId="
+                    )
+
+                    append(
+                        mission.resolvedRootMissionTemplateId
+                    )
+
+                    append(
+                        ", currentTemplateId="
+                    )
+
+                    append(
+                        mission.template.id
+                    )
+
                     append(
                         ", progress="
                     )
+
                     append(
                         mission.progress.percentage
-                    )
-                    append(
-                        "%"
-                    )
-                    append(
-                        ", currentObjective="
-                    )
-                    append(
-                        mission.currentObjective
-                            ?.objective
-                            ?.title
                     )
                 }
             )
         } else {
-            /*
-             * No active mission remains.
-             *
-             * This happens when:
-             *
-             * - the mission finishes
-             * - the conversation has no mission
-             * - the active mission is otherwise removed
-             *
-             * Close and clear guidance so stale objectives
-             * cannot leak into the next mission.
-             */
             missionGuidanceController.clear()
 
             Log.d(
@@ -171,22 +114,11 @@ class ChatSessionMissionController
             )
         }
 
-        /*
-         * Existing ChatUiState synchronization remains
-         * unchanged.
-         *
-         * This continues to drive:
-         *
-         * - top-bar mission title
-         * - objective title
-         * - guidance marquee
-         * - progress
-         * - objective-completion animation
-         */
         uiState.update { state ->
             state.withActiveMission(
                 mission =
                     mission,
+
                 newlyCompletedObjective =
                     update.newlyCompletedObjective
             )
@@ -197,8 +129,7 @@ class ChatSessionMissionController
         conversationId: String,
         scope: CoroutineScope,
         runtime: ChatSessionRuntime,
-        uiState:
-        MutableStateFlow<ChatUiState>
+        uiState: MutableStateFlow<ChatUiState>
     ) {
         val currentState =
             uiState.value
@@ -210,6 +141,7 @@ class ChatSessionMissionController
             null ||
             currentState.missionOffer !=
             null ||
+            currentState.missionVariation.hasContinuation ||
             currentState.isCheckingMissionOpportunity ||
             runtime.missionCheckJob?.isActive ==
             true
@@ -225,18 +157,18 @@ class ChatSessionMissionController
             scope.launch {
                 try {
                     val offer =
-                        missionOfferCoordinator
-                            .detectOffer(
-                                conversationId =
-                                    conversationId,
-                                hasActiveMission =
-                                    runtime.activeMission !=
-                                            null ||
-                                            uiState
-                                                .value
-                                                .activeMissionId !=
-                                            null
-                            )
+                        missionOfferCoordinator.detectOffer(
+                            conversationId =
+                                conversationId,
+
+                            hasActiveMission =
+                                runtime.activeMission !=
+                                        null ||
+                                        uiState
+                                            .value
+                                            .activeMissionId !=
+                                        null
+                        )
 
                     uiState.update { state ->
                         state.missionCheckFinished(
@@ -250,13 +182,6 @@ class ChatSessionMissionController
                 ) {
                     throw cancellationException
                 } catch (throwable: Throwable) {
-                    /*
-                     * Mission opportunity detection is
-                     * supplementary.
-                     *
-                     * Normal conversation has already
-                     * completed successfully.
-                     */
                     Log.e(
                         CONTROLLER_TAG,
                         "Mission opportunity check failed.",
@@ -279,8 +204,7 @@ class ChatSessionMissionController
     fun startOfferedMission(
         scope: CoroutineScope,
         runtime: ChatSessionRuntime,
-        uiState:
-        MutableStateFlow<ChatUiState>
+        uiState: MutableStateFlow<ChatUiState>
     ) {
         val conversationId =
             runtime.activeConversationId
@@ -315,16 +239,6 @@ class ChatSessionMissionController
                             conversationId
                     )
 
-                    /*
-                     * Do not construct MissionGuidance state
-                     * here.
-                     *
-                     * Room will emit the newly created active
-                     * ConversationMission and
-                     * applyMissionUpdate() will configure both
-                     * chat state and mission guidance from
-                     * that authoritative result.
-                     */
                     uiState.update { state ->
                         state.missionStartSucceeded()
                     }
@@ -353,11 +267,329 @@ class ChatSessionMissionController
             }
     }
 
+    fun startMissionVariation(
+        variationType: MissionVariationType,
+        scope: CoroutineScope,
+        runtime: ChatSessionRuntime,
+        uiState: MutableStateFlow<ChatUiState>
+    ) {
+        val conversationId =
+            runtime.activeConversationId
+                ?: run {
+                    uiState.update { state ->
+                        state.missionVariationStartFailed(
+                            message =
+                                CONVERSATION_UNAVAILABLE_ERROR
+                        )
+                    }
+
+                    return
+                }
+
+        val currentState =
+            uiState.value
+
+        val context =
+            currentState
+                .missionVariation
+                .context
+                ?: run {
+                    uiState.update { state ->
+                        state.missionVariationStartFailed(
+                            message =
+                                VARIATION_CONTEXT_UNAVAILABLE_ERROR
+                        )
+                    }
+
+                    return
+                }
+
+        if (
+            currentState
+                .missionVariation
+                .isStarting ||
+            currentState.isStartingMission ||
+            runtime.missionActionJob?.isActive ==
+            true
+        ) {
+            return
+        }
+
+        /*
+         * ===================================================
+         * MODE-SPECIFIC VALIDATION
+         * ===================================================
+         *
+         * This is the defect in the previous implementation.
+         *
+         * BRANCH_ACTIVE_MISSION requires an active mission.
+         *
+         * EXTEND_COMPLETED_MISSION requires there to be no
+         * active mission.
+         *
+         * The previous implementation rejected every request
+         * whenever runtime.activeMission != null, which made
+         * active mission branching impossible.
+         */
+
+        when (context.mode) {
+            MissionVariationMode.BRANCH_ACTIVE_MISSION -> {
+                val activeMission =
+                    runtime.activeMission
+
+                if (
+                    activeMission ==
+                    null ||
+                    currentState.activeMissionId ==
+                    null
+                ) {
+                    uiState.update { state ->
+                        state.missionVariationStartFailed(
+                            message =
+                                ACTIVE_MISSION_REQUIRED_ERROR
+                        )
+                    }
+
+                    return
+                }
+
+                if (
+                    activeMission.id !=
+                    context.resolvedSourceMissionId ||
+                    currentState.activeMissionId !=
+                    context.resolvedSourceMissionId
+                ) {
+                    uiState.update { state ->
+                        state.missionVariationStartFailed(
+                            message =
+                                ACTIVE_MISSION_CHANGED_ERROR
+                        )
+                    }
+
+                    return
+                }
+            }
+
+            MissionVariationMode.EXTEND_COMPLETED_MISSION -> {
+                if (
+                    runtime.activeMission !=
+                    null ||
+                    currentState.activeMissionId !=
+                    null
+                ) {
+                    uiState.update { state ->
+                        state.missionVariationStartFailed(
+                            message =
+                                ACTIVE_MISSION_EXTENSION_ERROR
+                        )
+                    }
+
+                    return
+                }
+            }
+        }
+
+        runtime.cancelSuggestionJob()
+
+        /*
+         * Prevent an ordinary mission-opportunity check from
+         * racing against the branch operation.
+         */
+        runtime.cancelMissionCheck()
+
+        uiState.update { state ->
+            state.missionVariationStartStarted()
+        }
+
+        Log.i(
+            CONTROLLER_TAG,
+            buildString {
+                append(
+                    "Starting mission variation. "
+                )
+
+                append(
+                    "conversationId="
+                )
+
+                append(
+                    conversationId
+                )
+
+                append(
+                    ", sourceMissionId="
+                )
+
+                append(
+                    context.resolvedSourceMissionId
+                )
+
+                append(
+                    ", mode="
+                )
+
+                append(
+                    context.mode.name
+                )
+
+                append(
+                    ", type="
+                )
+
+                append(
+                    variationType.name
+                )
+            }
+        )
+
+        runtime.missionActionJob =
+            scope.launch {
+                try {
+                    val resultingMissionId =
+                        startMissionVariationUseCase(
+                            conversationId =
+                                conversationId,
+
+                            context =
+                                context,
+
+                            variationType =
+                                variationType
+                        )
+
+                    /*
+                     * Room is authoritative for active mission
+                     * state.
+                     *
+                     * For an active branch, replacing the
+                     * template causes observeActiveMission() to
+                     * emit the updated ConversationMission.
+                     *
+                     * applyMissionUpdate() then refreshes:
+                     *
+                     * - runtime.activeMission
+                     * - mission guidance
+                     * - current objective
+                     * - top-bar progress
+                     */
+                    uiState.update { state ->
+                        state.missionVariationStartSucceeded()
+                    }
+
+                    Log.i(
+                        CONTROLLER_TAG,
+                        buildString {
+                            append(
+                                "Mission variation completed. "
+                            )
+
+                            append(
+                                "conversationId="
+                            )
+
+                            append(
+                                conversationId
+                            )
+
+                            append(
+                                ", resultingMissionId="
+                            )
+
+                            append(
+                                resultingMissionId
+                            )
+
+                            append(
+                                ", mode="
+                            )
+
+                            append(
+                                context.mode.name
+                            )
+
+                            append(
+                                ", type="
+                            )
+
+                            append(
+                                variationType.name
+                            )
+                        }
+                    )
+                } catch (
+                    cancellationException:
+                    CancellationException
+                ) {
+                    /*
+                     * Cancellation must also release the local
+                     * loading state. Otherwise the dialog /
+                     * composer can remain permanently blocked.
+                     */
+                    uiState.update { state ->
+                        state.missionVariationStartFailed(
+                            message =
+                                VARIATION_CANCELLED_MESSAGE
+                        )
+                    }
+
+                    throw cancellationException
+                } catch (throwable: Throwable) {
+                    Log.e(
+                        CONTROLLER_TAG,
+                        buildString {
+                            append(
+                                "Mission variation could not "
+                            )
+
+                            append(
+                                "be started. mode="
+                            )
+
+                            append(
+                                context.mode.name
+                            )
+
+                            append(
+                                ", type="
+                            )
+
+                            append(
+                                variationType.name
+                            )
+
+                            append(
+                                ", sourceMissionId="
+                            )
+
+                            append(
+                                context.resolvedSourceMissionId
+                            )
+                        },
+                        throwable
+                    )
+
+                    uiState.update { state ->
+                        state.missionVariationStartFailed(
+                            message =
+                                throwable
+                                    .message
+                                    ?.trim()
+                                    ?.takeIf(
+                                        String::isNotBlank
+                                    )
+                                    ?: MISSION_VARIATION_START_ERROR
+                        )
+                    }
+                } finally {
+                    runtime.missionActionJob =
+                        null
+                }
+            }
+    }
+
     fun dismissOffer(
-        runtime:
-        ChatSessionRuntime,
-        uiState:
-        MutableStateFlow<ChatUiState>
+        runtime: ChatSessionRuntime,
+        uiState: MutableStateFlow<ChatUiState>
     ) {
         val conversationId =
             runtime.activeConversationId
@@ -373,20 +605,9 @@ class ChatSessionMissionController
         }
     }
 
-    /*
-     * Consumes the temporary objective-completion animation.
-     *
-     * MissionGuidanceController does not need to be manually
-     * advanced here.
-     *
-     * Room already persists objective completion, and the
-     * resulting mission emission updates guidance through
-     * applyMissionUpdate().
-     */
     fun consumeObjectiveCompletion(
         eventId: String,
-        uiState:
-        MutableStateFlow<ChatUiState>
+        uiState: MutableStateFlow<ChatUiState>
     ) {
         uiState.update { state ->
             state.objectiveCompletionShown(
@@ -397,10 +618,34 @@ class ChatSessionMissionController
     }
 
     private companion object {
+
         const val CONTROLLER_TAG =
             "ChatSessionMission"
 
         const val MISSION_START_ERROR =
             "The mission could not be started."
+
+        const val MISSION_VARIATION_START_ERROR =
+            "Die neue Richtung konnte nicht gestartet werden."
+
+        const val CONVERSATION_UNAVAILABLE_ERROR =
+            "Die Unterhaltung ist noch nicht verfügbar."
+
+        const val VARIATION_CONTEXT_UNAVAILABLE_ERROR =
+            "Die gewählte Missionsrichtung ist nicht mehr verfügbar."
+
+        const val ACTIVE_MISSION_REQUIRED_ERROR =
+            "Die aktive Mission ist nicht mehr verfügbar."
+
+        const val ACTIVE_MISSION_CHANGED_ERROR =
+            "Die Mission hat sich inzwischen geändert. " +
+                    "Öffne „Andere Richtung“ erneut."
+
+        const val ACTIVE_MISSION_EXTENSION_ERROR =
+            "Eine abgeschlossene Mission kann nicht erweitert werden, " +
+                    "solange bereits eine andere Mission aktiv ist."
+
+        const val VARIATION_CANCELLED_MESSAGE =
+            "Die neue Richtung wurde abgebrochen."
     }
 }

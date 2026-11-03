@@ -24,35 +24,18 @@ private val mapperJson =
     }
 
 fun MissionTemplateEntity.toDomain(
-    objectives:
-    List<MissionObjectiveEntity>
+    objectives: List<MissionObjectiveEntity>
 ): MissionTemplate {
 
     return MissionTemplate(
-        id =
-            id,
-
-        title =
-            title,
-
-        description =
-            description,
-
-        scenario =
-            scenario,
-
-        learnerRole =
-            learnerRole,
-
-        assistantRole =
-            assistantRole,
-
-        difficulty =
-            difficulty.toMissionDifficulty(),
-
-        icon =
-            icon,
-
+        id = id,
+        title = title,
+        description = description,
+        scenario = scenario,
+        learnerRole = learnerRole,
+        assistantRole = assistantRole,
+        difficulty = difficulty.toMissionDifficulty(),
+        icon = icon,
         objectives =
             objectives
                 .filter { objective ->
@@ -65,9 +48,7 @@ fun MissionTemplateEntity.toDomain(
                 .map { objective ->
                     objective.toDomain()
                 },
-
-        isEnabled =
-            isEnabled
+        isEnabled = isEnabled
     )
 }
 
@@ -77,38 +58,17 @@ fun MissionTemplate.toEntity(
 ): MissionTemplateEntity {
 
     return MissionTemplateEntity(
-        id =
-            id,
-
-        title =
-            title,
-
-        description =
-            description,
-
-        scenario =
-            scenario,
-
-        learnerRole =
-            learnerRole,
-
-        assistantRole =
-            assistantRole,
-
-        difficulty =
-            difficulty.name,
-
-        icon =
-            icon,
-
-        isEnabled =
-            isEnabled,
-
-        createdAt =
-            createdAt,
-
-        updatedAt =
-            updatedAt
+        id = id,
+        title = title,
+        description = description,
+        scenario = scenario,
+        learnerRole = learnerRole,
+        assistantRole = assistantRole,
+        difficulty = difficulty.name,
+        icon = icon,
+        isEnabled = isEnabled,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }
 
@@ -116,46 +76,27 @@ fun MissionObjectiveEntity.toDomain():
         MissionObjective {
 
     return MissionObjective(
-        id =
-            id,
-
-        missionTemplateId =
-            missionTemplateId,
-
-        title =
-            title,
-
-        description =
-            description,
-
-        sequenceNumber =
-            sequenceNumber,
-
-        isRequired =
-            isRequired,
-
-        completionHint =
-            completionHint,
-
+        id = id,
+        missionTemplateId = missionTemplateId,
+        title = title,
+        description = description,
+        sequenceNumber = sequenceNumber,
+        isRequired = isRequired,
+        completionHint = completionHint,
         coachingHints =
             coachingHintsJson
                 .toMissionObjectiveStringList(
-                    json =
-                        mapperJson
+                    json = mapperJson
                 ),
-
         targetVocabulary =
             targetVocabularyJson
                 .toMissionObjectiveStringList(
-                    json =
-                        mapperJson
+                    json = mapperJson
                 ),
-
         examplePhrases =
             examplePhrasesJson
                 .toMissionObjectiveStringList(
-                    json =
-                        mapperJson
+                    json = mapperJson
                 )
     )
 }
@@ -164,111 +105,66 @@ fun MissionObjective.toEntity():
         MissionObjectiveEntity {
 
     return MissionObjectiveEntity(
-        id =
-            id,
-
-        missionTemplateId =
-            missionTemplateId,
-
-        title =
-            title,
-
-        description =
-            description,
-
-        sequenceNumber =
-            sequenceNumber,
-
-        isRequired =
-            isRequired,
-
-        completionHint =
-            completionHint,
-
+        id = id,
+        missionTemplateId = missionTemplateId,
+        title = title,
+        description = description,
+        sequenceNumber = sequenceNumber,
+        isRequired = isRequired,
+        completionHint = completionHint,
         coachingHintsJson =
-            coachingHints
-                .toMissionObjectiveJson(
-                    json =
-                        mapperJson
-                ),
-
+            coachingHints.toMissionObjectiveJson(
+                json = mapperJson
+            ),
         targetVocabularyJson =
-            targetVocabulary
-                .toMissionObjectiveJson(
-                    json =
-                        mapperJson
-                ),
-
+            targetVocabulary.toMissionObjectiveJson(
+                json = mapperJson
+            ),
         examplePhrasesJson =
-            examplePhrases
-                .toMissionObjectiveJson(
-                    json =
-                        mapperJson
-                )
+            examplePhrases.toMissionObjectiveJson(
+                json = mapperJson
+            )
     )
 }
 
 fun ConversationMissionEntity.toDomain(
     template: MissionTemplate,
-
-    objectiveProgress:
-    List<MissionObjectiveProgress>
+    objectiveProgress: List<MissionObjectiveProgress>
 ): ConversationMission {
 
     return ConversationMission(
-        id =
-            id,
-
-        conversationId =
-            conversationId,
-
-        template =
-            template,
-
-        sourceRecommendationId =
-            sourceRecommendationId,
-
+        id = id,
+        conversationId = conversationId,
+        template = template,
+        rootMissionTemplateId =
+            rootMissionTemplateId
+                ?.trim()
+                ?.takeIf(
+                    String::isNotBlank
+                ),
+        sourceRecommendationId = sourceRecommendationId,
         targetCapabilityIds =
             targetCapabilityIdsJson
                 .toMissionObjectiveStringList(
-                    json =
-                        mapperJson
+                    json = mapperJson
                 )
                 .toSet(),
-
         adaptiveFocusKeys =
             adaptiveFocusKeysJson
                 .toMissionObjectiveStringList(
-                    json =
-                        mapperJson
+                    json = mapperJson
                 )
                 .toSet(),
-
-        status =
-            status.toMissionStatus(),
-
+        status = status.toMissionStatus(),
         objectiveProgress =
-            objectiveProgress
-                .sortedBy { progress ->
-                    progress
-                        .objective
-                        .sequenceNumber
-                },
-
-        startedAt =
-            startedAt,
-
-        completedAt =
-            completedAt,
-
-        dismissedAt =
-            dismissedAt,
-
-        createdAt =
-            createdAt,
-
-        updatedAt =
-            updatedAt
+            objectiveProgress.sortedBy { progress ->
+                progress.objective.sequenceNumber
+            },
+        startedAt = startedAt,
+        completedAt = completedAt,
+        dismissedAt = dismissedAt,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }
 
@@ -276,53 +172,36 @@ fun ConversationMission.toEntity():
         ConversationMissionEntity {
 
     return ConversationMissionEntity(
-        id =
-            id,
-
-        conversationId =
-            conversationId,
-
-        missionTemplateId =
-            template.id,
-
-        sourceRecommendationId =
-            sourceRecommendationId,
-
+        id = id,
+        conversationId = conversationId,
+        missionTemplateId = template.id,
+        rootMissionTemplateId =
+            rootMissionTemplateId
+                ?.trim()
+                ?.takeIf(
+                    String::isNotBlank
+                ),
+        sourceRecommendationId = sourceRecommendationId,
         targetCapabilityIdsJson =
             targetCapabilityIds
                 .toList()
                 .sorted()
                 .toMissionObjectiveJson(
-                    json =
-                        mapperJson
+                    json = mapperJson
                 ),
-
         adaptiveFocusKeysJson =
             adaptiveFocusKeys
                 .toList()
                 .sorted()
                 .toMissionObjectiveJson(
-                    json =
-                        mapperJson
+                    json = mapperJson
                 ),
-
-        status =
-            status.name,
-
-        startedAt =
-            startedAt,
-
-        completedAt =
-            completedAt,
-
-        dismissedAt =
-            dismissedAt,
-
-        createdAt =
-            createdAt,
-
-        updatedAt =
-            updatedAt
+        status = status.name,
+        startedAt = startedAt,
+        completedAt = completedAt,
+        dismissedAt = dismissedAt,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }
 
@@ -331,25 +210,14 @@ fun MissionObjectiveProgressEntity.toDomain(
 ): MissionObjectiveProgress {
 
     return MissionObjectiveProgress(
-        objective =
-            objective,
-
-        isCompleted =
-            isCompleted,
-
-        completedAt =
-            completedAt,
-
-        completedByMessageId =
-            completedByMessageId,
-
+        objective = objective,
+        isCompleted = isCompleted,
+        completedAt = completedAt,
+        completedByMessageId = completedByMessageId,
         confidence =
             confidence.coerceIn(
-                minimumValue =
-                    0f,
-
-                maximumValue =
-                    1f
+                minimumValue = 0f,
+                maximumValue = 1f
             )
     )
 }
@@ -362,22 +230,16 @@ fun MissionObjectiveProgress.toEntity(
     return MissionObjectiveProgressEntity(
         conversationMissionId =
             conversationMissionId,
-
         objectiveId =
             objective.id,
-
         isCompleted =
             isCompleted,
-
         completedAt =
             completedAt,
-
         completedByMessageId =
             completedByMessageId,
-
         confidence =
             normalizedConfidence,
-
         updatedAt =
             updatedAt
     )
@@ -387,8 +249,7 @@ fun ConversationMissionWithDetails.toDomain():
         ConversationMission {
 
     val templateId =
-        conversationMission
-            .missionTemplateId
+        conversationMission.missionTemplateId
 
     val matchingObjectives =
         objectives
@@ -424,16 +285,12 @@ fun ConversationMissionWithDetails.toDomain():
                 MissionObjectiveProgress(
                     objective =
                         domainObjective,
-
                     isCompleted =
                         false,
-
                     completedAt =
                         null,
-
                     completedByMessageId =
                         null,
-
                     confidence =
                         0f
                 )
@@ -454,7 +311,6 @@ fun ConversationMissionWithDetails.toDomain():
     return conversationMission.toDomain(
         template =
             domainTemplate,
-
         objectiveProgress =
             domainObjectiveProgress
     )
@@ -466,11 +322,8 @@ private fun String.toMissionDifficulty():
     return enumValues<MissionDifficulty>()
         .firstOrNull { difficulty ->
             difficulty.name.equals(
-                other =
-                    trim(),
-
-                ignoreCase =
-                    true
+                other = trim(),
+                ignoreCase = true
             )
         }
         ?: MissionDifficulty.A1
@@ -482,11 +335,8 @@ private fun String.toMissionStatus():
     return enumValues<MissionStatus>()
         .firstOrNull { missionStatus ->
             missionStatus.name.equals(
-                other =
-                    trim(),
-
-                ignoreCase =
-                    true
+                other = trim(),
+                ignoreCase = true
             )
         }
         ?: MissionStatus.OFFERED

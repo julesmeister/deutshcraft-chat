@@ -2,6 +2,8 @@
 
 package com.julesmeister.deutschcraft.feature.mission.data
 
+import androidx.room.withTransaction
+import com.julesmeister.deutschcraft.core.database.DeutschCraftDatabase
 import com.julesmeister.deutschcraft.core.database.dao.MissionDao
 import com.julesmeister.deutschcraft.core.database.entity.mission.ConversationMissionEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveEntity
@@ -10,6 +12,7 @@ import com.julesmeister.deutschcraft.core.database.entity.mission.MissionTemplat
 import com.julesmeister.deutschcraft.feature.mission.data.local.toMissionObjectiveJson
 import com.julesmeister.deutschcraft.feature.mission.data.mapper.toDomain
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
+import com.julesmeister.deutschcraft.feature.mission.domain.MissionObjective
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionStatus
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionTemplate
 import com.julesmeister.deutschcraft.feature.mission.domain.repository.MissionRepository
@@ -25,6 +28,9 @@ import kotlinx.serialization.json.Json
 @Singleton
 class LocalFirstMissionRepository
 @Inject constructor(
+    private val database:
+    DeutschCraftDatabase,
+
     private val missionDao:
     MissionDao,
 
@@ -139,109 +145,23 @@ class LocalFirstMissionRepository
         val now =
             clock.millis()
 
-        missionDao.upsertMissionTemplate(
-            template =
-                MissionTemplateEntity(
-                    id =
-                        template.id,
+        database.withTransaction {
+            saveMissionTemplateInternal(
+                template =
+                    template,
 
-                    title =
-                        template.title,
-
-                    description =
-                        template.description,
-
-                    scenario =
-                        template.scenario,
-
-                    learnerRole =
-                        template.learnerRole,
-
-                    assistantRole =
-                        template.assistantRole,
-
-                    difficulty =
-                        template.difficulty.name,
-
-                    icon =
-                        template.icon,
-
-                    isEnabled =
-                        template.isEnabled,
-
-                    createdAt =
-                        now,
-
-                    updatedAt =
-                        now
-                )
-        )
-
-        missionDao.upsertMissionObjectives(
-            objectives =
-                template.objectives.map { objective ->
-                    MissionObjectiveEntity(
-                        id =
-                            objective.id,
-
-                        missionTemplateId =
-                            template.id,
-
-                        title =
-                            objective.title,
-
-                        description =
-                            objective.description,
-
-                        sequenceNumber =
-                            objective.sequenceNumber,
-
-                        isRequired =
-                            objective.isRequired,
-
-                        completionHint =
-                            objective.completionHint,
-
-                        coachingHintsJson =
-                            objective
-                                .coachingHints
-                                .toMissionObjectiveJson(
-                                    json =
-                                        json
-                                ),
-
-                        targetVocabularyJson =
-                            objective
-                                .targetVocabulary
-                                .toMissionObjectiveJson(
-                                    json =
-                                        json
-                                ),
-
-                        examplePhrasesJson =
-                            objective
-                                .examplePhrases
-                                .toMissionObjectiveJson(
-                                    json =
-                                        json
-                                )
-                    )
-                }
-        )
+                now =
+                    now
+            )
+        }
     }
 
     override suspend fun offerMission(
         conversationId: String,
-
         missionTemplateId: String,
-
         sourceRecommendationId: String?,
-
-        targetCapabilityIds:
-        Set<String>,
-
-        adaptiveFocusKeys:
-        Set<String>
+        targetCapabilityIds: Set<String>,
+        adaptiveFocusKeys: Set<String>
     ): String {
 
         val template =
@@ -260,84 +180,74 @@ class LocalFirstMissionRepository
         val conversationMissionId =
             UUID.randomUUID().toString()
 
-        missionDao.upsertConversationMission(
-            conversationMission =
-                ConversationMissionEntity(
-                    id =
-                        conversationMissionId,
-
-                    conversationId =
-                        conversationId,
-
-                    missionTemplateId =
-                        missionTemplateId,
-
-                    sourceRecommendationId =
-                        sourceRecommendationId
-                            ?.trim()
-                            ?.takeIf(
-                                String::isNotBlank
-                            ),
-
-                    targetCapabilityIdsJson =
-                        encodeStringSet(
-                            values =
-                                targetCapabilityIds
-                        ),
-
-                    adaptiveFocusKeysJson =
-                        encodeStringSet(
-                            values =
-                                adaptiveFocusKeys
-                        ),
-
-                    status =
-                        MissionStatus.OFFERED.name,
-
-                    startedAt =
-                        null,
-
-                    completedAt =
-                        null,
-
-                    dismissedAt =
-                        null,
-
-                    createdAt =
-                        now,
-
-                    updatedAt =
-                        now
-                )
-        )
-
-        missionDao.upsertObjectiveProgressList(
-            progress =
-                template.objectives.map { objective ->
-                    MissionObjectiveProgressEntity(
-                        conversationMissionId =
+        database.withTransaction {
+            missionDao.upsertConversationMission(
+                conversationMission =
+                    ConversationMissionEntity(
+                        id =
                             conversationMissionId,
 
-                        objectiveId =
-                            objective.id,
+                        conversationId =
+                            conversationId,
 
-                        isCompleted =
-                            false,
+                        missionTemplateId =
+                            missionTemplateId,
+
+                        rootMissionTemplateId =
+                            missionTemplateId,
+
+                        sourceRecommendationId =
+                            sourceRecommendationId
+                                ?.trim()
+                                ?.takeIf(
+                                    String::isNotBlank
+                                ),
+
+                        targetCapabilityIdsJson =
+                            encodeStringSet(
+                                values =
+                                    targetCapabilityIds
+                            ),
+
+                        adaptiveFocusKeysJson =
+                            encodeStringSet(
+                                values =
+                                    adaptiveFocusKeys
+                            ),
+
+                        status =
+                            MissionStatus.OFFERED.name,
+
+                        startedAt =
+                            null,
 
                         completedAt =
                             null,
 
-                        completedByMessageId =
+                        dismissedAt =
                             null,
 
-                        confidence =
-                            0f,
+                        createdAt =
+                            now,
 
                         updatedAt =
                             now
                     )
-                }
-        )
+            )
+
+            missionDao.upsertObjectiveProgressList(
+                progress =
+                    template.objectives.map { objective ->
+                        objective.toEmptyProgressEntity(
+                            conversationMissionId =
+                                conversationMissionId,
+
+                            updatedAt =
+                                now
+                        )
+                    }
+            )
+        }
 
         return conversationMissionId
     }
@@ -364,11 +274,182 @@ class LocalFirstMissionRepository
             )
 
         check(
-            changedRows >
-                    0
+            changedRows > 0
         ) {
             "Mission could not be started: " +
                     conversationMissionId
+        }
+    }
+
+    override suspend fun replaceActiveMissionBranch(
+        conversationMissionId: String,
+        replacementTemplate: MissionTemplate
+    ) {
+        /*
+         * Read the complete current mission before entering the
+         * transaction.
+         *
+         * At this point template may be a generated temporary
+         * branch. rootMissionTemplateId remains the permanent
+         * semantic anchor.
+         */
+        val existingMission =
+            getConversationMission(
+                conversationMissionId =
+                    conversationMissionId
+            )
+                ?: throw IllegalArgumentException(
+                    "Mission does not exist: " +
+                            conversationMissionId
+                )
+
+        check(
+            existingMission.status ==
+                    MissionStatus.ACTIVE
+        ) {
+            "Only an active mission can be branched."
+        }
+
+        val completedProgress =
+            existingMission
+                .objectiveProgress
+                .filter { progress ->
+                    progress.isCompleted
+                }
+                .sortedBy { progress ->
+                    progress.objective.sequenceNumber
+                }
+
+        val now =
+            clock.millis()
+
+        /*
+         * The current ConversationMission keeps its ID and
+         * original root template.
+         *
+         * The new template contains:
+         *
+         * 1. cloned completed objectives
+         * 2. freshly generated objectives for the new branch
+         *
+         * Cloning completed objectives is necessary because
+         * objective rows belong to a specific template.
+         */
+        val mergedTemplate =
+            buildMergedBranchTemplate(
+                replacementTemplate =
+                    replacementTemplate,
+
+                completedProgress =
+                    completedProgress
+            )
+
+        database.withTransaction {
+            saveMissionTemplateInternal(
+                template =
+                    mergedTemplate,
+
+                now =
+                    now
+            )
+
+            /*
+             * Remove progress belonging to the previous current
+             * template.
+             *
+             * We immediately recreate completed progress against
+             * the cloned completed objectives and empty progress
+             * against the AI-generated branch objectives.
+             */
+            missionDao.deleteObjectiveProgressForMission(
+                conversationMissionId =
+                    conversationMissionId
+            )
+
+            val preservedObjectiveCount =
+                completedProgress.size
+
+            val newProgress =
+                mergedTemplate
+                    .objectives
+                    .mapIndexed {
+                            index,
+                            objective ->
+
+                        if (
+                            index <
+                            preservedObjectiveCount
+                        ) {
+                            val previousProgress =
+                                completedProgress[
+                                    index
+                                ]
+
+                            MissionObjectiveProgressEntity(
+                                conversationMissionId =
+                                    conversationMissionId,
+
+                                objectiveId =
+                                    objective.id,
+
+                                isCompleted =
+                                    true,
+
+                                completedAt =
+                                    previousProgress.completedAt,
+
+                                completedByMessageId =
+                                    previousProgress
+                                        .completedByMessageId,
+
+                                confidence =
+                                    previousProgress
+                                        .normalizedConfidence,
+
+                                updatedAt =
+                                    now
+                            )
+                        } else {
+                            objective.toEmptyProgressEntity(
+                                conversationMissionId =
+                                    conversationMissionId,
+
+                                updatedAt =
+                                    now
+                            )
+                        }
+                    }
+
+            missionDao.upsertObjectiveProgressList(
+                progress =
+                    newProgress
+            )
+
+            /*
+             * IMPORTANT:
+             *
+             * This is the renamed DAO method from the corrected
+             * MissionDao.
+             *
+             * Do not call updateActiveMissionTemplate().
+             */
+            val changedRows =
+                missionDao.replaceActiveMissionTemplate(
+                    conversationMissionId =
+                        conversationMissionId,
+
+                    newMissionTemplateId =
+                        mergedTemplate.id,
+
+                    updatedAt =
+                        now
+                )
+
+            check(
+                changedRows > 0
+            ) {
+                "The active mission branch could not be persisted."
+            }
         }
     }
 
@@ -430,19 +511,17 @@ class LocalFirstMissionRepository
             )
 
         check(
-            changedRows >
-                    0
+            changedRows > 0
         ) {
             "Mission objective could not be completed: " +
                     objectiveId
         }
 
         val remainingRequiredObjectives =
-            missionDao
-                .countIncompleteRequiredObjectives(
-                    conversationMissionId =
-                        conversationMissionId
-                )
+            missionDao.countIncompleteRequiredObjectives(
+                conversationMissionId =
+                    conversationMissionId
+            )
 
         if (
             remainingRequiredObjectives ==
@@ -482,6 +561,200 @@ class LocalFirstMissionRepository
         missionDao.deleteConversationMissions(
             conversationId =
                 conversationId
+        )
+    }
+
+    private suspend fun saveMissionTemplateInternal(
+        template: MissionTemplate,
+        now: Long
+    ) {
+        missionDao.upsertMissionTemplate(
+            template =
+                MissionTemplateEntity(
+                    id =
+                        template.id,
+
+                    title =
+                        template.title,
+
+                    description =
+                        template.description,
+
+                    scenario =
+                        template.scenario,
+
+                    learnerRole =
+                        template.learnerRole,
+
+                    assistantRole =
+                        template.assistantRole,
+
+                    difficulty =
+                        template.difficulty.name,
+
+                    icon =
+                        template.icon,
+
+                    isEnabled =
+                        template.isEnabled,
+
+                    createdAt =
+                        now,
+
+                    updatedAt =
+                        now
+                )
+        )
+
+        missionDao.upsertMissionObjectives(
+            objectives =
+                template
+                    .objectives
+                    .map { objective ->
+                        objective.toEntity(
+                            missionTemplateId =
+                                template.id
+                        )
+                    }
+        )
+    }
+
+    private fun buildMergedBranchTemplate(
+        replacementTemplate: MissionTemplate,
+        completedProgress:
+        List<com.julesmeister.deutschcraft.feature.mission.domain.MissionObjectiveProgress>
+    ): MissionTemplate {
+
+        val templateId =
+            replacementTemplate.id
+
+        val preservedObjectives =
+            completedProgress
+                .mapIndexed {
+                        index,
+                        progress ->
+
+                    progress
+                        .objective
+                        .copy(
+                            id =
+                                UUID
+                                    .randomUUID()
+                                    .toString(),
+
+                            missionTemplateId =
+                                templateId,
+
+                            sequenceNumber =
+                                index + 1
+                        )
+                }
+
+        val branchObjectives =
+            replacementTemplate
+                .objectives
+                .mapIndexed {
+                        index,
+                        objective ->
+
+                    objective.copy(
+                        id =
+                            UUID
+                                .randomUUID()
+                                .toString(),
+
+                        missionTemplateId =
+                            templateId,
+
+                        sequenceNumber =
+                            preservedObjectives.size +
+                                    index +
+                                    1
+                    )
+                }
+
+        return replacementTemplate.copy(
+            objectives =
+                preservedObjectives +
+                        branchObjectives
+        )
+    }
+
+    private fun MissionObjective.toEntity(
+        missionTemplateId: String
+    ): MissionObjectiveEntity {
+
+        return MissionObjectiveEntity(
+            id =
+                id,
+
+            missionTemplateId =
+                missionTemplateId,
+
+            title =
+                title,
+
+            description =
+                description,
+
+            sequenceNumber =
+                sequenceNumber,
+
+            isRequired =
+                isRequired,
+
+            completionHint =
+                completionHint,
+
+            coachingHintsJson =
+                coachingHints
+                    .toMissionObjectiveJson(
+                        json =
+                            json
+                    ),
+
+            targetVocabularyJson =
+                targetVocabulary
+                    .toMissionObjectiveJson(
+                        json =
+                            json
+                    ),
+
+            examplePhrasesJson =
+                examplePhrases
+                    .toMissionObjectiveJson(
+                        json =
+                            json
+                    )
+        )
+    }
+
+    private fun MissionObjective.toEmptyProgressEntity(
+        conversationMissionId: String,
+        updatedAt: Long
+    ): MissionObjectiveProgressEntity {
+
+        return MissionObjectiveProgressEntity(
+            conversationMissionId =
+                conversationMissionId,
+
+            objectiveId =
+                id,
+
+            isCompleted =
+                false,
+
+            completedAt =
+                null,
+
+            completedByMessageId =
+                null,
+
+            confidence =
+                0f,
+
+            updatedAt =
+                updatedAt
         )
     }
 
