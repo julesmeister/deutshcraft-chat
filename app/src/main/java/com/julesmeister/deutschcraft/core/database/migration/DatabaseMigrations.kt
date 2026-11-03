@@ -2,13 +2,14 @@ package com.julesmeister.deutschcraft.core.database.migration
 
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.julesmeister.deutschcraft.core.database.dao.COMPLETED_MISSION_SCENARIOS
 
 /*
  * Complete known DeutschCraft database migration chain.
  *
  * Current database version:
  *
- * 14
+ * 19 (14 -> 18 use Room auto-migrations)
  *
  * Known migration history:
  *
@@ -21,6 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * 11 -> 12
  * 12 -> 13
  * 13 -> 14
+ * 18 -> 19
  *
  * Future migrations should continue to be added here and
  * appended to ALL.
@@ -361,6 +363,25 @@ object DatabaseMigrations {
      *     *DatabaseMigrations.ALL
      * )
      */
+    val MIGRATION_18_19 = object : Migration(18, 19) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS mission_scenario_completions (
+                    scenarioType TEXT NOT NULL,
+                    PRIMARY KEY(scenarioType)
+                )
+                """.trimIndent()
+            )
+            database.execSQL(
+                """
+                INSERT OR IGNORE INTO mission_scenario_completions (scenarioType)
+                $COMPLETED_MISSION_SCENARIOS
+                """.trimIndent()
+            )
+        }
+    }
+
     val ALL =
         arrayOf(
             MIGRATION_5_6,
@@ -371,7 +392,8 @@ object DatabaseMigrations {
             MIGRATION_10_11,
             MIGRATION_11_12,
             MIGRATION_12_13,
-            MIGRATION_13_14
+            MIGRATION_13_14,
+            MIGRATION_18_19
         )
 
     /*

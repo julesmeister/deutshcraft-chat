@@ -319,6 +319,30 @@ Performance Review
 
 Mission progress is saved locally and survives application restarts.
 
+## Thread-List Mission Recommendations
+
+The mission cell reuses eligible recommendations stored in Room before asking
+Qwen to generate more. New scenarios use recent ordinary learner messages as
+a local, soft novelty signal; conversation text is not added to the generation
+prompt. CEFR suitability, adaptive reinforcement, objectives, hints, vocabulary,
+and examples remain intact.
+
+Completed scenario identities are never recommended again, across CEFR changes,
+archives, and history age. A small completion ledger retains those identities
+after thread deletion, with existing identifiable completions backfilled during
+the database upgrade. Active and paused mission scenarios are also excluded;
+abandoned attempts do not permanently block a scenario.
+
+Identity comes from the source recommendation, the seeded restaurant template,
+or an exact legacy template match. Unlinked, freely generated missions without
+a recognizable scenario identity are not guessed from conversation keywords.
+
+The visible cell observes persisted eligibility, and starting a recommendation
+rechecks it in the same transaction that creates its conversation and mission.
+Skipping never restores an ineligible suggestion. Refills share generation
+locks, stop after an exhausted generation pass, and back off failed scenarios
+for one minute instead of immediately repeating their AI requests.
+
 ---
 
 ## Mission Infrastructure

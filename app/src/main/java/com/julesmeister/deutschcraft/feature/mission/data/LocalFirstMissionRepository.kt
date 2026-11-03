@@ -540,19 +540,27 @@ class LocalFirstMissionRepository
         val now =
             clock.millis()
 
-        missionDao.updateMissionCompletionState(
-            conversationMissionId =
-                conversationMissionId,
+        database.withTransaction {
+            missionDao.updateMissionCompletionState(
+                conversationMissionId =
+                    conversationMissionId,
 
-            status =
-                MissionStatus.COMPLETED.name,
+                status =
+                    MissionStatus.COMPLETED.name,
 
-            completedAt =
-                now,
+                completedAt =
+                    now,
 
-            updatedAt =
-                now
-        )
+                updatedAt =
+                    now
+            )
+            database.missionThreadRecommendationDao().markCompletedByMissionId(
+                conversationMissionId = conversationMissionId,
+                completedAt = now
+            )
+            // Retain only scenario identities, even if the learner deletes the thread.
+            database.missionThreadRecommendationDao().recordCompletedScenarioTypes()
+        }
     }
 
     override suspend fun deleteConversationMissions(

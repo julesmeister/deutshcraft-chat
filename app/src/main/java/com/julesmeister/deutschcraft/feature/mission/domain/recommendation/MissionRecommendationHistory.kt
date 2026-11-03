@@ -13,7 +13,10 @@ data class MissionRecommendationHistory(
 
     val dismissedScenarioTypes:
     List<MissionScenarioType> =
-        emptyList()
+        emptyList(),
+
+    val blockedScenarioTypes: Set<MissionScenarioType> = emptySet(),
+    val recentConversationText: String = ""
 ) {
 
     val contextCategories:

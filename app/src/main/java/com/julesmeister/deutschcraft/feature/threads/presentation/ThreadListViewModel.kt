@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -75,6 +77,7 @@ class ThreadListViewModel
     init {
         observeStreak()
         observeThreads()
+        observeMissionRecommendation()
     }
 
     /*
@@ -211,9 +214,6 @@ class ThreadListViewModel
             return
         }
 
-        val previousRecommendation =
-            currentState.missionRecommendation
-
         val activeThreads =
             activeThreadsFromState(
                 state =
@@ -242,14 +242,10 @@ class ThreadListViewModel
                                 true
                         )
 
-                val displayedRecommendation =
-                    nextRecommendation
-                        ?: previousRecommendation
-
                 _uiState.update { state ->
                     state.copy(
                         missionRecommendation =
-                            displayedRecommendation,
+                            nextRecommendation,
 
                         isLoadingMissionRecommendation =
                             false,
@@ -285,7 +281,7 @@ class ThreadListViewModel
                 _uiState.update { state ->
                     state.copy(
                         missionRecommendation =
-                            previousRecommendation,
+                            null,
 
                         isLoadingMissionRecommendation =
                             false,
@@ -471,28 +467,44 @@ class ThreadListViewModel
             _uiState.value
 
         if (
-            currentState.missionRecommendation !=
-            null
-        ) {
-            prefetchMissionRecommendations(
-                activeThreads =
-                    snapshot.activeThreads
-            )
-
-            return
-        }
-
-        if (
             currentState
-                .isLoadingMissionRecommendation
+                .isLoadingMissionRecommendation ||
+                currentState.isStartingRecommendedMission
         ) {
             return
         }
 
-        loadFirstMissionRecommendation(
-            activeThreads =
-                snapshot.activeThreads
-        )
+        loadFirstMissionRecommendation(snapshot.activeThreads)
+    }
+
+    private fun observeMissionRecommendation() {
+        viewModelScope.launch {
+            try {
+                missionRecommendationCoordinator.observeRecommendation().collectLatest {
+                    _uiState.first { state ->
+                        !state.isLoading && !state.isLoadingMissionRecommendation &&
+                            !state.isStartingRecommendedMission && !state.isCreatingThread
+                    }
+                    val recommendation = missionRecommendationCoordinator.getSavedRecommendation()
+                    val currentState = _uiState.value
+                    if (currentState.isLoadingMissionRecommendation || currentState.isStartingRecommendedMission) {
+                        return@collectLatest
+                    }
+                    val previousId = currentState.missionRecommendation?.id
+                    _uiState.update { state ->
+                        state.copy(missionRecommendation = recommendation)
+                    }
+                    if (previousId != recommendation?.id) {
+                        prefetchMissionRecommendations(activeThreadsFromState(_uiState.value))
+                    }
+                }
+            } catch (cancellationException: CancellationException) {
+                throw cancellationException
+            } catch (throwable: Throwable) {
+                Log.e(VIEW_MODEL_TAG, "Mission recommendation observation failed.", throwable)
+                showError(DIFFERENT_MISSION_ERROR)
+            }
+        }
     }
 
     /*
@@ -573,7 +585,9 @@ class ThreadListViewModel
                         _uiState
                             .value
                             .missionRecommendation ==
-                        null
+                        null &&
+                        !_uiState.value.isStartingRecommendedMission &&
+                        !_uiState.value.isLoadingMissionRecommendation
                     ) {
                         _uiState.update { state ->
                             state.copy(

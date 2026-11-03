@@ -21,8 +21,11 @@ import java.time.Clock
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -40,6 +43,7 @@ class RoomMissionThreadRecommendationStore
     Json
 ) : MissionThreadRecommendationStore {
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun observeNextEligible(
         cefrLevel:
         CefrLevel
@@ -53,9 +57,18 @@ class RoomMissionThreadRecommendationStore
                 currentTime =
                     clock.millis()
             )
-            .map { persistedRecommendation ->
-                persistedRecommendation
-                    ?.toRecommendationDomainOrNull()
+            .transformLatest {
+                while (true) {
+                    val persistedRecommendation = dao.getNextEligibleRecommendation(
+                        cefrLevel = cefrLevel.name,
+                        currentTime = clock.millis()
+                    )
+                    emit(persistedRecommendation?.toRecommendationDomainOrNull())
+                    val expiresAt = persistedRecommendation?.recommendation?.expiresAt
+                        ?: return@transformLatest
+                    // Room invalidations alone do not fire when an expiry timestamp passes.
+                    delay((expiresAt - clock.millis()).coerceAtLeast(1))
+                }
             }
     }
 
@@ -172,11 +185,18 @@ class RoomMissionThreadRecommendationStore
                 }
 
         return MissionRecommendationHistory(
+            blockedScenarioTypes = dao.getBlockedScenarioTypes()
+                .mapNotNull { it.toMissionScenarioTypeOrNull() }.toSet(),
+            recentConversationText = dao.getRecentOrdinaryLearnerMessages(
+                minimumCreatedAt = now - 7 * 24 * 60 * 60 * 1_000L,
+                limit = 40
+            ).asReversed().joinToString("\n") { it.take(500) },
             scenarioTypes =
                 recentScenarioTypes,
 
             completedScenarioTypes =
-                completedScenarioTypes,
+                (completedScenarioTypes + dao.getAllCompletedScenarioTypes()
+                    .mapNotNull { it.toMissionScenarioTypeOrNull() }).distinct(),
 
             dismissedScenarioTypes =
                 dismissedScenarioTypes
@@ -209,7 +229,10 @@ class RoomMissionThreadRecommendationStore
                 cefrLevel.name,
 
             scenarioType =
-                scenarioType.name
+                scenarioType.name,
+
+            currentTime =
+                clock.millis()
         )
     }
 

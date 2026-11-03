@@ -2,7 +2,6 @@ package com.julesmeister.deutschcraft.feature.settings.presentation
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -13,13 +12,10 @@ import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Text
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
-import com.julesmeister.deutschcraft.feature.settings.domain.ProgressLanguage
 import com.julesmeister.deutschcraft.feature.settings.presentation.component.FontScalePicker
 import com.julesmeister.deutschcraft.feature.settings.presentation.component.SettingsAboutCard
 import com.julesmeister.deutschcraft.feature.settings.presentation.component.SettingsDivider
@@ -89,26 +85,6 @@ fun SettingsScreen(
                                 onAction(SettingsUiAction.FontScaleChanged(option = option))
                             }
                         )
-                    }
-
-                    SettingsDivider()
-
-                    SettingsLabeledBlock(
-                        icon = Icons.Outlined.Translate,
-                        title = "Progress language",
-                        description = "Choose the language for the progress dashboard"
-                    ) {
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(Tokens.FontPillSpacing)) {
-                            ProgressLanguage.entries.forEach { language ->
-                                FilterChip(
-                                    selected = settings.progressLanguage == language,
-                                    onClick = {
-                                        onAction(SettingsUiAction.ProgressLanguageChanged(language))
-                                    },
-                                    label = { Text(language.displayName) }
-                                )
-                            }
-                        }
                     }
 
                     SettingsDivider()

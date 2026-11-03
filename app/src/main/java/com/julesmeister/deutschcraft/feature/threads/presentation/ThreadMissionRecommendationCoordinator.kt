@@ -12,8 +12,12 @@ import com.julesmeister.deutschcraft.feature.mission.domain.usecase.StartRecomme
 import com.julesmeister.deutschcraft.feature.threads.domain.ConversationThread
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 
 class ThreadMissionRecommendationCoordinator
@@ -39,6 +43,13 @@ class ThreadMissionRecommendationCoordinator
     private var refillRequestedWhileActive:
             Boolean =
         false
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun observeRecommendation(): Flow<MissionThreadRecommendation?> =
+        getCurrentLearnerCefrLevel.observe().flatMapLatest(loadRecommendation::observeNextEligible)
+
+    suspend fun getSavedRecommendation(): MissionThreadRecommendation? =
+        loadRecommendation.getSavedRecommendation(getCurrentLearnerCefrLevel())
 
     suspend fun loadRecommendation(
         activeThreads:
@@ -364,8 +375,9 @@ class ThreadMissionRecommendationCoordinator
         onFailure:
             (String) -> Unit
     ) {
-        prefetchJob =
-            scope.launch {
+        val job =
+            scope.launch(start = CoroutineStart.LAZY) {
+                var poolFilled = false
                 try {
                     Log.d(
                         COORDINATOR_TAG,
@@ -392,7 +404,7 @@ class ThreadMissionRecommendationCoordinator
                         }
                     )
 
-                    loadRecommendation.prefetchUntilFull(
+                    poolFilled = loadRecommendation.prefetchUntilFull(
                         cefrLevel =
                             learnerLevel,
 
@@ -449,62 +461,66 @@ class ThreadMissionRecommendationCoordinator
                         PREFETCH_ERROR
                     )
                 } finally {
-                    prefetchJob =
-                        null
+                    if (prefetchJob === coroutineContext[Job]) {
+                        prefetchJob =
+                            null
 
-                    val followUpRequested =
-                        refillRequestedWhileActive
+                        val followUpRequested =
+                            refillRequestedWhileActive
 
-                    refillRequestedWhileActive =
-                        false
+                        refillRequestedWhileActive =
+                            false
 
-                    val shouldRunFollowUp =
-                        if (followUpRequested) {
-                            try {
-                                loadRecommendation.availableCount(
-                                    cefrLevel =
-                                        learnerLevel
-                                ) <
-                                        TARGET_RECOMMENDATION_COUNT
-                            } catch (
-                                cancellationException:
-                                CancellationException
-                            ) {
-                                throw cancellationException
-                            } catch (throwable: Throwable) {
-                                Log.e(
-                                    COORDINATOR_TAG,
-                                    "Persisted recommendation pool " +
-                                            "could not be inspected.",
-                                    throwable
-                                )
+                        val shouldRunFollowUp =
+                            if (followUpRequested && poolFilled) {
+                                try {
+                                    loadRecommendation.availableCount(
+                                        cefrLevel =
+                                            learnerLevel
+                                    ) <
+                                            TARGET_RECOMMENDATION_COUNT
+                                } catch (
+                                    cancellationException:
+                                    CancellationException
+                                ) {
+                                    throw cancellationException
+                                } catch (throwable: Throwable) {
+                                    Log.e(
+                                        COORDINATOR_TAG,
+                                        "Persisted recommendation pool " +
+                                                "could not be inspected.",
+                                        throwable
+                                    )
 
+                                    false
+                                }
+                            } else {
                                 false
                             }
-                        } else {
-                            false
+
+                        if (shouldRunFollowUp) {
+                            startPrefetchJob(
+                                learnerLevel =
+                                    learnerLevel,
+
+                                activeThreadCount =
+                                    activeThreadCount,
+
+                                scope =
+                                    scope,
+
+                                onFirstRecommendationAvailable =
+                                    onFirstRecommendationAvailable,
+
+                                onFailure =
+                                    onFailure
+                            )
                         }
-
-                    if (shouldRunFollowUp) {
-                        startPrefetchJob(
-                            learnerLevel =
-                                learnerLevel,
-
-                            activeThreadCount =
-                                activeThreadCount,
-
-                            scope =
-                                scope,
-
-                            onFirstRecommendationAvailable =
-                                onFirstRecommendationAvailable,
-
-                            onFailure =
-                                onFailure
-                        )
                     }
                 }
             }
+        prefetchJob = job
+        job.start()
     }
 
     private companion object {

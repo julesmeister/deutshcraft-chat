@@ -41,7 +41,10 @@ data class MissionRecommendationContext(
 
     val activeScenarioType:
     MissionScenarioType? =
-        null
+        null,
+
+    val excludedScenarioTypes: Set<MissionScenarioType> = emptySet(),
+    val preferConversationNovelty: Boolean = false
 ) {
 
     val positiveLearningSignals:

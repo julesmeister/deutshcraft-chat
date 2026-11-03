@@ -42,7 +42,7 @@ class SelectMissionScenarioUseCase
             catalog.scenariosFor(
                 level =
                     context.cefrLevel
-            )
+            ).filterNot { it.type in context.excludedScenarioTypes }
 
         if (levelScenarios.isEmpty()) {
             return emptyList()
@@ -198,7 +198,7 @@ class SelectMissionScenarioUseCase
 
                     normalizedConversation =
                         normalizedConversation
-                ) +
+                ) * (if (context.preferConversationNovelty) -1 else 1) +
                 calculateContextNoveltyBonus(
                     scenario =
                         scenario,

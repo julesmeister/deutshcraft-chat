@@ -13,11 +13,15 @@ import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.Missi
 import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionThreadRecommendation
 import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionThreadRecommendationStore
 import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.SelectMissionScenarioUseCase
+import java.time.Clock
 import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+@Singleton
 class LoadMissionThreadRecommendationUseCase
 @Inject constructor(
     private val aiGateway:
@@ -30,7 +34,9 @@ class LoadMissionThreadRecommendationUseCase
     SelectMissionScenarioUseCase,
 
     private val buildMissionLearningContext:
-    BuildMissionLearningContextUseCase
+    BuildMissionLearningContextUseCase,
+
+    private val clock: Clock
 ) {
 
     private val loadingMutex =
@@ -41,6 +47,19 @@ class LoadMissionThreadRecommendationUseCase
 
     private val generationMutex =
         Mutex()
+
+    private val failedScenarioAttempts = mutableMapOf<Pair<CefrLevel, MissionScenarioType>, Long>()
+
+    fun observeNextEligible(cefrLevel: CefrLevel): Flow<MissionThreadRecommendation?> =
+        recommendationStore.observeNextEligible(cefrLevel)
+
+    suspend fun getSavedRecommendation(cefrLevel: CefrLevel): MissionThreadRecommendation? {
+        val recommendation = recommendationStore.getNextEligible(cefrLevel)
+        if (recommendation != null) {
+            recommendationStore.markDisplayed(recommendation.id)
+        }
+        return recommendationStore.getNextEligible(cefrLevel)
+    }
 
     suspend operator fun invoke(
         cefrLevel:
@@ -174,8 +193,8 @@ class LoadMissionThreadRecommendationUseCase
             Int
         ) -> Unit =
             { _, _ -> }
-    ) {
-        prefetchMutex.withLock {
+    ): Boolean {
+        return prefetchMutex.withLock {
             recommendationStore.performMaintenance(
                 cefrLevel =
                     cefrLevel
@@ -199,9 +218,6 @@ class LoadMissionThreadRecommendationUseCase
             var attemptCount =
                 0
 
-            var consecutiveFailureCount =
-                0
-
             while (
                 recommendationStore.countEligible(
                     cefrLevel =
@@ -209,9 +225,7 @@ class LoadMissionThreadRecommendationUseCase
                 ) <
                 TARGET_RECOMMENDATION_COUNT &&
                 attemptCount <
-                MAXIMUM_GENERATION_ATTEMPTS &&
-                consecutiveFailureCount <
-                MAXIMUM_CONSECUTIVE_FAILURES
+                MAXIMUM_GENERATION_ATTEMPTS
             ) {
                 attemptCount +=
                     1
@@ -229,24 +243,22 @@ class LoadMissionThreadRecommendationUseCase
                     )
 
                 if (recommendation == null) {
-                    consecutiveFailureCount +=
-                        1
+                    // One pass already tries the ranked alternatives. Do not pay to
+                    // retry the same exhausted/failing candidates in this refill.
+                    return@withLock false
                 } else {
-                    consecutiveFailureCount =
-                        0
-
                     val availableCount =
                         recommendationStore.countEligible(
                             cefrLevel =
                                 cefrLevel
                         )
 
-                    onRecommendationAvailable(
-                        recommendation,
-                        availableCount
-                    )
+                    recommendationStore.getNextEligible(cefrLevel)?.let { next ->
+                        onRecommendationAvailable(next, availableCount)
+                    }
                 }
             }
+            recommendationStore.countEligible(cefrLevel) >= TARGET_RECOMMENDATION_COUNT
         }
     }
 
@@ -342,7 +354,9 @@ class LoadMissionThreadRecommendationUseCase
 
             val exactScenarioExclusions =
                 activeScenarioTypes +
-                        externalExcludedScenarioTypes
+                        externalExcludedScenarioTypes +
+                        recommendationHistory.blockedScenarioTypes +
+                        recommendationHistory.completedScenarioTypes
 
             val learningContext =
                 suppliedLearningContext
@@ -371,6 +385,11 @@ class LoadMissionThreadRecommendationUseCase
             }
 
             for (selectedScenario in rankedScenarios) {
+                val attemptKey = cefrLevel to selectedScenario.type
+                val lastFailure = failedScenarioAttempts[attemptKey]
+                if (lastFailure != null && clock.millis() - lastFailure < GENERATION_RETRY_DELAY_MILLIS) {
+                    continue
+                }
                 if (
                     selectedScenario.type in
                     exactScenarioExclusions
@@ -421,7 +440,11 @@ class LoadMissionThreadRecommendationUseCase
 
                         null
                     }
-                        ?: continue
+
+                if (generatedRecommendation == null) {
+                    failedScenarioAttempts[attemptKey] = clock.millis()
+                    continue
+                }
 
                 val recommendation =
                     generatedRecommendation.copy(
@@ -441,6 +464,11 @@ class LoadMissionThreadRecommendationUseCase
                             adaptiveScenario
                     )
                 ) {
+                    failedScenarioAttempts[attemptKey] = clock.millis()
+                    continue
+                }
+
+                if (recommendationStore.hasActiveScenario(cefrLevel, selectedScenario.type)) {
                     continue
                 }
 
@@ -450,6 +478,7 @@ class LoadMissionThreadRecommendationUseCase
                             recommendation
                     )
 
+                    failedScenarioAttempts.remove(attemptKey)
                     return@withLock recommendation
                 } catch (
                     cancellationException:
@@ -457,6 +486,7 @@ class LoadMissionThreadRecommendationUseCase
                 ) {
                     throw cancellationException
                 } catch (throwable: Throwable) {
+                    failedScenarioAttempts[attemptKey] = clock.millis()
                     Log.e(
                         USE_CASE_TAG,
                         "Recommendation persistence failed for " +
@@ -513,11 +543,13 @@ class LoadMissionThreadRecommendationUseCase
 
         val context =
             MissionRecommendationContext(
+                excludedScenarioTypes = exactScenarioExclusions,
+                preferConversationNovelty = true,
                 cefrLevel =
                     cefrLevel,
 
                 recentConversationText =
-                    "",
+                    recommendationHistory.recentConversationText,
 
                 recentlyOfferedScenarioTypes =
                     recommendationHistory
@@ -750,10 +782,10 @@ class LoadMissionThreadRecommendationUseCase
             5
 
         const val MAXIMUM_GENERATION_ATTEMPTS =
-            15
+            TARGET_RECOMMENDATION_COUNT
 
-        const val MAXIMUM_CONSECUTIVE_FAILURES =
-            5
+        const val GENERATION_RETRY_DELAY_MILLIS =
+            60_000L
 
         const val MAXIMUM_RANKED_SCENARIO_COUNT =
             8

@@ -15,6 +15,45 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface MissionThreadRecommendationDao {
 
+    @Query(
+        """
+        $BLOCKED_MISSION_SCENARIOS
+        """
+    )
+    suspend fun getBlockedScenarioTypes(): List<String>
+
+    @Query(
+        """
+        SELECT scenarioType FROM mission_scenario_completions
+        UNION
+        $COMPLETED_MISSION_SCENARIOS
+        """
+    )
+    suspend fun getAllCompletedScenarioTypes(): List<String>
+
+    @Query(
+        """
+        INSERT OR IGNORE INTO mission_scenario_completions (scenarioType)
+        $COMPLETED_MISSION_SCENARIOS
+        """
+    )
+    suspend fun recordCompletedScenarioTypes()
+
+    @Query(
+        """
+        SELECT content FROM messages
+        WHERE sender = 'USER'
+          AND createdAt >= :minimumCreatedAt
+          AND NOT EXISTS (
+              SELECT 1 FROM conversation_missions m
+              WHERE m.conversationId = messages.conversationId
+          )
+        ORDER BY createdAt DESC, sequenceNumber DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getRecentOrdinaryLearnerMessages(minimumCreatedAt: Long, limit: Int): List<String>
+
     @Transaction
     @Query(
         """
@@ -22,6 +61,9 @@ interface MissionThreadRecommendationDao {
         FROM mission_thread_recommendations
         WHERE cefrLevel = :cefrLevel
           AND status IN ('READY', 'DISPLAYED')
+          AND scenarioType NOT IN (
+              $BLOCKED_MISSION_SCENARIOS
+          )
           AND (
               expiresAt IS NULL
               OR expiresAt > :currentTime
@@ -48,6 +90,9 @@ interface MissionThreadRecommendationDao {
         FROM mission_thread_recommendations
         WHERE cefrLevel = :cefrLevel
           AND status IN ('READY', 'DISPLAYED')
+          AND scenarioType NOT IN (
+              $BLOCKED_MISSION_SCENARIOS
+          )
           AND (
               expiresAt IS NULL
               OR expiresAt > :currentTime
@@ -74,6 +119,9 @@ interface MissionThreadRecommendationDao {
         FROM mission_thread_recommendations
         WHERE cefrLevel = :cefrLevel
           AND status IN ('READY', 'DISPLAYED')
+          AND scenarioType NOT IN (
+              $BLOCKED_MISSION_SCENARIOS
+          )
           AND (
               expiresAt IS NULL
               OR expiresAt > :currentTime
@@ -101,6 +149,9 @@ interface MissionThreadRecommendationDao {
         FROM mission_thread_recommendations
         WHERE cefrLevel = :cefrLevel
           AND status IN ('READY', 'DISPLAYED')
+          AND scenarioType NOT IN (
+              $BLOCKED_MISSION_SCENARIOS
+          )
           AND (
               expiresAt IS NULL
               OR expiresAt > :currentTime
@@ -125,6 +176,9 @@ interface MissionThreadRecommendationDao {
         FROM mission_thread_recommendations
         WHERE cefrLevel = :cefrLevel
           AND status IN ('READY', 'DISPLAYED')
+          AND scenarioType NOT IN (
+              $BLOCKED_MISSION_SCENARIOS
+          )
           AND (
               expiresAt IS NULL
               OR expiresAt > :currentTime
@@ -196,17 +250,18 @@ interface MissionThreadRecommendationDao {
             FROM mission_thread_recommendations
             WHERE cefrLevel = :cefrLevel
               AND scenarioType = :scenarioType
-              AND status IN (
-                  'READY',
-                  'DISPLAYED',
-                  'STARTED'
-              )
+              AND status IN ('READY', 'DISPLAYED')
+              AND (expiresAt IS NULL OR expiresAt > :currentTime)
+        )
+        OR :scenarioType IN (
+            $BLOCKED_MISSION_SCENARIOS
         )
         """
     )
     suspend fun hasActiveScenario(
         cefrLevel: String,
-        scenarioType: String
+        scenarioType: String,
+        currentTime: Long
     ): Boolean
 
     @Insert(
@@ -369,3 +424,45 @@ interface MissionThreadRecommendationDao {
         deleteBefore: Long
     ): Int
 }
+
+private const val BLOCKED_MISSION_SCENARIOS = """
+    SELECT scenarioType FROM mission_scenario_completions
+    UNION
+    SELECT r.scenarioType
+    FROM mission_thread_recommendations r
+    LEFT JOIN conversation_missions m ON m.sourceRecommendationId = r.id
+    WHERE r.status = 'COMPLETED' OR m.status IN ('ACTIVE', 'PAUSED', 'COMPLETED')
+    UNION
+    SELECT 'RESTAURANT_ORDERING'
+    FROM conversation_missions m
+    WHERE COALESCE(m.rootMissionTemplateId, m.missionTemplateId) = 'restaurant_ordering'
+      AND m.status IN ('ACTIVE', 'PAUSED', 'COMPLETED')
+    UNION
+    SELECT r.scenarioType
+    FROM mission_thread_recommendations r
+    JOIN mission_templates t ON t.title = r.title AND t.scenario = r.scenario
+        AND t.learnerRole = r.learnerRole AND t.assistantRole = r.assistantRole
+    JOIN conversation_missions m
+        ON COALESCE(m.rootMissionTemplateId, m.missionTemplateId) = t.id
+    WHERE m.status IN ('ACTIVE', 'PAUSED', 'COMPLETED')
+"""
+
+internal const val COMPLETED_MISSION_SCENARIOS = """
+    SELECT r.scenarioType
+    FROM mission_thread_recommendations r
+    LEFT JOIN conversation_missions m ON m.sourceRecommendationId = r.id
+    WHERE r.status = 'COMPLETED' OR m.status = 'COMPLETED'
+    UNION
+    SELECT 'RESTAURANT_ORDERING'
+    FROM conversation_missions m
+    WHERE COALESCE(m.rootMissionTemplateId, m.missionTemplateId) = 'restaurant_ordering'
+      AND m.status = 'COMPLETED'
+    UNION
+    SELECT r.scenarioType
+    FROM mission_thread_recommendations r
+    JOIN mission_templates t ON t.title = r.title AND t.scenario = r.scenario
+        AND t.learnerRole = r.learnerRole AND t.assistantRole = r.assistantRole
+    JOIN conversation_missions m
+        ON COALESCE(m.rootMissionTemplateId, m.missionTemplateId) = t.id
+    WHERE m.status = 'COMPLETED'
+"""
