@@ -2,8 +2,14 @@ package com.julesmeister.deutschcraft.feature.chat.presentation.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
+/**
+ * Chat appearance and motion values. Component-specific tokens are grouped below;
+ * non-visual presentation constants live in ChatPresentationTokens.
+ */
 object ChatDesignTokens {
 
     /*
@@ -258,6 +264,13 @@ object ChatDesignTokens {
 
     const val ComposerMaxLines =
         5
+
+    // Trim excess font padding while preserving a centered line box.
+    val ComposerCenteredLineHeightStyle =
+        LineHeightStyle(
+            alignment = LineHeightStyle.Alignment.Center,
+            trim = LineHeightStyle.Trim.Both
+        )
 
     const val ComposerAnimationMillis =
         180
@@ -705,4 +718,366 @@ object ChatDesignTokens {
 
     const val BesserChallengeSlideOffsetDivisor =
         3
+
+    object AnimatedTopBarTitle {
+        const val ObjectiveCompletionDisplayMillis = 1_650L
+        const val AdaptiveFeedbackDisplayMillis = 3_000L
+        val TopBarContentMinimumHeight = 42.dp
+        val OnlineDotSpacing = 5.dp
+        val NormalSubtitleTopPadding = 1.dp
+        val StatusIconSize = 32.dp
+        val StatusIconCornerRadius = 12.dp
+        val StatusContentSpacing = 8.dp
+        const val AdaptiveIconBackgroundAlpha = 0.15f
+        const val LightTertiaryContainerAlpha = 0.12f
+        const val StatusSizeAnimationMillis = 380
+        const val StatusEnterDurationMillis = 360
+        const val StatusExitDurationMillis = 220
+        const val StatusEnterScale = 0.97f
+        const val StatusExitScale = 0.98f
+    }
+
+    object AssistantStatus {
+        val StatusSpacing = 5.dp
+        val StatusDotSize = 6.dp
+        val StatusFontSize = 11.sp
+        val StatusLineHeight = 13.sp
+    }
+
+    object RefinementFeedback {
+        const val FeedbackMaxLines = 3
+        val FeedbackTopPadding = 2.dp
+        val EvaluatingStrokeWidth = 2.dp
+    }
+
+    object MessageListAnimation {
+        const val TypingIndicatorKey = "assistant-typing-indicator"
+        const val BottomAnchorKey = "chat-bottom-anchor"
+        val BottomAnchorHeight = 8.dp
+        const val KeyboardScrollDelayMillis = 240L
+        const val ContentScrollDelayMillis = 180L
+        const val MessageEntranceStartDelayMillis = 35L
+        const val MessageEnterDurationMillis = 340
+        const val MessageExitDurationMillis = 180
+        const val MessageEnterScale = 0.97f
+        const val MessageExitScale = 0.98f
+        const val MessageVerticalOffsetFraction = 0.28f
+    }
+
+    object MessageListScroll {
+        const val ChatInitialBottomSettleDelayMillis = 120L
+        const val ChatKeyboardScrollDelayMillis = 80L
+        const val ChatContentScrollDelayMillis = 80L
+        const val ChatMessageFinalCorrectionDelayMillis = 120L
+        const val ChatSuggestionScrollDelayMillis = 160L
+        const val ChatOverlayScrollSettleDelayMillis = 80L
+        const val ChatOverlayFinalCorrectionDelayMillis = 120L
+        const val ChatBottomVisibilityTolerancePx = 8
+    }
+
+    object PresenceIndicator {
+        val OnlineIndicatorContainerSize = 18.dp
+        val OnlineDotSize = 7.dp
+        val OnlineHaloMaxSize = 17.dp
+        val OnlineCoreOutlineWidth = 0.65.dp
+        val LightModeOnlineGreen = Color(0xFF2A9D55)
+        val LightModeOnlineHalo = Color(0xFF35AA61)
+        const val OnlinePulseDurationMillis = 1_800
+        const val OnlineHaloStartScale = 0f
+        const val OnlineHaloEndScale = 1f
+        const val OnlineHaloStartAlpha = 0.32f
+        const val OnlineCoreGlowAlpha = 0.16f
+        const val OnlineCoreGlowScale = 1.45f
+        const val OnlineCoreOutlineAlpha = 0.34f
+        const val OnlineHighlightAlpha = 0.42f
+        const val OnlineHighlightRadiusFactor = 0.23f
+        const val OnlineHighlightOffsetFactor = 0.27f
+    }
+
+    object TopBar {
+        val TopBarIconButtonSize = 40.dp
+        val TopBarEdgePadding = 8.dp
+        val TitleStartPadding = 8.dp
+        val TitleEndPadding = 2.dp
+        val CopyConfirmationSpacing = 6.dp
+        val CopyConfirmationIconContainerSize = 22.dp
+        val CopyConfirmationCheckSize = 13.dp
+        val CopyConfirmationStartPadding = 5.dp
+        val CopyConfirmationEndPadding = 9.dp
+        val CopyConfirmationVerticalPadding = 4.dp
+        val CopyConfirmationContentSpacing = 5.dp
+        val LightModeBackButtonBackground = Color(0xFFE3E4E8)
+        val LightModeBackButtonPressedBackground = Color(0xFFD3D5DB)
+        const val FullCornerPercent = 50
+        const val NormalIconScale = 1f
+        const val PressedIconScale = 0.9f
+        const val NormalButtonAlpha = 0.82f
+        const val IconPressAnimationDurationMillis = 130
+        const val CopyConfirmationInitialScale = 0.55f
+        const val CopyConfirmationInitialRotation = -10f
+        const val CopyConfirmationRotationDamping = 0.58f
+        const val CopyConfirmationRotationStiffness = 440f
+        const val CopyConfirmationEnterMillis = 160
+        const val CopyConfirmationExitMillis = 170
+    }
+
+    object ReplySuggestions {
+        val MinimumChipHeight = 38.dp
+        val MaximumChipWidth = 280.dp
+        const val NormalChipScale = 1f
+        const val PressedChipScale = 0.96f
+        const val ChipEnterScale = 0.92f
+        const val ChipExitScale = 0.96f
+        const val ChipPressDampingRatio = 0.72f
+        const val ChipPressStiffness = 620f
+        const val SuggestionStaggerMillis = 90L
+        const val ContainerEnterMillis = 280
+        const val ContainerExitMillis = 180
+        const val ChipEnterMillis = 320
+        const val ChipExitMillis = 160
+        const val RevealDelayMillis = 140L
+    }
+
+    object MessageBubble {
+        const val MaximumBubbleWidthFraction = 0.78f
+        val MaximumBubbleWidthCap = 420.dp
+        val CopiedIndicatorSpacing = 8.dp
+        val CopiedIndicatorContainerSize = 42.dp
+        val CopiedBadgeSize = 30.dp
+        val CopiedCheckSize = 17.dp
+        val CopiedBadgeElevation = 5.dp
+        const val CopiedBadgeInitialScale = 0.35f
+        const val CopiedBadgeInitialRotation = 22f
+        const val CopiedBadgeRotationDamping = 0.55f
+        const val CopiedBadgeRotationStiffness = 430f
+        const val CopiedGlowInitialScale = 0.80f
+        const val CopiedGlowFinalScale = 1.65f
+        const val CopiedGlowInitialAlpha = 0.28f
+        const val CopiedGlowDurationMillis = 330
+        const val CopiedIndicatorDurationMillis = 900L
+        const val CopiedIndicatorEnterMillis = 140
+        const val CopiedIndicatorExitMillis = 180
+    }
+
+    object BubbleContainer {
+        val MinimumBubbleWidth = 64.dp
+        val DefaultMaximumBubbleWidth = 320.dp
+        val BorderWidth = 0.75.dp
+        const val PressedBubbleScale = 0.965f
+    }
+
+    object BubbleContent {
+        const val TimestampAlpha = 0.55f
+        const val CorrectionHighlightAlpha = 0.18f
+        val MessageLineHeight = 22.sp
+    }
+
+    object BubbleStyle {
+        val SourceBubbleCorner = 20.dp
+        val SourceBubbleTailCorner = 6.dp
+        val AttachmentCorner = 0.dp
+        const val ColorTransitionMillis = 450
+    }
+
+    object CorrectionContent {
+        const val CollapsedMaxLines = 2
+        const val OriginalTextAlpha = 0.52f
+        const val OriginalLabelAlpha = 0.48f
+        val OriginalSectionTopPadding = 8.dp
+        val OriginalLabelSpacing = 4.dp
+        val OriginalTextTopPadding = 2.dp
+        val OriginalLabelIconSize = 9.sp
+        val OriginalLabelSize = 9.sp
+        val OriginalLabelLetterSpacing = 0.7.sp
+        val OriginalTextSize = 12.sp
+        val OriginalLineHeight = 16.sp
+    }
+
+    object ObjectiveCompletion {
+        val CompletionIconSize = 32.dp
+        val CompletionIconCornerRadius = 12.dp
+        val CompletionContentSpacing = 8.dp
+        const val CompletionIconBackgroundAlpha = 0.16f
+        const val CompletionInitialScale = 0.72f
+        const val CompletionFinalScale = 1f
+        const val CompletionScaleDurationMillis = 320
+    }
+
+    object MissionOffer {
+        val CardShape = RoundedCornerShape(22.dp)
+        val CardElevation = 12.dp
+        val CardHorizontalPadding = 16.dp
+        val CardVerticalPadding = 14.dp
+        val IconContainerSize = 38.dp
+        val IconPadding = 7.dp
+        val HeaderHorizontalSpacing = 10.dp
+        const val IconBackgroundAlpha = 0.16f
+        const val PillShapePercent = 50
+        const val DifficultyBackgroundAlpha = 0.14f
+        val DifficultyHorizontalPadding = 9.dp
+        val DifficultyVerticalPadding = 5.dp
+        val DescriptionTopSpacing = 10.dp
+        const val DescriptionMaxLines = 3
+        val ActionsTopSpacing = 12.dp
+        val ActionSpacing = 8.dp
+        val ButtonHorizontalPadding = 14.dp
+        val ButtonVerticalPadding = 9.dp
+        const val NormalButtonScale = 1f
+        const val PressedButtonScale = 0.95f
+        const val ButtonDampingRatio = 0.74f
+        const val ButtonStiffness = 620f
+        const val DisabledPrimaryAlpha = 0.38f
+        val LoadingIndicatorSize = 16.dp
+        val LoadingIndicatorStrokeWidth = 2.dp
+        val LoadingTextSpacing = 7.dp
+        const val CardSizeAnimationMillis = 260
+    }
+
+    object MissionVariation {
+        val DialogHorizontalMargin = 20.dp
+        val DialogContentPadding = 20.dp
+        val DialogShape = RoundedCornerShape(28.dp)
+        val DialogPromptTopPadding = 20.dp
+        val DialogPromptBottomPadding = 10.dp
+        val HeaderIconSize = 48.dp
+        val HeaderIconContentSize = 23.dp
+        val HeaderContentPadding = 12.dp
+        val HeaderSubtitleTopPadding = 3.dp
+        val CloseButtonSize = 38.dp
+        val CloseIconSize = 19.dp
+        val ActionItemShape = RoundedCornerShape(20.dp)
+        val ActionItemSpacing = 8.dp
+        val ActionHorizontalPadding = 4.dp
+        val ActionVerticalPadding = 10.dp
+        val ActionContentSpacing = 14.dp
+        val ActionIconSize = 46.dp
+        val ActionIconContentSize = 22.dp
+        val ActionDescriptionTopPadding = 2.dp
+    }
+
+    object ProgressStreak {
+        val MinimumButtonSize = 40.dp
+        val ProgressIconSize = 22.dp
+        val HorizontalPadding = 10.dp
+        val VerticalPadding = 8.dp
+        val StreakHorizontalPadding = 1.dp
+        val StreakTextSpacing = 4.dp
+        const val ProgressDisplayDurationMillis = 4_000L
+        const val StreakDisplayDurationMillis = 3_000L
+        const val ContainerAnimationDurationMillis = 380
+        const val ContentEnterDurationMillis = 320
+        const val ContentExitDurationMillis = 220
+        const val ContentEnterScale = 0.88f
+        const val ContentExitScale = 0.92f
+    }
+
+    object TypingIndicator {
+        val DotSize = 7.dp
+        val DotSpacing = 5.dp
+        val IndicatorHorizontalPadding = 16.dp
+        val IndicatorVerticalPadding = 14.dp
+        const val DotCount = 3
+        // The last dot finishes before the cycle repeats, leaving a short pause.
+        const val DotAnimationCycleMillis = 1_200
+        const val DotAnimationDelayMillis = 180
+        const val DotRiseDurationMillis = 170
+        const val DotBounceDurationMillis = 390
+        const val RestingOffset = 0f
+        const val BounceOffset = -7f
+        const val RestingAlpha = 0.38f
+        const val ActiveAlpha = 1f
+        const val RestingScale = 0.88f
+        const val ActiveScale = 1.08f
+    }
+
+    object LevelProgressDropdown {
+        // A 30.dp cradle leaves a 6.dp collar around the indicator's 48.dp touch area.
+        val CradleRadius = 30.dp
+        val BodyTopOffset = 44.dp
+        val FilletLength = 14.dp
+        val ContentGapBelowCradle = 4.dp
+        val WindowMargin = 8.dp
+        val DropdownWidth = 304.dp
+        val DropdownPadding = 12.dp
+        val DropdownBorderWidth = 1.dp
+        val DropdownElevation = 14.dp
+        val ShadowSpace = 16.dp
+        val BodyCornerRadius = 26.dp
+        val BentoGap = 8.dp
+        val HeaderShape = RoundedCornerShape(18.dp)
+        val HeaderPadding = 12.dp
+        val HeaderContentSpacing = 10.dp
+        val ReadinessTrackHeight = 6.dp
+        val PrimaryNeedShape = RoundedCornerShape(20.dp)
+        val PrimaryNeedBorderWidth = 0.75.dp
+        val PrimaryNeedPadding = 14.dp
+        val WhyNowShape = RoundedCornerShape(13.dp)
+        val WhyNowPadding = 10.dp
+        val SmallBentoShape = RoundedCornerShape(17.dp)
+        val SmallBentoPadding = 11.dp
+        val TeachingBentoHeight = 126.dp
+        val TargetDotSize = 5.dp
+        val TargetDotTopPadding = 5.dp
+        val TargetDotSpacing = 7.dp
+        val ExampleShape = RoundedCornerShape(18.dp)
+        val ExamplePadding = 13.dp
+        const val DropdownEnterMillis = 240
+        const val DropdownExitMillis = 160
+        const val DropdownInitialScale = 0.86f
+        const val DropdownExitScale = 0.92f
+        const val DropdownBorderAlpha = 0.55f
+        const val HeaderBackgroundAlpha = 0.13f
+        const val ReadinessTrackAlpha = 0.72f
+        const val PrimaryNeedBorderAlpha = 0.30f
+        const val WhyNowBackgroundAlpha = 0.10f
+        const val ExampleBackgroundAlpha = 0.13f
+        const val MaximumTargetCount = 4
+        const val FilletArcDegrees = 14.0
+    }
+
+    object LevelProgress {
+        val Orange = Color(0xFFE87516)
+        val Amber = Color(0xFFE6B522)
+        val Green = Color(0xFF2E9B57)
+        const val ColorMidpoint = 0.5f
+    }
+
+    object LevelProgressIndicator {
+        val IndicatorTouchSize = 48.dp
+        val IndicatorSize = 40.dp
+        val IndicatorCenterSize = 31.dp
+        val IndicatorStrokeWidth = 3.dp
+        const val FullRotationDegrees = 360f
+        const val FullCoinRotationY = 360f
+        const val InitialCoinRotationY = -90f
+        const val CoinBackFaceStartDegrees = 90f
+        const val CoinBackFaceEndDegrees = 270f
+        const val CoinCameraDistance = 14f
+        const val IndicatorTrackAlpha = 0.55f
+        const val IndicatorInitialScale = 0.76f
+        const val ReplayInitialScale = 0.92f
+        const val ReplayProgressDistance = 0.12f
+        const val StaticCenterColorBlend = 0.34f
+        const val RestingCenterColorBlend = 0.23f
+        const val ActiveCenterColorBlend = 0.78f
+        const val CenterTintSurfaceMix = 0.18f
+        const val LightCenterLuminanceThreshold = 0.48f
+        const val ShimmerTravelDistance = 1.8f
+        const val ShimmerStartOffset = 0.4f
+        const val ShimmerRadiusFactor = 0.32f
+        const val ShimmerVerticalPosition = 0.34f
+        const val ShimmerMaxAlpha = 0.20f
+        const val ShimmerMidpoint = 0.5f
+        const val IndicatorEntranceAnimationMillis = 500
+        const val InitialProgressAnimationMillis = 1_300
+        const val InitialCoinAnimationMillis = 760
+        const val InitialCenterColorAnimationMillis = 1_100
+        const val ReplayAnimationMillis = 1_200
+        const val ReplayScaleAnimationMillis = 520
+        const val CoinFlipAnimationMillis = 1_050
+        const val CenterColorBloomMillis = 650
+        const val CenterColorSettleMillis = 850
+        const val CoinShimmerAnimationMillis = 1_050
+        const val ReplayIntervalMillis = 10_000L
+    }
 }

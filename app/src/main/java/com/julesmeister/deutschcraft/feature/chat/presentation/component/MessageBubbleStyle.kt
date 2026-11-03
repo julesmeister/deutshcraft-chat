@@ -7,7 +7,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschSky
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
@@ -106,7 +106,7 @@ internal fun rememberMessageBubbleColors(
         animationSpec =
             tween(
                 durationMillis =
-                    COLOR_TRANSITION_MILLIS
+                    ChatDesignTokens.BubbleStyle.ColorTransitionMillis
             ),
         label =
             "BubbleBackground"
@@ -119,7 +119,7 @@ internal fun rememberMessageBubbleColors(
         animationSpec =
             tween(
                 durationMillis =
-                    COLOR_TRANSITION_MILLIS
+                    ChatDesignTokens.BubbleStyle.ColorTransitionMillis
             ),
         label =
             "BubbleContent"
@@ -164,44 +164,32 @@ internal fun messageBubbleShape(
 ): RoundedCornerShape {
     val tailSideCorner =
         if (hasAttachedPhrase) {
-            ATTACHMENT_CORNER
+            ChatDesignTokens.BubbleStyle.AttachmentCorner
         } else {
-            SOURCE_BUBBLE_TAIL_CORNER
+            ChatDesignTokens.BubbleStyle.SourceBubbleTailCorner
         }
 
     return if (isUserMessage) {
         RoundedCornerShape(
             topStart =
-                SOURCE_BUBBLE_CORNER,
+                ChatDesignTokens.BubbleStyle.SourceBubbleCorner,
             topEnd =
-                SOURCE_BUBBLE_CORNER,
+                ChatDesignTokens.BubbleStyle.SourceBubbleCorner,
             bottomStart =
-                SOURCE_BUBBLE_CORNER,
+                ChatDesignTokens.BubbleStyle.SourceBubbleCorner,
             bottomEnd =
                 tailSideCorner
         )
     } else {
         RoundedCornerShape(
             topStart =
-                SOURCE_BUBBLE_CORNER,
+                ChatDesignTokens.BubbleStyle.SourceBubbleCorner,
             topEnd =
-                SOURCE_BUBBLE_CORNER,
+                ChatDesignTokens.BubbleStyle.SourceBubbleCorner,
             bottomStart =
                 tailSideCorner,
             bottomEnd =
-                SOURCE_BUBBLE_CORNER
+                ChatDesignTokens.BubbleStyle.SourceBubbleCorner
         )
     }
 }
-
-private val SOURCE_BUBBLE_CORNER =
-    20.dp
-
-private val SOURCE_BUBBLE_TAIL_CORNER =
-    6.dp
-
-private val ATTACHMENT_CORNER =
-    0.dp
-
-private const val COLOR_TRANSITION_MILLIS =
-    450

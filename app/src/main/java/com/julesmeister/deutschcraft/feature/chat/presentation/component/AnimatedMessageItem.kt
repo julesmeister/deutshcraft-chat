@@ -1,5 +1,7 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.component
 
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -68,7 +70,7 @@ internal fun AnimatedMessageItem(
         }
 
         delay(
-            MESSAGE_ENTRANCE_START_DELAY_MILLIS
+            ChatDesignTokens.MessageListAnimation.MessageEntranceStartDelayMillis
                 .milliseconds
         )
 
@@ -114,7 +116,7 @@ private fun messageEnterTransition() =
         animationSpec =
             tween(
                 durationMillis =
-                    MESSAGE_ENTER_DURATION_MILLIS,
+                    ChatDesignTokens.MessageListAnimation.MessageEnterDurationMillis,
                 easing =
                     LinearOutSlowInEasing
             )
@@ -123,24 +125,24 @@ private fun messageEnterTransition() =
                 initialOffsetY = { fullHeight ->
                     (
                             fullHeight *
-                                    MESSAGE_VERTICAL_OFFSET_FRACTION
+                                    ChatDesignTokens.MessageListAnimation.MessageVerticalOffsetFraction
                             ).toInt()
                 },
                 animationSpec =
                     tween(
                         durationMillis =
-                            MESSAGE_ENTER_DURATION_MILLIS,
+                            ChatDesignTokens.MessageListAnimation.MessageEnterDurationMillis,
                         easing =
                             FastOutSlowInEasing
                     )
             ) +
             scaleIn(
                 initialScale =
-                    MESSAGE_ENTER_SCALE,
+                    ChatDesignTokens.MessageListAnimation.MessageEnterScale,
                 animationSpec =
                     tween(
                         durationMillis =
-                            MESSAGE_ENTER_DURATION_MILLIS,
+                            ChatDesignTokens.MessageListAnimation.MessageEnterDurationMillis,
                         easing =
                             FastOutSlowInEasing
                     )
@@ -151,30 +153,30 @@ private fun messageExitTransition() =
         animationSpec =
             tween(
                 durationMillis =
-                    MESSAGE_EXIT_DURATION_MILLIS
+                    ChatDesignTokens.MessageListAnimation.MessageExitDurationMillis
             )
     ) +
             slideOutVertically(
                 targetOffsetY = { fullHeight ->
                     (
                             fullHeight *
-                                    MESSAGE_VERTICAL_OFFSET_FRACTION
+                                    ChatDesignTokens.MessageListAnimation.MessageVerticalOffsetFraction
                             ).toInt()
                 },
                 animationSpec =
                     tween(
                         durationMillis =
-                            MESSAGE_EXIT_DURATION_MILLIS,
+                            ChatDesignTokens.MessageListAnimation.MessageExitDurationMillis,
                         easing =
                             FastOutSlowInEasing
                     )
             ) +
             scaleOut(
                 targetScale =
-                    MESSAGE_EXIT_SCALE,
+                    ChatDesignTokens.MessageListAnimation.MessageExitScale,
                 animationSpec =
                     tween(
                         durationMillis =
-                            MESSAGE_EXIT_DURATION_MILLIS
+                            ChatDesignTokens.MessageListAnimation.MessageExitDurationMillis
                     )
             )

@@ -13,8 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 
 @Composable
 fun AssistantStatus(
@@ -44,14 +43,14 @@ fun AssistantStatus(
             Alignment.CenterVertically,
         horizontalArrangement =
             Arrangement.spacedBy(
-                STATUS_SPACING
+                ChatDesignTokens.AssistantStatus.StatusSpacing
             )
     ) {
         Box(
             modifier =
                 Modifier
                     .size(
-                        STATUS_DOT_SIZE
+                        ChatDesignTokens.AssistantStatus.StatusDotSize
                     )
                     .clip(
                         CircleShape
@@ -76,9 +75,9 @@ fun AssistantStatus(
                     .labelMedium
                     .copy(
                         fontSize =
-                            STATUS_FONT_SIZE,
+                            ChatDesignTokens.AssistantStatus.StatusFontSize,
                         lineHeight =
-                            STATUS_LINE_HEIGHT
+                            ChatDesignTokens.AssistantStatus.StatusLineHeight
                     ),
             fontWeight =
                 FontWeight.Normal,
@@ -87,15 +86,3 @@ fun AssistantStatus(
         )
     }
 }
-
-private val STATUS_SPACING =
-    5.dp
-
-private val STATUS_DOT_SIZE =
-    6.dp
-
-private val STATUS_FONT_SIZE =
-    11.sp
-
-private val STATUS_LINE_HEIGHT =
-    13.sp

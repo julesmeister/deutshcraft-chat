@@ -15,8 +15,9 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.sp
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.LocalChatFontScale
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.scaledForChat
 import java.time.Instant
@@ -88,7 +89,7 @@ internal fun MessageBubbleContent(
                     ),
 
             lineHeight =
-                MESSAGE_LINE_HEIGHT
+                ChatDesignTokens.BubbleContent.MessageLineHeight
                     .scaledForChat(
                         scale =
                             fontScale
@@ -144,7 +145,7 @@ internal fun MessageBubbleContent(
                     highlightColor =
                         contentColor.copy(
                             alpha =
-                                CORRECTION_HIGHLIGHT_ALPHA
+                                ChatDesignTokens.BubbleContent.CorrectionHighlightAlpha
                         )
                 )
             } else {
@@ -190,7 +191,7 @@ internal fun MessageBubbleContent(
                     )
                 ) {
                     append(
-                        TIMESTAMP_RESERVATION_PREFIX
+                        ChatPresentationTokens.MessageBubbleContent.TimestampReservationPrefix
                     )
 
                     append(
@@ -242,7 +243,7 @@ internal fun MessageBubbleContent(
                 color =
                     contentColor.copy(
                         alpha =
-                            TIMESTAMP_ALPHA
+                            ChatDesignTokens.BubbleContent.TimestampAlpha
                     )
             )
         }
@@ -552,7 +553,7 @@ private fun formatMessageTime(
         )
         .format(
             DateTimeFormatter.ofPattern(
-                TIME_FORMAT_PATTERN,
+                ChatPresentationTokens.MessageBubbleContent.TimeFormatPattern,
                 Locale.getDefault()
             )
         )
@@ -567,18 +568,3 @@ private val PUNCTUATION_REGEX =
     Regex(
         "[^\\p{L}\\p{N}]"
     )
-
-private const val TIMESTAMP_RESERVATION_PREFIX =
-    "\u2002\u2002"
-
-private const val TIME_FORMAT_PATTERN =
-    "HH:mm"
-
-private const val TIMESTAMP_ALPHA =
-    0.55f
-
-private const val CORRECTION_HIGHLIGHT_ALPHA =
-    0.18f
-
-private val MESSAGE_LINE_HEIGHT =
-    22.sp

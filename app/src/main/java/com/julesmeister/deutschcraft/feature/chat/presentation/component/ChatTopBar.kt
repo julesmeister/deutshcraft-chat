@@ -40,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
@@ -48,11 +47,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.presentation.AdaptiveLearningFeedbackEvent
 import com.julesmeister.deutschcraft.feature.chat.presentation.MissionObjectiveCompletionEvent
 import com.julesmeister.deutschcraft.feature.chat.presentation.progress.ChatLevelProgressIndicator
 import com.julesmeister.deutschcraft.feature.chat.presentation.progress.LocalChatLevelProgress
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 
 @OptIn(
     ExperimentalMaterial3Api::class
@@ -128,7 +127,7 @@ fun ChatTopBar(
                 modifier =
                     Modifier.padding(
                         start =
-                            TOP_BAR_EDGE_PADDING
+                            ChatDesignTokens.TopBar.TopBarEdgePadding
                     )
             ) {
                 Icon(
@@ -156,10 +155,10 @@ fun ChatTopBar(
                         .fillMaxWidth()
                         .padding(
                             start =
-                                TITLE_START_PADDING,
+                                ChatDesignTokens.TopBar.TitleStartPadding,
 
                             end =
-                                TITLE_END_PADDING
+                                ChatDesignTokens.TopBar.TitleEndPadding
                         ),
 
                 verticalAlignment =
@@ -167,7 +166,7 @@ fun ChatTopBar(
 
                 horizontalArrangement =
                     Arrangement.spacedBy(
-                        COPY_CONFIRMATION_SPACING
+                        ChatDesignTokens.TopBar.CopyConfirmationSpacing
                     )
             ) {
                 AnimatedChatTopBarTitle(
@@ -219,7 +218,7 @@ fun ChatTopBar(
                             animationSpec =
                                 tween(
                                     durationMillis =
-                                        COPY_CONFIRMATION_ENTER_MILLIS
+                                        ChatDesignTokens.TopBar.CopyConfirmationEnterMillis
                                 )
                         ) +
                                 expandHorizontally(
@@ -243,14 +242,14 @@ fun ChatTopBar(
                             animationSpec =
                                 tween(
                                     durationMillis =
-                                        COPY_CONFIRMATION_EXIT_MILLIS
+                                        ChatDesignTokens.TopBar.CopyConfirmationExitMillis
                                 )
                         ) +
                                 shrinkHorizontally(
                                     animationSpec =
                                         tween(
                                             durationMillis =
-                                                COPY_CONFIRMATION_EXIT_MILLIS
+                                                ChatDesignTokens.TopBar.CopyConfirmationExitMillis
                                         ),
 
                                     shrinkTowards =
@@ -270,7 +269,7 @@ fun ChatTopBar(
                 modifier =
                     Modifier.padding(
                         end =
-                            TOP_BAR_EDGE_PADDING
+                            ChatDesignTokens.TopBar.TopBarEdgePadding
                     )
             )
         }
@@ -292,7 +291,7 @@ private fun TopBarCopyConfirmation() {
             if (animationStarted) {
                 1f
             } else {
-                COPY_CONFIRMATION_INITIAL_SCALE
+                ChatDesignTokens.TopBar.CopyConfirmationInitialScale
             },
 
         animationSpec =
@@ -316,16 +315,16 @@ private fun TopBarCopyConfirmation() {
             if (animationStarted) {
                 0f
             } else {
-                COPY_CONFIRMATION_INITIAL_ROTATION
+                ChatDesignTokens.TopBar.CopyConfirmationInitialRotation
             },
 
         animationSpec =
             spring(
                 dampingRatio =
-                    COPY_CONFIRMATION_ROTATION_DAMPING,
+                    ChatDesignTokens.TopBar.CopyConfirmationRotationDamping,
 
                 stiffness =
-                    COPY_CONFIRMATION_ROTATION_STIFFNESS
+                    ChatDesignTokens.TopBar.CopyConfirmationRotationStiffness
             ),
 
         label =
@@ -355,7 +354,7 @@ private fun TopBarCopyConfirmation() {
                 .clip(
                     RoundedCornerShape(
                         percent =
-                            FULL_CORNER_PERCENT
+                            ChatDesignTokens.TopBar.FullCornerPercent
                     )
                 )
                 .background(
@@ -365,16 +364,16 @@ private fun TopBarCopyConfirmation() {
                 )
                 .padding(
                     start =
-                        COPY_CONFIRMATION_START_PADDING,
+                        ChatDesignTokens.TopBar.CopyConfirmationStartPadding,
 
                     end =
-                        COPY_CONFIRMATION_END_PADDING,
+                        ChatDesignTokens.TopBar.CopyConfirmationEndPadding,
 
                     top =
-                        COPY_CONFIRMATION_VERTICAL_PADDING,
+                        ChatDesignTokens.TopBar.CopyConfirmationVerticalPadding,
 
                     bottom =
-                        COPY_CONFIRMATION_VERTICAL_PADDING
+                        ChatDesignTokens.TopBar.CopyConfirmationVerticalPadding
                 ),
 
         verticalAlignment =
@@ -382,14 +381,14 @@ private fun TopBarCopyConfirmation() {
 
         horizontalArrangement =
             Arrangement.spacedBy(
-                COPY_CONFIRMATION_CONTENT_SPACING
+                ChatDesignTokens.TopBar.CopyConfirmationContentSpacing
             )
     ) {
         Box(
             modifier =
                 Modifier
                     .size(
-                        COPY_CONFIRMATION_ICON_CONTAINER_SIZE
+                        ChatDesignTokens.TopBar.CopyConfirmationIconContainerSize
                     )
                     .clip(
                         CircleShape
@@ -414,7 +413,7 @@ private fun TopBarCopyConfirmation() {
 
                 modifier =
                     Modifier.size(
-                        COPY_CONFIRMATION_CHECK_SIZE
+                        ChatDesignTokens.TopBar.CopyConfirmationCheckSize
                     ),
 
                 tint =
@@ -462,7 +461,7 @@ private fun AnimatedChatTopBarIconButton(
 
     val isLightTheme =
         colors.background.luminance() >
-                LIGHT_THEME_LUMINANCE_THRESHOLD
+                ChatDesignTokens.DarkLuminanceThreshold
 
     /*
      * Keep the filled circular button, but remove the outline.
@@ -475,19 +474,19 @@ private fun AnimatedChatTopBarIconButton(
      */
     val normalContainerColor =
         if (isLightTheme) {
-            LIGHT_MODE_BACK_BUTTON_BACKGROUND
+            ChatDesignTokens.TopBar.LightModeBackButtonBackground
         } else {
             colors
                 .surfaceContainer
                 .copy(
                     alpha =
-                        NORMAL_BUTTON_ALPHA
+                        ChatDesignTokens.TopBar.NormalButtonAlpha
                 )
         }
 
     val pressedContainerColor =
         if (isLightTheme) {
-            LIGHT_MODE_BACK_BUTTON_PRESSED_BACKGROUND
+            ChatDesignTokens.TopBar.LightModeBackButtonPressedBackground
         } else {
             colors.surfaceContainerHighest
         }
@@ -496,15 +495,15 @@ private fun AnimatedChatTopBarIconButton(
     animateFloatAsState(
         targetValue =
             if (isPressed) {
-                PRESSED_ICON_SCALE
+                ChatDesignTokens.TopBar.PressedIconScale
             } else {
-                NORMAL_ICON_SCALE
+                ChatDesignTokens.TopBar.NormalIconScale
             },
 
         animationSpec =
             tween(
                 durationMillis =
-                    ICON_PRESS_ANIMATION_DURATION_MILLIS,
+                    ChatDesignTokens.TopBar.IconPressAnimationDurationMillis,
 
                 easing =
                     FastOutSlowInEasing
@@ -518,7 +517,7 @@ private fun AnimatedChatTopBarIconButton(
         modifier =
             modifier
                 .size(
-                    TOP_BAR_ICON_BUTTON_SIZE
+                    ChatDesignTokens.TopBar.TopBarIconButtonSize
                 )
                 .graphicsLayer {
                     scaleX =
@@ -570,82 +569,3 @@ private fun AnimatedChatTopBarIconButton(
         content()
     }
 }
-
-private val TOP_BAR_ICON_BUTTON_SIZE =
-    40.dp
-
-private val TOP_BAR_EDGE_PADDING =
-    8.dp
-
-private val TITLE_START_PADDING =
-    8.dp
-
-private val TITLE_END_PADDING =
-    2.dp
-
-private val COPY_CONFIRMATION_SPACING =
-    6.dp
-
-private val COPY_CONFIRMATION_ICON_CONTAINER_SIZE =
-    22.dp
-
-private val COPY_CONFIRMATION_CHECK_SIZE =
-    13.dp
-
-private val COPY_CONFIRMATION_START_PADDING =
-    5.dp
-
-private val COPY_CONFIRMATION_END_PADDING =
-    9.dp
-
-private val COPY_CONFIRMATION_VERTICAL_PADDING =
-    4.dp
-
-private val COPY_CONFIRMATION_CONTENT_SPACING =
-    5.dp
-
-private val LIGHT_MODE_BACK_BUTTON_BACKGROUND =
-    Color(
-        0xFFE3E4E8
-    )
-
-private val LIGHT_MODE_BACK_BUTTON_PRESSED_BACKGROUND =
-    Color(
-        0xFFD3D5DB
-    )
-
-private const val LIGHT_THEME_LUMINANCE_THRESHOLD =
-    0.5f
-
-private const val FULL_CORNER_PERCENT =
-    50
-
-private const val NORMAL_ICON_SCALE =
-    1f
-
-private const val PRESSED_ICON_SCALE =
-    0.9f
-
-private const val NORMAL_BUTTON_ALPHA =
-    0.82f
-
-private const val ICON_PRESS_ANIMATION_DURATION_MILLIS =
-    130
-
-private const val COPY_CONFIRMATION_INITIAL_SCALE =
-    0.55f
-
-private const val COPY_CONFIRMATION_INITIAL_ROTATION =
-    -10f
-
-private const val COPY_CONFIRMATION_ROTATION_DAMPING =
-    0.58f
-
-private const val COPY_CONFIRMATION_ROTATION_STIFFNESS =
-    440f
-
-private const val COPY_CONFIRMATION_ENTER_MILLIS =
-    160
-
-private const val COPY_CONFIRMATION_EXIT_MILLIS =
-    170

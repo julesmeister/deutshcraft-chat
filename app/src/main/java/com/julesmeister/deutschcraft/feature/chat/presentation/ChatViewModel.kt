@@ -11,6 +11,7 @@ import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.AcceptBesserChallengeUseCase
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.RevealNextBesserHintUseCase
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.SkipBesserChallengeUseCase
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultController
 import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultUiState
 import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationContext
@@ -319,7 +320,7 @@ class ChatViewModel
                                 .missionTitle
                                 .trim()
                                 .ifBlank {
-                                    DEFAULT_MISSION_TITLE
+                                    ChatPresentationTokens.ViewModel.DefaultMissionTitle
                                 },
 
                         cefrLevel =
@@ -379,9 +380,4 @@ class ChatViewModel
             )
     }
 
-    private companion object {
-
-        const val DEFAULT_MISSION_TITLE =
-            "Conversation mission"
-    }
 }

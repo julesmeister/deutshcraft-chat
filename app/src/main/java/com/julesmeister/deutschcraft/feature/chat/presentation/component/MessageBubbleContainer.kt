@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -44,7 +45,7 @@ internal fun MessageBubbleContainer(
 
     modifier: Modifier = Modifier,
     borderColor: Color = Color.Transparent,
-    maxWidth: Dp = DEFAULT_MAXIMUM_BUBBLE_WIDTH,
+    maxWidth: Dp = ChatDesignTokens.BubbleContainer.DefaultMaximumBubbleWidth,
     content: @Composable BoxScope.() -> Unit
 ) {
     val interactionSource =
@@ -59,7 +60,7 @@ internal fun MessageBubbleContainer(
     animateFloatAsState(
         targetValue =
             if (isPressed) {
-                PRESSED_BUBBLE_SCALE
+                ChatDesignTokens.BubbleContainer.PressedBubbleScale
             } else {
                 1f
             },
@@ -80,7 +81,7 @@ internal fun MessageBubbleContainer(
                 .wrapContentWidth()
                 .widthIn(
                     min =
-                        MINIMUM_BUBBLE_WIDTH,
+                        ChatDesignTokens.BubbleContainer.MinimumBubbleWidth,
                     max =
                         maxWidth
                 )
@@ -113,7 +114,7 @@ internal fun MessageBubbleContainer(
                 )
                 .border(
                     width =
-                        BORDER_WIDTH,
+                        ChatDesignTokens.BubbleContainer.BorderWidth,
                     color =
                         borderColor,
                     shape =
@@ -143,15 +144,3 @@ internal fun MessageBubbleContainer(
             content
     )
 }
-
-private val MINIMUM_BUBBLE_WIDTH =
-    64.dp
-
-private val DEFAULT_MAXIMUM_BUBBLE_WIDTH =
-    320.dp
-
-private val BORDER_WIDTH =
-    0.75.dp
-
-private const val PRESSED_BUBBLE_SCALE =
-    0.965f

@@ -33,6 +33,7 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.presentation.ChatUiState
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens as ChatTokens
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhrase
 import com.julesmeister.deutschcraft.feature.phrasemarking.presentation.MarkedPhraseBubble
 import java.time.Instant
@@ -254,10 +255,10 @@ fun ChatMessageList(
             contentType = { entry ->
                 when (entry) {
                     is ChatListEntry.DateSeparator ->
-                        DATE_CONTENT_TYPE
+                        ChatPresentationTokens.MessageList.DateContentType
 
                     is ChatListEntry.Message ->
-                        MESSAGE_CONTENT_TYPE
+                        ChatPresentationTokens.MessageList.MessageContentType
                 }
             }
         ) { entry ->
@@ -559,7 +560,7 @@ private fun buildChatListEntries(
                         ),
 
                     key =
-                        DATE_KEY_PREFIX +
+                        ChatPresentationTokens.MessageList.DateKeyPrefix +
                                 messageDate
                 )
             )
@@ -607,21 +608,21 @@ private fun formatDateSeparator(
 
     return when {
         date == today -> {
-            TODAY_LABEL
+            ChatPresentationTokens.MessageList.TodayLabel
         }
 
         date ==
                 today.minusDays(
                     1
                 ) -> {
-            YESTERDAY_LABEL
+            ChatPresentationTokens.MessageList.YesterdayLabel
         }
 
         date.year ==
                 today.year -> {
             date.format(
                 DateTimeFormatter.ofPattern(
-                    CURRENT_YEAR_DATE_PATTERN,
+                    ChatPresentationTokens.MessageList.CurrentYearDatePattern,
                     Locale.GERMAN
                 )
             )
@@ -630,7 +631,7 @@ private fun formatDateSeparator(
         else -> {
             date.format(
                 DateTimeFormatter.ofPattern(
-                    OTHER_YEAR_DATE_PATTERN,
+                    ChatPresentationTokens.MessageList.OtherYearDatePattern,
                     Locale.GERMAN
                 )
             )
@@ -716,24 +717,3 @@ private fun ChatMessageListEmptyState(
         ChatEmptyState()
     }
 }
-
-private const val DATE_CONTENT_TYPE =
-    "date"
-
-private const val MESSAGE_CONTENT_TYPE =
-    "message"
-
-private const val DATE_KEY_PREFIX =
-    "date-"
-
-private const val TODAY_LABEL =
-    "Heute"
-
-private const val YESTERDAY_LABEL =
-    "Gestern"
-
-private const val CURRENT_YEAR_DATE_PATTERN =
-    "EEEE, d. MMMM"
-
-private const val OTHER_YEAR_DATE_PATTERN =
-    "d. MMMM yyyy"

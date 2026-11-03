@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.ui.theme.DeutschSurfaceHigh
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 
@@ -43,30 +44,30 @@ fun TypingIndicator(
             )
             .padding(
                 horizontal =
-                    INDICATOR_HORIZONTAL_PADDING,
+                    ChatDesignTokens.TypingIndicator.IndicatorHorizontalPadding,
                 vertical =
-                    INDICATOR_VERTICAL_PADDING
+                    ChatDesignTokens.TypingIndicator.IndicatorVerticalPadding
             ),
         horizontalArrangement =
             Arrangement.spacedBy(
-                DOT_SPACING
+                ChatDesignTokens.TypingIndicator.DotSpacing
             ),
         verticalAlignment =
             Alignment.CenterVertically
     ) {
         repeat(
-            times = DOT_COUNT
+            times = ChatDesignTokens.TypingIndicator.DotCount
         ) { dotIndex ->
             val animationDelay =
                 dotIndex *
-                        DOT_ANIMATION_DELAY_MILLIS
+                        ChatDesignTokens.TypingIndicator.DotAnimationDelayMillis
 
             val dotOffset by
             transition.animateFloat(
                 initialValue =
-                    RESTING_OFFSET,
+                    ChatDesignTokens.TypingIndicator.RestingOffset,
                 targetValue =
-                    RESTING_OFFSET,
+                    ChatDesignTokens.TypingIndicator.RestingOffset,
                 animationSpec =
                     infiniteRepeatable(
                         animation =
@@ -84,9 +85,9 @@ fun TypingIndicator(
             val dotAlpha by
             transition.animateFloat(
                 initialValue =
-                    RESTING_ALPHA,
+                    ChatDesignTokens.TypingIndicator.RestingAlpha,
                 targetValue =
-                    RESTING_ALPHA,
+                    ChatDesignTokens.TypingIndicator.RestingAlpha,
                 animationSpec =
                     infiniteRepeatable(
                         animation =
@@ -104,9 +105,9 @@ fun TypingIndicator(
             val dotScale by
             transition.animateFloat(
                 initialValue =
-                    RESTING_SCALE,
+                    ChatDesignTokens.TypingIndicator.RestingScale,
                 targetValue =
-                    RESTING_SCALE,
+                    ChatDesignTokens.TypingIndicator.RestingScale,
                 animationSpec =
                     infiniteRepeatable(
                         animation =
@@ -142,7 +143,7 @@ private fun TypingDot(
     Box(
         modifier = Modifier
             .size(
-                DOT_SIZE
+                ChatDesignTokens.TypingIndicator.DotSize
             )
             .graphicsLayer {
                 translationY =
@@ -170,81 +171,81 @@ private fun dotOffsetKeyframes(
     delayMillis: Int
 ) = keyframes<Float> {
     durationMillis =
-        DOT_ANIMATION_CYCLE_MILLIS
+        ChatDesignTokens.TypingIndicator.DotAnimationCycleMillis
 
-    RESTING_OFFSET at 0
-    RESTING_OFFSET at delayMillis
+    ChatDesignTokens.TypingIndicator.RestingOffset at 0
+    ChatDesignTokens.TypingIndicator.RestingOffset at delayMillis
 
-    BOUNCE_OFFSET at
+    ChatDesignTokens.TypingIndicator.BounceOffset at
             (
                     delayMillis +
-                            DOT_RISE_DURATION_MILLIS
+                            ChatDesignTokens.TypingIndicator.DotRiseDurationMillis
                     ) using
             FastOutSlowInEasing
 
-    RESTING_OFFSET at
+    ChatDesignTokens.TypingIndicator.RestingOffset at
             (
                     delayMillis +
-                            DOT_BOUNCE_DURATION_MILLIS
+                            ChatDesignTokens.TypingIndicator.DotBounceDurationMillis
                     ) using
             FastOutSlowInEasing
 
-    RESTING_OFFSET at
-            DOT_ANIMATION_CYCLE_MILLIS
+    ChatDesignTokens.TypingIndicator.RestingOffset at
+            ChatDesignTokens.TypingIndicator.DotAnimationCycleMillis
 }
 
 private fun dotAlphaKeyframes(
     delayMillis: Int
 ) = keyframes<Float> {
     durationMillis =
-        DOT_ANIMATION_CYCLE_MILLIS
+        ChatDesignTokens.TypingIndicator.DotAnimationCycleMillis
 
-    RESTING_ALPHA at 0
-    RESTING_ALPHA at delayMillis
+    ChatDesignTokens.TypingIndicator.RestingAlpha at 0
+    ChatDesignTokens.TypingIndicator.RestingAlpha at delayMillis
 
-    ACTIVE_ALPHA at
+    ChatDesignTokens.TypingIndicator.ActiveAlpha at
             (
                     delayMillis +
-                            DOT_RISE_DURATION_MILLIS
+                            ChatDesignTokens.TypingIndicator.DotRiseDurationMillis
                     ) using
             FastOutSlowInEasing
 
-    RESTING_ALPHA at
+    ChatDesignTokens.TypingIndicator.RestingAlpha at
             (
                     delayMillis +
-                            DOT_BOUNCE_DURATION_MILLIS
+                            ChatDesignTokens.TypingIndicator.DotBounceDurationMillis
                     ) using
             FastOutSlowInEasing
 
-    RESTING_ALPHA at
-            DOT_ANIMATION_CYCLE_MILLIS
+    ChatDesignTokens.TypingIndicator.RestingAlpha at
+            ChatDesignTokens.TypingIndicator.DotAnimationCycleMillis
 }
 
 private fun dotScaleKeyframes(
     delayMillis: Int
 ) = keyframes<Float> {
     durationMillis =
-        DOT_ANIMATION_CYCLE_MILLIS
+        ChatDesignTokens.TypingIndicator.DotAnimationCycleMillis
 
-    RESTING_SCALE at 0
-    RESTING_SCALE at delayMillis
+    ChatDesignTokens.TypingIndicator.RestingScale at 0
+    ChatDesignTokens.TypingIndicator.RestingScale at delayMillis
 
-    ACTIVE_SCALE at
+    ChatDesignTokens.TypingIndicator.ActiveScale at
             (
                     delayMillis +
-                            DOT_RISE_DURATION_MILLIS
+                            ChatDesignTokens.TypingIndicator.DotRiseDurationMillis
                     ) using
             FastOutSlowInEasing
 
-    RESTING_SCALE at
+    ChatDesignTokens.TypingIndicator.RestingScale at
             (
                     delayMillis +
-                            DOT_BOUNCE_DURATION_MILLIS
+                            ChatDesignTokens.TypingIndicator.DotBounceDurationMillis
                     ) using
             FastOutSlowInEasing
 
-    RESTING_SCALE at
-            DOT_ANIMATION_CYCLE_MILLIS
+    ChatDesignTokens.TypingIndicator.RestingScale at
+            ChatDesignTokens.TypingIndicator.DotAnimationCycleMillis
 }
 
 private fun typingIndicatorShape():
@@ -260,61 +261,3 @@ private fun typingIndicatorShape():
             22.dp
     )
 }
-
-private val DOT_SIZE =
-    7.dp
-
-private val DOT_SPACING =
-    5.dp
-
-private val INDICATOR_HORIZONTAL_PADDING =
-    16.dp
-
-private val INDICATOR_VERTICAL_PADDING =
-    14.dp
-
-private const val DOT_COUNT =
-    3
-
-/*
- * Total time before the dot sequence repeats.
- *
- * The third dot finishes before reaching this value,
- * leaving a small pause between animation cycles.
- */
-private const val DOT_ANIMATION_CYCLE_MILLIS =
-    1_200
-
-/*
- * Each following dot starts 180 milliseconds after the
- * previous dot.
- */
-private const val DOT_ANIMATION_DELAY_MILLIS =
-    180
-
-private const val DOT_RISE_DURATION_MILLIS =
-    170
-
-private const val DOT_BOUNCE_DURATION_MILLIS =
-    390
-
-private const val RESTING_OFFSET =
-    0f
-
-/*
- * Negative Y moves the dot upward.
- */
-private const val BOUNCE_OFFSET =
-    -7f
-
-private const val RESTING_ALPHA =
-    0.38f
-
-private const val ACTIVE_ALPHA =
-    1f
-
-private const val RESTING_SCALE =
-    0.88f
-
-private const val ACTIVE_SCALE =
-    1.08f

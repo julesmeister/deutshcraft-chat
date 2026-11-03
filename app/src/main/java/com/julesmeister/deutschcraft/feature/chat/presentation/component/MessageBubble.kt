@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import kotlinx.coroutines.delay
 
 @Suppress("DEPRECATION")
@@ -104,10 +105,10 @@ fun MessageBubble(
                 LocalConfiguration
                     .current
                     .screenWidthDp.dp *
-                        MAXIMUM_BUBBLE_WIDTH_FRACTION
+                        ChatDesignTokens.MessageBubble.MaximumBubbleWidthFraction
                 )
             .coerceAtMost(
-                MAXIMUM_BUBBLE_WIDTH_CAP
+                ChatDesignTokens.MessageBubble.MaximumBubbleWidthCap
             )
 
     LaunchedEffect(
@@ -124,7 +125,7 @@ fun MessageBubble(
             true
 
         delay(
-            COPIED_INDICATOR_DURATION_MILLIS
+            ChatDesignTokens.MessageBubble.CopiedIndicatorDurationMillis
         )
 
         showCopiedIndicator =
@@ -156,7 +157,7 @@ fun MessageBubble(
             Spacer(
                 modifier =
                     Modifier.width(
-                        COPIED_INDICATOR_SPACING
+                        ChatDesignTokens.MessageBubble.CopiedIndicatorSpacing
                     )
             )
         }
@@ -214,7 +215,7 @@ fun MessageBubble(
             Spacer(
                 modifier =
                     Modifier.width(
-                        COPIED_INDICATOR_SPACING
+                        ChatDesignTokens.MessageBubble.CopiedIndicatorSpacing
                     )
             )
 
@@ -254,7 +255,7 @@ private fun CopiedIndicator(
             ) {
                 1f
             } else {
-                COPIED_BADGE_INITIAL_SCALE
+                ChatDesignTokens.MessageBubble.CopiedBadgeInitialScale
             },
         animationSpec =
             spring(
@@ -277,16 +278,16 @@ private fun CopiedIndicator(
             ) {
                 0f
             } else if (isUserMessage) {
-                COPIED_BADGE_INITIAL_ROTATION
+                ChatDesignTokens.MessageBubble.CopiedBadgeInitialRotation
             } else {
-                -COPIED_BADGE_INITIAL_ROTATION
+                -ChatDesignTokens.MessageBubble.CopiedBadgeInitialRotation
             },
         animationSpec =
             spring(
                 dampingRatio =
-                    COPIED_BADGE_ROTATION_DAMPING,
+                    ChatDesignTokens.MessageBubble.CopiedBadgeRotationDamping,
                 stiffness =
-                    COPIED_BADGE_ROTATION_STIFFNESS
+                    ChatDesignTokens.MessageBubble.CopiedBadgeRotationStiffness
             ),
         label =
             "CopiedBadgeRotation"
@@ -299,14 +300,14 @@ private fun CopiedIndicator(
                 visible &&
                 animationStarted
             ) {
-                COPIED_GLOW_FINAL_SCALE
+                ChatDesignTokens.MessageBubble.CopiedGlowFinalScale
             } else {
-                COPIED_GLOW_INITIAL_SCALE
+                ChatDesignTokens.MessageBubble.CopiedGlowInitialScale
             },
         animationSpec =
             tween(
                 durationMillis =
-                    COPIED_GLOW_DURATION_MILLIS
+                    ChatDesignTokens.MessageBubble.CopiedGlowDurationMillis
             ),
         label =
             "CopiedBadgeGlowScale"
@@ -321,12 +322,12 @@ private fun CopiedIndicator(
             ) {
                 0f
             } else {
-                COPIED_GLOW_INITIAL_ALPHA
+                ChatDesignTokens.MessageBubble.CopiedGlowInitialAlpha
             },
         animationSpec =
             tween(
                 durationMillis =
-                    COPIED_GLOW_DURATION_MILLIS
+                    ChatDesignTokens.MessageBubble.CopiedGlowDurationMillis
             ),
         label =
             "CopiedBadgeGlowAlpha"
@@ -355,7 +356,7 @@ private fun CopiedIndicator(
                 animationSpec =
                     tween(
                         durationMillis =
-                            COPIED_INDICATOR_ENTER_MILLIS
+                            ChatDesignTokens.MessageBubble.CopiedIndicatorEnterMillis
                     )
             ) +
                     slideInHorizontally(
@@ -381,14 +382,14 @@ private fun CopiedIndicator(
                 animationSpec =
                     tween(
                         durationMillis =
-                            COPIED_INDICATOR_EXIT_MILLIS
+                            ChatDesignTokens.MessageBubble.CopiedIndicatorExitMillis
                     )
             ) +
                     slideOutHorizontally(
                         animationSpec =
                             tween(
                                 durationMillis =
-                                    COPIED_INDICATOR_EXIT_MILLIS
+                                    ChatDesignTokens.MessageBubble.CopiedIndicatorExitMillis
                             ),
                         targetOffsetX = { fullWidth ->
                             if (isUserMessage) {
@@ -402,7 +403,7 @@ private fun CopiedIndicator(
         Box(
             modifier =
                 Modifier.size(
-                    COPIED_INDICATOR_CONTAINER_SIZE
+                    ChatDesignTokens.MessageBubble.CopiedIndicatorContainerSize
                 ),
             contentAlignment =
                 Alignment.Center
@@ -411,7 +412,7 @@ private fun CopiedIndicator(
                 modifier =
                     Modifier
                         .size(
-                            COPIED_BADGE_SIZE
+                            ChatDesignTokens.MessageBubble.CopiedBadgeSize
                         )
                         .graphicsLayer {
                             scaleX =
@@ -445,11 +446,11 @@ private fun CopiedIndicator(
                                 badgeRotation
                         }
                         .size(
-                            COPIED_BADGE_SIZE
+                            ChatDesignTokens.MessageBubble.CopiedBadgeSize
                         )
                         .shadow(
                             elevation =
-                                COPIED_BADGE_ELEVATION,
+                                ChatDesignTokens.MessageBubble.CopiedBadgeElevation,
                             shape =
                                 CircleShape,
                             clip =
@@ -473,7 +474,7 @@ private fun CopiedIndicator(
                         "Copied",
                     modifier =
                         Modifier.size(
-                            COPIED_CHECK_SIZE
+                            ChatDesignTokens.MessageBubble.CopiedCheckSize
                         ),
                     tint =
                         Color.Black
@@ -499,57 +500,3 @@ private fun ChatMessage.copyablePrimaryText(
         content
     }
 }
-
-private const val MAXIMUM_BUBBLE_WIDTH_FRACTION =
-    0.78f
-
-private val MAXIMUM_BUBBLE_WIDTH_CAP =
-    420.dp
-
-private val COPIED_INDICATOR_SPACING =
-    8.dp
-
-private val COPIED_INDICATOR_CONTAINER_SIZE =
-    42.dp
-
-private val COPIED_BADGE_SIZE =
-    30.dp
-
-private val COPIED_CHECK_SIZE =
-    17.dp
-
-private val COPIED_BADGE_ELEVATION =
-    5.dp
-
-private const val COPIED_BADGE_INITIAL_SCALE =
-    0.35f
-
-private const val COPIED_BADGE_INITIAL_ROTATION =
-    22f
-
-private const val COPIED_BADGE_ROTATION_DAMPING =
-    0.55f
-
-private const val COPIED_BADGE_ROTATION_STIFFNESS =
-    430f
-
-private const val COPIED_GLOW_INITIAL_SCALE =
-    0.80f
-
-private const val COPIED_GLOW_FINAL_SCALE =
-    1.65f
-
-private const val COPIED_GLOW_INITIAL_ALPHA =
-    0.28f
-
-private const val COPIED_GLOW_DURATION_MILLIS =
-    330
-
-private const val COPIED_INDICATOR_DURATION_MILLIS =
-    900L
-
-private const val COPIED_INDICATOR_ENTER_MILLIS =
-    140
-
-private const val COPIED_INDICATOR_EXIT_MILLIS =
-    180

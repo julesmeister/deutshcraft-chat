@@ -20,8 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 
 /*
  * Displays the learner's original sentence underneath the
@@ -58,7 +57,7 @@ fun MessageCorrectionContent(
             modifier
                 .padding(
                     top =
-                        ORIGINAL_SECTION_TOP_PADDING
+                        ChatDesignTokens.CorrectionContent.OriginalSectionTopPadding
                 )
                 .clickable(
                     interactionSource =
@@ -86,18 +85,18 @@ fun MessageCorrectionContent(
                         .typography
                         .labelSmall,
                 fontSize =
-                    ORIGINAL_LABEL_ICON_SIZE,
+                    ChatDesignTokens.CorrectionContent.OriginalLabelIconSize,
                 color =
                     contentColor.copy(
                         alpha =
-                            ORIGINAL_LABEL_ALPHA
+                            ChatDesignTokens.CorrectionContent.OriginalLabelAlpha
                     )
             )
 
             Spacer(
                 modifier =
                     Modifier.width(
-                        ORIGINAL_LABEL_SPACING
+                        ChatDesignTokens.CorrectionContent.OriginalLabelSpacing
                     )
             )
 
@@ -110,16 +109,16 @@ fun MessageCorrectionContent(
                         .labelSmall
                         .copy(
                             fontSize =
-                                ORIGINAL_LABEL_SIZE,
+                                ChatDesignTokens.CorrectionContent.OriginalLabelSize,
                             letterSpacing =
-                                ORIGINAL_LABEL_LETTER_SPACING
+                                ChatDesignTokens.CorrectionContent.OriginalLabelLetterSpacing
                         ),
                 fontWeight =
                     FontWeight.SemiBold,
                 color =
                     contentColor.copy(
                         alpha =
-                            ORIGINAL_LABEL_ALPHA
+                            ChatDesignTokens.CorrectionContent.OriginalLabelAlpha
                     )
             )
         }
@@ -133,7 +132,7 @@ fun MessageCorrectionContent(
             modifier =
                 Modifier.padding(
                     top =
-                        ORIGINAL_TEXT_TOP_PADDING
+                        ChatDesignTokens.CorrectionContent.OriginalTextTopPadding
                 ),
             style =
                 MaterialTheme
@@ -141,56 +140,23 @@ fun MessageCorrectionContent(
                     .bodySmall
                     .copy(
                         fontSize =
-                            ORIGINAL_TEXT_SIZE,
+                            ChatDesignTokens.CorrectionContent.OriginalTextSize,
                         lineHeight =
-                            ORIGINAL_LINE_HEIGHT
+                            ChatDesignTokens.CorrectionContent.OriginalLineHeight
                     ),
             color =
                 contentColor.copy(
                     alpha =
-                        ORIGINAL_TEXT_ALPHA
+                        ChatDesignTokens.CorrectionContent.OriginalTextAlpha
                 ),
             maxLines =
                 if (isExpanded) {
                     Int.MAX_VALUE
                 } else {
-                    COLLAPSED_MAX_LINES
+                    ChatDesignTokens.CorrectionContent.CollapsedMaxLines
                 },
             overflow =
                 TextOverflow.Ellipsis
         )
     }
 }
-
-private const val COLLAPSED_MAX_LINES =
-    2
-
-private const val ORIGINAL_TEXT_ALPHA =
-    0.52f
-
-private const val ORIGINAL_LABEL_ALPHA =
-    0.48f
-
-private val ORIGINAL_SECTION_TOP_PADDING =
-    8.dp
-
-private val ORIGINAL_LABEL_SPACING =
-    4.dp
-
-private val ORIGINAL_TEXT_TOP_PADDING =
-    2.dp
-
-private val ORIGINAL_LABEL_ICON_SIZE =
-    9.sp
-
-private val ORIGINAL_LABEL_SIZE =
-    9.sp
-
-private val ORIGINAL_LABEL_LETTER_SPACING =
-    0.7.sp
-
-private val ORIGINAL_TEXT_SIZE =
-    12.sp
-
-private val ORIGINAL_LINE_HEIGHT =
-    16.sp

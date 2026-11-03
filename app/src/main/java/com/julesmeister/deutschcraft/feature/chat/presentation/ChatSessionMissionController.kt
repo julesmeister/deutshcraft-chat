@@ -3,6 +3,7 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation
 
 import android.util.Log
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.MissionOpportunity
 import com.julesmeister.deutschcraft.feature.mission.domain.usecase.StartMissionVariationUseCase
 import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationMode
@@ -66,7 +67,7 @@ class ChatSessionMissionController
             )
 
             Log.d(
-                CONTROLLER_TAG,
+                ChatPresentationTokens.SessionMissionController.ControllerTag,
                 buildString {
                     append(
                         "Active mission updated. "
@@ -109,7 +110,7 @@ class ChatSessionMissionController
             missionGuidanceController.clear()
 
             Log.d(
-                CONTROLLER_TAG,
+                ChatPresentationTokens.SessionMissionController.ControllerTag,
                 "No active mission. Mission guidance cleared."
             )
         }
@@ -183,7 +184,7 @@ class ChatSessionMissionController
                     throw cancellationException
                 } catch (throwable: Throwable) {
                     Log.e(
-                        CONTROLLER_TAG,
+                        ChatPresentationTokens.SessionMissionController.ControllerTag,
                         "Mission opportunity check failed.",
                         throwable
                     )
@@ -249,7 +250,7 @@ class ChatSessionMissionController
                     throw cancellationException
                 } catch (throwable: Throwable) {
                     Log.e(
-                        CONTROLLER_TAG,
+                        ChatPresentationTokens.SessionMissionController.ControllerTag,
                         "Mission could not be started.",
                         throwable
                     )
@@ -257,7 +258,7 @@ class ChatSessionMissionController
                     uiState.update { state ->
                         state.missionStartFailed(
                             message =
-                                MISSION_START_ERROR
+                                ChatPresentationTokens.SessionMissionController.MissionStartError
                         )
                     }
                 } finally {
@@ -279,7 +280,7 @@ class ChatSessionMissionController
                     uiState.update { state ->
                         state.missionVariationStartFailed(
                             message =
-                                CONVERSATION_UNAVAILABLE_ERROR
+                                ChatPresentationTokens.SessionMissionController.ConversationUnavailableError
                         )
                     }
 
@@ -297,7 +298,7 @@ class ChatSessionMissionController
                     uiState.update { state ->
                         state.missionVariationStartFailed(
                             message =
-                                VARIATION_CONTEXT_UNAVAILABLE_ERROR
+                                ChatPresentationTokens.SessionMissionController.VariationContextUnavailableError
                         )
                     }
 
@@ -346,7 +347,7 @@ class ChatSessionMissionController
                     uiState.update { state ->
                         state.missionVariationStartFailed(
                             message =
-                                ACTIVE_MISSION_REQUIRED_ERROR
+                                ChatPresentationTokens.SessionMissionController.ActiveMissionRequiredError
                         )
                     }
 
@@ -362,7 +363,7 @@ class ChatSessionMissionController
                     uiState.update { state ->
                         state.missionVariationStartFailed(
                             message =
-                                ACTIVE_MISSION_CHANGED_ERROR
+                                ChatPresentationTokens.SessionMissionController.ActiveMissionChangedError
                         )
                     }
 
@@ -380,7 +381,7 @@ class ChatSessionMissionController
                     uiState.update { state ->
                         state.missionVariationStartFailed(
                             message =
-                                ACTIVE_MISSION_EXTENSION_ERROR
+                                ChatPresentationTokens.SessionMissionController.ActiveMissionExtensionError
                         )
                     }
 
@@ -402,7 +403,7 @@ class ChatSessionMissionController
         }
 
         Log.i(
-            CONTROLLER_TAG,
+            ChatPresentationTokens.SessionMissionController.ControllerTag,
             buildString {
                 append(
                     "Starting mission variation. "
@@ -477,7 +478,7 @@ class ChatSessionMissionController
                     }
 
                     Log.i(
-                        CONTROLLER_TAG,
+                        ChatPresentationTokens.SessionMissionController.ControllerTag,
                         buildString {
                             append(
                                 "Mission variation completed. "
@@ -528,14 +529,14 @@ class ChatSessionMissionController
                     uiState.update { state ->
                         state.missionVariationStartFailed(
                             message =
-                                VARIATION_CANCELLED_MESSAGE
+                                ChatPresentationTokens.SessionMissionController.VariationCancelledMessage
                         )
                     }
 
                     throw cancellationException
                 } catch (throwable: Throwable) {
                     Log.e(
-                        CONTROLLER_TAG,
+                        ChatPresentationTokens.SessionMissionController.ControllerTag,
                         buildString {
                             append(
                                 "Mission variation could not "
@@ -577,7 +578,7 @@ class ChatSessionMissionController
                                     ?.takeIf(
                                         String::isNotBlank
                                     )
-                                    ?: MISSION_VARIATION_START_ERROR
+                                    ?: ChatPresentationTokens.SessionMissionController.MissionVariationStartError
                         )
                     }
                 } finally {
@@ -617,35 +618,4 @@ class ChatSessionMissionController
         }
     }
 
-    private companion object {
-
-        const val CONTROLLER_TAG =
-            "ChatSessionMission"
-
-        const val MISSION_START_ERROR =
-            "The mission could not be started."
-
-        const val MISSION_VARIATION_START_ERROR =
-            "Die neue Richtung konnte nicht gestartet werden."
-
-        const val CONVERSATION_UNAVAILABLE_ERROR =
-            "Die Unterhaltung ist noch nicht verfügbar."
-
-        const val VARIATION_CONTEXT_UNAVAILABLE_ERROR =
-            "Die gewählte Missionsrichtung ist nicht mehr verfügbar."
-
-        const val ACTIVE_MISSION_REQUIRED_ERROR =
-            "Die aktive Mission ist nicht mehr verfügbar."
-
-        const val ACTIVE_MISSION_CHANGED_ERROR =
-            "Die Mission hat sich inzwischen geändert. " +
-                    "Öffne „Andere Richtung“ erneut."
-
-        const val ACTIVE_MISSION_EXTENSION_ERROR =
-            "Eine abgeschlossene Mission kann nicht erweitert werden, " +
-                    "solange bereits eine andere Mission aktiv ist."
-
-        const val VARIATION_CANCELLED_MESSAGE =
-            "Die neue Richtung wurde abgebrochen."
-    }
 }

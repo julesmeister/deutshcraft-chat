@@ -30,7 +30,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 
 @Composable
@@ -44,7 +44,7 @@ internal fun MissionObjectiveCompletedStatus(
 
     val isLightTheme =
         colorScheme.background.luminance() >=
-                LIGHT_THEME_LUMINANCE_THRESHOLD
+                ChatDesignTokens.DarkLuminanceThreshold
 
     val completionAccent =
         if (isLightTheme) {
@@ -59,7 +59,7 @@ internal fun MissionObjectiveCompletedStatus(
         } else {
             DeutschLime.copy(
                 alpha =
-                    COMPLETION_ICON_BACKGROUND_ALPHA
+                    ChatDesignTokens.ObjectiveCompletion.CompletionIconBackgroundAlpha
             )
         }
 
@@ -75,7 +75,7 @@ internal fun MissionObjectiveCompletedStatus(
         eventId
     ) {
         mutableFloatStateOf(
-            COMPLETION_INITIAL_SCALE
+            ChatDesignTokens.ObjectiveCompletion.CompletionInitialScale
         )
     }
 
@@ -87,7 +87,7 @@ internal fun MissionObjectiveCompletedStatus(
         animationSpec =
             tween(
                 durationMillis =
-                    COMPLETION_SCALE_DURATION_MILLIS,
+                    ChatDesignTokens.ObjectiveCompletion.CompletionScaleDurationMillis,
 
                 easing =
                     FastOutSlowInEasing
@@ -101,7 +101,7 @@ internal fun MissionObjectiveCompletedStatus(
         eventId
     ) {
         targetScale =
-            COMPLETION_FINAL_SCALE
+            ChatDesignTokens.ObjectiveCompletion.CompletionFinalScale
     }
 
     Row(
@@ -115,7 +115,7 @@ internal fun MissionObjectiveCompletedStatus(
             modifier =
                 Modifier
                     .size(
-                        COMPLETION_ICON_SIZE
+                        ChatDesignTokens.ObjectiveCompletion.CompletionIconSize
                     )
                     .graphicsLayer {
                         scaleX =
@@ -126,7 +126,7 @@ internal fun MissionObjectiveCompletedStatus(
                     }
                     .clip(
                         RoundedCornerShape(
-                            COMPLETION_ICON_CORNER_RADIUS
+                            ChatDesignTokens.ObjectiveCompletion.CompletionIconCornerRadius
                         )
                     )
                     .background(
@@ -159,7 +159,7 @@ internal fun MissionObjectiveCompletedStatus(
         Spacer(
             modifier =
                 Modifier.width(
-                    COMPLETION_CONTENT_SPACING
+                    ChatDesignTokens.ObjectiveCompletion.CompletionContentSpacing
                 )
         )
 
@@ -227,27 +227,3 @@ internal fun MissionObjectiveCompletedStatus(
         }
     }
 }
-
-private val COMPLETION_ICON_SIZE =
-    32.dp
-
-private val COMPLETION_ICON_CORNER_RADIUS =
-    12.dp
-
-private val COMPLETION_CONTENT_SPACING =
-    8.dp
-
-private const val COMPLETION_ICON_BACKGROUND_ALPHA =
-    0.16f
-
-private const val COMPLETION_INITIAL_SCALE =
-    0.72f
-
-private const val COMPLETION_FINAL_SCALE =
-    1f
-
-private const val COMPLETION_SCALE_DURATION_MILLIS =
-    320
-
-private const val LIGHT_THEME_LUMINANCE_THRESHOLD =
-    0.5f

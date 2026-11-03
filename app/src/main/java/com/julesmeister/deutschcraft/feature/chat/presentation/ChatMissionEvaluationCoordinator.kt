@@ -3,6 +3,7 @@ package com.julesmeister.deutschcraft.feature.chat.presentation
 import android.util.Log
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import com.julesmeister.deutschcraft.feature.mission.domain.usecase.EvaluateMissionMessageUseCase
 import com.julesmeister.deutschcraft.feature.mission.domain.usecase.MissionMessageEvaluationOutcome
@@ -57,7 +58,7 @@ class ChatMissionEvaluationCoordinator
             throw cancellationException
         } catch (throwable: Throwable) {
             Log.e(
-                COORDINATOR_TAG,
+                ChatPresentationTokens.MissionEvaluationCoordinator.CoordinatorTag,
                 "Mission evaluation failed.",
                 throwable
             )
@@ -75,7 +76,7 @@ class ChatMissionEvaluationCoordinator
         result: MissionMessageEvaluationSummary
     ) {
         Log.d(
-            COORDINATOR_TAG,
+            ChatPresentationTokens.MissionEvaluationCoordinator.CoordinatorTag,
             buildString {
                 append("Mission evaluation completed. ")
                 append("missionId=")
@@ -99,8 +100,4 @@ class ChatMissionEvaluationCoordinator
         )
     }
 
-    private companion object {
-        const val COORDINATOR_TAG =
-            "ChatMissionEvaluation"
-    }
 }

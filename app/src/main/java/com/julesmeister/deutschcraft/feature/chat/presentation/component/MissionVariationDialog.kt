@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Close
@@ -32,7 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationOption
 import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationType
 import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationUiState
@@ -69,16 +68,16 @@ fun MissionVariationDialog(
                     .fillMaxWidth()
                     .padding(
                         horizontal =
-                            DIALOG_HORIZONTAL_MARGIN
+                            ChatDesignTokens.MissionVariation.DialogHorizontalMargin
                     )
                     .clip(
-                        DIALOG_SHAPE
+                        ChatDesignTokens.MissionVariation.DialogShape
                     )
                     .background(
                         colors.surfaceContainerHigh
                     )
                     .padding(
-                        DIALOG_CONTENT_PADDING
+                        ChatDesignTokens.MissionVariation.DialogContentPadding
                     )
         ) {
             MissionVariationHeader(
@@ -98,10 +97,10 @@ fun MissionVariationDialog(
                 modifier =
                     Modifier.padding(
                         top =
-                            DIALOG_PROMPT_TOP_PADDING,
+                            ChatDesignTokens.MissionVariation.DialogPromptTopPadding,
 
                         bottom =
-                            DIALOG_PROMPT_BOTTOM_PADDING
+                            ChatDesignTokens.MissionVariation.DialogPromptBottomPadding
                     ),
 
                 color =
@@ -133,7 +132,7 @@ fun MissionVariationDialog(
                         } else {
                             Modifier.padding(
                                 top =
-                                    ACTION_ITEM_SPACING
+                                    ChatDesignTokens.MissionVariation.ActionItemSpacing
                             )
                         }
                 )
@@ -161,7 +160,7 @@ private fun MissionVariationHeader(
             modifier =
                 Modifier
                     .size(
-                        HEADER_ICON_SIZE
+                        ChatDesignTokens.MissionVariation.HeaderIconSize
                     )
                     .clip(
                         CircleShape
@@ -184,7 +183,7 @@ private fun MissionVariationHeader(
 
                 modifier =
                     Modifier.size(
-                        HEADER_ICON_CONTENT_SIZE
+                        ChatDesignTokens.MissionVariation.HeaderIconContentSize
                     ),
 
                 tint =
@@ -200,7 +199,7 @@ private fun MissionVariationHeader(
                     )
                     .padding(
                         horizontal =
-                            HEADER_CONTENT_PADDING
+                            ChatDesignTokens.MissionVariation.HeaderContentPadding
                     )
         ) {
             Text(
@@ -226,7 +225,7 @@ private fun MissionVariationHeader(
                 modifier =
                     Modifier.padding(
                         top =
-                            HEADER_SUBTITLE_TOP_PADDING
+                            ChatDesignTokens.MissionVariation.HeaderSubtitleTopPadding
                     ),
 
                 color =
@@ -249,7 +248,7 @@ private fun MissionVariationHeader(
             modifier =
                 Modifier
                     .size(
-                        CLOSE_BUTTON_SIZE
+                        ChatDesignTokens.MissionVariation.CloseButtonSize
                     )
                     .clip(
                         CircleShape
@@ -276,7 +275,7 @@ private fun MissionVariationHeader(
 
                 modifier =
                     Modifier.size(
-                        CLOSE_ICON_SIZE
+                        ChatDesignTokens.MissionVariation.CloseIconSize
                     ),
 
                 tint =
@@ -307,7 +306,7 @@ private fun MissionVariationActionItem(
             modifier
                 .fillMaxWidth()
                 .clip(
-                    ACTION_ITEM_SHAPE
+                    ChatDesignTokens.MissionVariation.ActionItemShape
                 )
                 .clickable(
                     enabled =
@@ -318,10 +317,10 @@ private fun MissionVariationActionItem(
                 )
                 .padding(
                     horizontal =
-                        ACTION_HORIZONTAL_PADDING,
+                        ChatDesignTokens.MissionVariation.ActionHorizontalPadding,
 
                     vertical =
-                        ACTION_VERTICAL_PADDING
+                        ChatDesignTokens.MissionVariation.ActionVerticalPadding
                 ),
 
         verticalAlignment =
@@ -329,14 +328,14 @@ private fun MissionVariationActionItem(
 
         horizontalArrangement =
             Arrangement.spacedBy(
-                ACTION_CONTENT_SPACING
+                ChatDesignTokens.MissionVariation.ActionContentSpacing
             )
     ) {
         Box(
             modifier =
                 Modifier
                     .size(
-                        ACTION_ICON_SIZE
+                        ChatDesignTokens.MissionVariation.ActionIconSize
                     )
                     .clip(
                         CircleShape
@@ -357,7 +356,7 @@ private fun MissionVariationActionItem(
 
                 modifier =
                     Modifier.size(
-                        ACTION_ICON_CONTENT_SIZE
+                        ChatDesignTokens.MissionVariation.ActionIconContentSize
                     ),
 
                 tint =
@@ -394,7 +393,7 @@ private fun MissionVariationActionItem(
                 modifier =
                     Modifier.padding(
                         top =
-                            ACTION_DESCRIPTION_TOP_PADDING
+                            ChatDesignTokens.MissionVariation.ActionDescriptionTopPadding
                     ),
 
                 color =
@@ -464,64 +463,3 @@ private fun MissionVariationOption.presentation(
             )
     }
 }
-
-private val DIALOG_HORIZONTAL_MARGIN =
-    20.dp
-
-private val DIALOG_CONTENT_PADDING =
-    20.dp
-
-private val DIALOG_SHAPE =
-    RoundedCornerShape(
-        28.dp
-    )
-
-private val DIALOG_PROMPT_TOP_PADDING =
-    20.dp
-
-private val DIALOG_PROMPT_BOTTOM_PADDING =
-    10.dp
-
-private val HEADER_ICON_SIZE =
-    48.dp
-
-private val HEADER_ICON_CONTENT_SIZE =
-    23.dp
-
-private val HEADER_CONTENT_PADDING =
-    12.dp
-
-private val HEADER_SUBTITLE_TOP_PADDING =
-    3.dp
-
-private val CLOSE_BUTTON_SIZE =
-    38.dp
-
-private val CLOSE_ICON_SIZE =
-    19.dp
-
-private val ACTION_ITEM_SHAPE =
-    RoundedCornerShape(
-        20.dp
-    )
-
-private val ACTION_ITEM_SPACING =
-    8.dp
-
-private val ACTION_HORIZONTAL_PADDING =
-    4.dp
-
-private val ACTION_VERTICAL_PADDING =
-    10.dp
-
-private val ACTION_CONTENT_SPACING =
-    14.dp
-
-private val ACTION_ICON_SIZE =
-    46.dp
-
-private val ACTION_ICON_CONTENT_SIZE =
-    22.dp
-
-private val ACTION_DESCRIPTION_TOP_PADDING =
-    2.dp

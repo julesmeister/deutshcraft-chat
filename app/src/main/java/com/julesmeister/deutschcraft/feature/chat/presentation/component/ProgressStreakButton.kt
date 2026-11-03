@@ -37,9 +37,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import java.util.Locale
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun ProgressStreakButton(
@@ -72,14 +73,14 @@ fun ProgressStreakButton(
                 ProgressButtonDisplay.PROGRESS
 
             delay(
-                PROGRESS_DISPLAY_DURATION_MILLIS
+                ChatDesignTokens.ProgressStreak.ProgressDisplayDurationMillis.milliseconds
             )
 
             displayMode =
                 ProgressButtonDisplay.STREAK
 
             delay(
-                STREAK_DISPLAY_DURATION_MILLIS
+                ChatDesignTokens.ProgressStreak.StreakDisplayDurationMillis.milliseconds
             )
         }
     }
@@ -99,15 +100,15 @@ fun ProgressStreakButton(
         modifier = modifier
             .defaultMinSize(
                 minWidth =
-                    MINIMUM_BUTTON_SIZE,
+                    ChatDesignTokens.ProgressStreak.MinimumButtonSize,
                 minHeight =
-                    MINIMUM_BUTTON_SIZE
+                    ChatDesignTokens.ProgressStreak.MinimumButtonSize
             )
             .animateContentSize(
                 animationSpec =
                     tween(
                         durationMillis =
-                            CONTAINER_ANIMATION_DURATION_MILLIS,
+                            ChatDesignTokens.ProgressStreak.ContainerAnimationDurationMillis,
                         easing =
                             FastOutSlowInEasing
                     )
@@ -133,9 +134,9 @@ fun ProgressStreakButton(
             )
             .padding(
                 horizontal =
-                    HORIZONTAL_PADDING,
+                    ChatDesignTokens.ProgressStreak.HorizontalPadding,
                 vertical =
-                    VERTICAL_PADDING
+                    ChatDesignTokens.ProgressStreak.VerticalPadding
             ),
         contentAlignment =
             Alignment.Center
@@ -149,18 +150,18 @@ fun ProgressStreakButton(
                         animationSpec =
                             tween(
                                 durationMillis =
-                                    CONTENT_ENTER_DURATION_MILLIS,
+                                    ChatDesignTokens.ProgressStreak.ContentEnterDurationMillis,
                                 easing =
                                     LinearOutSlowInEasing
                             )
                     ) +
                             scaleIn(
                                 initialScale =
-                                    CONTENT_ENTER_SCALE,
+                                    ChatDesignTokens.ProgressStreak.ContentEnterScale,
                                 animationSpec =
                                     tween(
                                         durationMillis =
-                                            CONTENT_ENTER_DURATION_MILLIS,
+                                            ChatDesignTokens.ProgressStreak.ContentEnterDurationMillis,
                                         easing =
                                             FastOutSlowInEasing
                                     )
@@ -171,16 +172,16 @@ fun ProgressStreakButton(
                         animationSpec =
                             tween(
                                 durationMillis =
-                                    CONTENT_EXIT_DURATION_MILLIS
+                                    ChatDesignTokens.ProgressStreak.ContentExitDurationMillis
                             )
                     ) +
                             scaleOut(
                                 targetScale =
-                                    CONTENT_EXIT_SCALE,
+                                    ChatDesignTokens.ProgressStreak.ContentExitScale,
                                 animationSpec =
                                     tween(
                                         durationMillis =
-                                            CONTENT_EXIT_DURATION_MILLIS
+                                            ChatDesignTokens.ProgressStreak.ContentExitDurationMillis
                                     )
                             )
 
@@ -198,7 +199,7 @@ fun ProgressStreakButton(
 
                                 tween(
                                     durationMillis =
-                                        CONTAINER_ANIMATION_DURATION_MILLIS,
+                                        ChatDesignTokens.ProgressStreak.ContainerAnimationDurationMillis,
                                     easing =
                                         FastOutSlowInEasing
                                 )
@@ -236,7 +237,7 @@ private fun ProgressIconContent() {
             "Open progress",
         modifier =
             Modifier.size(
-                PROGRESS_ICON_SIZE
+                ChatDesignTokens.ProgressStreak.ProgressIconSize
             ),
         tint =
             MaterialTheme
@@ -253,7 +254,7 @@ private fun StreakContent(
         modifier =
             Modifier.padding(
                 horizontal =
-                    STREAK_HORIZONTAL_PADDING
+                    ChatDesignTokens.ProgressStreak.StreakHorizontalPadding
             ),
         verticalAlignment =
             Alignment.CenterVertically
@@ -279,7 +280,7 @@ private fun StreakContent(
             modifier =
                 Modifier.padding(
                     start =
-                        STREAK_TEXT_SPACING
+                        ChatDesignTokens.ProgressStreak.StreakTextSpacing
                 ),
             style =
                 MaterialTheme
@@ -383,42 +384,3 @@ private enum class ProgressButtonDisplay {
     PROGRESS,
     STREAK
 }
-
-private val MINIMUM_BUTTON_SIZE =
-    40.dp
-
-private val PROGRESS_ICON_SIZE =
-    22.dp
-
-private val HORIZONTAL_PADDING =
-    10.dp
-
-private val VERTICAL_PADDING =
-    8.dp
-
-private val STREAK_HORIZONTAL_PADDING =
-    1.dp
-
-private val STREAK_TEXT_SPACING =
-    4.dp
-
-private const val PROGRESS_DISPLAY_DURATION_MILLIS =
-    4_000L
-
-private const val STREAK_DISPLAY_DURATION_MILLIS =
-    3_000L
-
-private const val CONTAINER_ANIMATION_DURATION_MILLIS =
-    380
-
-private const val CONTENT_ENTER_DURATION_MILLIS =
-    320
-
-private const val CONTENT_EXIT_DURATION_MILLIS =
-    220
-
-private const val CONTENT_ENTER_SCALE =
-    0.88f
-
-private const val CONTENT_EXIT_SCALE =
-    0.92f

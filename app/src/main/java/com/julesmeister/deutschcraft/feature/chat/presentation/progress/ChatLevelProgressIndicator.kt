@@ -39,12 +39,12 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
+import kotlin.math.abs
+import kotlin.math.pow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.pow
 
 @Composable
 fun ChatLevelProgressIndicator(
@@ -75,7 +75,7 @@ fun ChatLevelProgressIndicator(
 
     val animatedProgress = remember { Animatable(0f) }
     val ringRotation = remember { Animatable(0f) }
-    val indicatorScale = remember { Animatable(INDICATOR_INITIAL_SCALE) }
+    val indicatorScale = remember { Animatable(ChatDesignTokens.LevelProgressIndicator.IndicatorInitialScale) }
     val coinRotationY = remember { Animatable(0f) }
     val centerColorBlend = remember { Animatable(0f) }
     val shimmerPhase = remember { Animatable(0f) }
@@ -89,7 +89,7 @@ fun ChatLevelProgressIndicator(
             ringRotation.snapTo(0f)
             indicatorScale.snapTo(1f)
             coinRotationY.snapTo(0f)
-            centerColorBlend.snapTo(STATIC_CENTER_COLOR_BLEND)
+            centerColorBlend.snapTo(ChatDesignTokens.LevelProgressIndicator.StaticCenterColorBlend)
             shimmerPhase.snapTo(0f)
 
             return@LaunchedEffect
@@ -97,8 +97,8 @@ fun ChatLevelProgressIndicator(
 
         animatedProgress.snapTo(0f)
         ringRotation.snapTo(0f)
-        indicatorScale.snapTo(INDICATOR_INITIAL_SCALE)
-        coinRotationY.snapTo(INITIAL_COIN_ROTATION_Y)
+        indicatorScale.snapTo(ChatDesignTokens.LevelProgressIndicator.IndicatorInitialScale)
+        coinRotationY.snapTo(ChatDesignTokens.LevelProgressIndicator.InitialCoinRotationY)
         centerColorBlend.snapTo(0f)
         shimmerPhase.snapTo(0f)
 
@@ -108,17 +108,17 @@ fun ChatLevelProgressIndicator(
                     targetValue = targetProgress,
                     animationSpec =
                         tween(
-                            durationMillis = INITIAL_PROGRESS_ANIMATION_MILLIS,
+                            durationMillis = ChatDesignTokens.LevelProgressIndicator.InitialProgressAnimationMillis,
                             easing = FastOutSlowInEasing
                         )
                 )
             },
             launch {
                 ringRotation.animateTo(
-                    targetValue = FULL_ROTATION_DEGREES,
+                    targetValue = ChatDesignTokens.LevelProgressIndicator.FullRotationDegrees,
                     animationSpec =
                         tween(
-                            durationMillis = INITIAL_PROGRESS_ANIMATION_MILLIS,
+                            durationMillis = ChatDesignTokens.LevelProgressIndicator.InitialProgressAnimationMillis,
                             easing = FastOutSlowInEasing
                         )
                 )
@@ -130,7 +130,7 @@ fun ChatLevelProgressIndicator(
                     targetValue = 1f,
                     animationSpec =
                         tween(
-                            durationMillis = INDICATOR_ENTRANCE_ANIMATION_MILLIS,
+                            durationMillis = ChatDesignTokens.LevelProgressIndicator.IndicatorEntranceAnimationMillis,
                             easing = FastOutSlowInEasing
                         )
                 )
@@ -140,17 +140,17 @@ fun ChatLevelProgressIndicator(
                     targetValue = 0f,
                     animationSpec =
                         tween(
-                            durationMillis = INITIAL_COIN_ANIMATION_MILLIS,
+                            durationMillis = ChatDesignTokens.LevelProgressIndicator.InitialCoinAnimationMillis,
                             easing = FastOutSlowInEasing
                         )
                 )
             },
             launch {
                 centerColorBlend.animateTo(
-                    targetValue = RESTING_CENTER_COLOR_BLEND,
+                    targetValue = ChatDesignTokens.LevelProgressIndicator.RestingCenterColorBlend,
                     animationSpec =
                         tween(
-                            durationMillis = INITIAL_CENTER_COLOR_ANIMATION_MILLIS,
+                            durationMillis = ChatDesignTokens.LevelProgressIndicator.InitialCenterColorAnimationMillis,
                             easing = FastOutSlowInEasing
                         )
                 )
@@ -158,7 +158,7 @@ fun ChatLevelProgressIndicator(
         )
 
         while (true) {
-            delay(REPLAY_INTERVAL_MILLIS)
+            delay(ChatDesignTokens.LevelProgressIndicator.ReplayIntervalMillis)
 
             if (currentReduceAnimations) {
                 animatedProgress.snapTo(currentTargetProgress)
@@ -169,13 +169,13 @@ fun ChatLevelProgressIndicator(
                 currentTargetProgress
 
             animatedProgress.snapTo(
-                (replayTarget - REPLAY_PROGRESS_DISTANCE)
+                (replayTarget - ChatDesignTokens.LevelProgressIndicator.ReplayProgressDistance)
                     .coerceAtLeast(0f)
             )
             ringRotation.snapTo(0f)
-            indicatorScale.snapTo(REPLAY_INITIAL_SCALE)
+            indicatorScale.snapTo(ChatDesignTokens.LevelProgressIndicator.ReplayInitialScale)
             coinRotationY.snapTo(0f)
-            centerColorBlend.snapTo(RESTING_CENTER_COLOR_BLEND)
+            centerColorBlend.snapTo(ChatDesignTokens.LevelProgressIndicator.RestingCenterColorBlend)
             shimmerPhase.snapTo(0f)
 
             joinAll(
@@ -184,17 +184,17 @@ fun ChatLevelProgressIndicator(
                         targetValue = replayTarget,
                         animationSpec =
                             tween(
-                                durationMillis = REPLAY_ANIMATION_MILLIS,
+                                durationMillis = ChatDesignTokens.LevelProgressIndicator.ReplayAnimationMillis,
                                 easing = FastOutSlowInEasing
                             )
                     )
                 },
                 launch {
                     ringRotation.animateTo(
-                        targetValue = FULL_ROTATION_DEGREES,
+                        targetValue = ChatDesignTokens.LevelProgressIndicator.FullRotationDegrees,
                         animationSpec =
                             tween(
-                                durationMillis = REPLAY_ANIMATION_MILLIS,
+                                durationMillis = ChatDesignTokens.LevelProgressIndicator.ReplayAnimationMillis,
                                 easing = FastOutSlowInEasing
                             )
                     )
@@ -206,17 +206,17 @@ fun ChatLevelProgressIndicator(
                         targetValue = 1f,
                         animationSpec =
                             tween(
-                                durationMillis = REPLAY_SCALE_ANIMATION_MILLIS,
+                                durationMillis = ChatDesignTokens.LevelProgressIndicator.ReplayScaleAnimationMillis,
                                 easing = FastOutSlowInEasing
                             )
                     )
                 },
                 launch {
                     coinRotationY.animateTo(
-                        targetValue = FULL_COIN_ROTATION_Y,
+                        targetValue = ChatDesignTokens.LevelProgressIndicator.FullCoinRotationY,
                         animationSpec =
                             tween(
-                                durationMillis = COIN_FLIP_ANIMATION_MILLIS,
+                                durationMillis = ChatDesignTokens.LevelProgressIndicator.CoinFlipAnimationMillis,
                                 easing = FastOutSlowInEasing
                             )
                     )
@@ -225,19 +225,19 @@ fun ChatLevelProgressIndicator(
                 },
                 launch {
                     centerColorBlend.animateTo(
-                        targetValue = ACTIVE_CENTER_COLOR_BLEND,
+                        targetValue = ChatDesignTokens.LevelProgressIndicator.ActiveCenterColorBlend,
                         animationSpec =
                             tween(
-                                durationMillis = CENTER_COLOR_BLOOM_MILLIS,
+                                durationMillis = ChatDesignTokens.LevelProgressIndicator.CenterColorBloomMillis,
                                 easing = FastOutSlowInEasing
                             )
                     )
 
                     centerColorBlend.animateTo(
-                        targetValue = RESTING_CENTER_COLOR_BLEND,
+                        targetValue = ChatDesignTokens.LevelProgressIndicator.RestingCenterColorBlend,
                         animationSpec =
                             tween(
-                                durationMillis = CENTER_COLOR_SETTLE_MILLIS,
+                                durationMillis = ChatDesignTokens.LevelProgressIndicator.CenterColorSettleMillis,
                                 easing = FastOutSlowInEasing
                             )
                     )
@@ -247,7 +247,7 @@ fun ChatLevelProgressIndicator(
                         targetValue = 1f,
                         animationSpec =
                             tween(
-                                durationMillis = COIN_SHIMMER_ANIMATION_MILLIS,
+                                durationMillis = ChatDesignTokens.LevelProgressIndicator.CoinShimmerAnimationMillis,
                                 easing = LinearEasing
                             )
                     )
@@ -271,7 +271,7 @@ fun ChatLevelProgressIndicator(
             lerp(
                 start = ringColor,
                 stop = colors.surfaceContainerHighest,
-                fraction = CENTER_TINT_SURFACE_MIX
+                fraction = ChatDesignTokens.LevelProgressIndicator.CenterTintSurfaceMix
             )
 
         val centerColor =
@@ -284,7 +284,7 @@ fun ChatLevelProgressIndicator(
         val centerContentColor =
             if (
                 centerColor.relativeLuminance() >=
-                LIGHT_CENTER_LUMINANCE_THRESHOLD
+                ChatDesignTokens.LevelProgressIndicator.LightCenterLuminanceThreshold
             ) {
                 colors.onSurface
             } else {
@@ -293,21 +293,21 @@ fun ChatLevelProgressIndicator(
 
         val normalizedCoinAngle =
             (
-                    coinRotationY.value % FULL_COIN_ROTATION_Y +
-                            FULL_COIN_ROTATION_Y
-                    ) % FULL_COIN_ROTATION_Y
+                    coinRotationY.value % ChatDesignTokens.LevelProgressIndicator.FullCoinRotationY +
+                            ChatDesignTokens.LevelProgressIndicator.FullCoinRotationY
+                    ) % ChatDesignTokens.LevelProgressIndicator.FullCoinRotationY
 
         val isBackFace =
             normalizedCoinAngle in
-                    COIN_BACK_FACE_START_DEGREES..COIN_BACK_FACE_END_DEGREES
+                    ChatDesignTokens.LevelProgressIndicator.CoinBackFaceStartDegrees..ChatDesignTokens.LevelProgressIndicator.CoinBackFaceEndDegrees
 
         val trackColor =
-            colors.outlineVariant.copy(alpha = INDICATOR_TRACK_ALPHA)
+            colors.outlineVariant.copy(alpha = ChatDesignTokens.LevelProgressIndicator.IndicatorTrackAlpha)
 
         Box(
             modifier =
                 Modifier
-                    .size(INDICATOR_SIZE)
+                    .size(ChatDesignTokens.LevelProgressIndicator.IndicatorSize)
                     .graphicsLayer {
                         scaleX = indicatorScale.value
                         scaleY = indicatorScale.value
@@ -318,7 +318,7 @@ fun ChatLevelProgressIndicator(
                 modifier = Modifier.fillMaxSize()
             ) {
                 val strokeWidth =
-                    INDICATOR_STROKE_WIDTH.toPx()
+                    ChatDesignTokens.LevelProgressIndicator.IndicatorStrokeWidth.toPx()
 
                 val inset =
                     strokeWidth / 2f
@@ -332,7 +332,7 @@ fun ChatLevelProgressIndicator(
                 drawArc(
                     color = trackColor,
                     startAngle = -90f,
-                    sweepAngle = FULL_ROTATION_DEGREES,
+                    sweepAngle = ChatDesignTokens.LevelProgressIndicator.FullRotationDegrees,
                     useCenter = false,
                     topLeft = Offset(inset, inset),
                     size = arcSize,
@@ -348,7 +348,7 @@ fun ChatLevelProgressIndicator(
                             color = ringColor,
                             startAngle = -90f,
                             sweepAngle =
-                                FULL_ROTATION_DEGREES * animatedProgress.value,
+                                ChatDesignTokens.LevelProgressIndicator.FullRotationDegrees * animatedProgress.value,
                             useCenter = false,
                             topLeft = Offset(inset, inset),
                             size = arcSize,
@@ -365,10 +365,10 @@ fun ChatLevelProgressIndicator(
             Box(
                 modifier =
                     Modifier
-                        .size(INDICATOR_CENTER_SIZE)
+                        .size(ChatDesignTokens.LevelProgressIndicator.IndicatorCenterSize)
                         .graphicsLayer {
                             rotationY = coinRotationY.value
-                            cameraDistance = COIN_CAMERA_DISTANCE
+                            cameraDistance = ChatDesignTokens.LevelProgressIndicator.CoinCameraDistance
                             scaleX = if (isBackFace) -1f else 1f
                         }
                         .clip(CircleShape)
@@ -381,26 +381,26 @@ fun ChatLevelProgressIndicator(
                     val shimmerVisibility =
                         (
                                 1f -
-                                        abs(shimmerPhase.value - SHIMMER_MIDPOINT) * 2f
+                                        abs(shimmerPhase.value - ChatDesignTokens.LevelProgressIndicator.ShimmerMidpoint) * 2f
                                 ).coerceIn(0f, 1f)
 
                     val shimmerCenter =
                         size.width *
                                 (
-                                        shimmerPhase.value * SHIMMER_TRAVEL_DISTANCE -
-                                                SHIMMER_START_OFFSET
+                                        shimmerPhase.value * ChatDesignTokens.LevelProgressIndicator.ShimmerTravelDistance -
+                                                ChatDesignTokens.LevelProgressIndicator.ShimmerStartOffset
                                         )
 
                     drawCircle(
                         color =
                             Color.White.copy(
-                                alpha = SHIMMER_MAX_ALPHA * shimmerVisibility
+                                alpha = ChatDesignTokens.LevelProgressIndicator.ShimmerMaxAlpha * shimmerVisibility
                             ),
-                        radius = size.width * SHIMMER_RADIUS_FACTOR,
+                        radius = size.width * ChatDesignTokens.LevelProgressIndicator.ShimmerRadiusFactor,
                         center =
                             Offset(
                                 x = shimmerCenter,
-                                y = size.height * SHIMMER_VERTICAL_POSITION
+                                y = size.height * ChatDesignTokens.LevelProgressIndicator.ShimmerVerticalPosition
                             )
                     )
                 }
@@ -418,13 +418,13 @@ fun ChatLevelProgressIndicator(
 
     Box(
         modifier =
-            modifier.size(INDICATOR_TOUCH_SIZE),
+            modifier.size(ChatDesignTokens.LevelProgressIndicator.IndicatorTouchSize),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(INDICATOR_TOUCH_SIZE)
+                    .size(ChatDesignTokens.LevelProgressIndicator.IndicatorTouchSize)
                     .semantics {
                         contentDescription = state.accessibilityDescription
                         role = Role.Button
@@ -458,17 +458,17 @@ private fun progressColor(
     val safeProgress =
         progress.coerceIn(0f, 1f)
 
-    return if (safeProgress <= COLOR_MIDPOINT) {
+    return if (safeProgress <= ChatDesignTokens.LevelProgress.ColorMidpoint) {
         lerp(
-            start = CHAT_PROGRESS_ORANGE,
-            stop = CHAT_PROGRESS_AMBER,
-            fraction = safeProgress / COLOR_MIDPOINT
+            start = ChatDesignTokens.LevelProgress.Orange,
+            stop = ChatDesignTokens.LevelProgress.Amber,
+            fraction = safeProgress / ChatDesignTokens.LevelProgress.ColorMidpoint
         )
     } else {
         lerp(
-            start = CHAT_PROGRESS_AMBER,
-            stop = CHAT_PROGRESS_GREEN,
-            fraction = (safeProgress - COLOR_MIDPOINT) / COLOR_MIDPOINT
+            start = ChatDesignTokens.LevelProgress.Amber,
+            stop = ChatDesignTokens.LevelProgress.Green,
+            fraction = (safeProgress - ChatDesignTokens.LevelProgress.ColorMidpoint) / ChatDesignTokens.LevelProgress.ColorMidpoint
         )
     }
 }
@@ -493,47 +493,3 @@ private fun Color.relativeLuminance(): Float {
                     0.0722f * linearizedChannel(blue)
             ).coerceIn(0f, 1f)
 }
-
-internal val INDICATOR_TOUCH_SIZE = 48.dp
-
-private val INDICATOR_SIZE = 40.dp
-private val INDICATOR_CENTER_SIZE = 31.dp
-private val INDICATOR_STROKE_WIDTH = 3.dp
-
-private val CHAT_PROGRESS_ORANGE = Color(0xFFE87516)
-private val CHAT_PROGRESS_AMBER = Color(0xFFE6B522)
-private val CHAT_PROGRESS_GREEN = Color(0xFF2E9B57)
-
-private const val COLOR_MIDPOINT = 0.5f
-private const val FULL_ROTATION_DEGREES = 360f
-private const val FULL_COIN_ROTATION_Y = 360f
-private const val INITIAL_COIN_ROTATION_Y = -90f
-private const val COIN_BACK_FACE_START_DEGREES = 90f
-private const val COIN_BACK_FACE_END_DEGREES = 270f
-private const val COIN_CAMERA_DISTANCE = 14f
-private const val INDICATOR_TRACK_ALPHA = 0.55f
-private const val INDICATOR_INITIAL_SCALE = 0.76f
-private const val REPLAY_INITIAL_SCALE = 0.92f
-private const val REPLAY_PROGRESS_DISTANCE = 0.12f
-private const val STATIC_CENTER_COLOR_BLEND = 0.34f
-private const val RESTING_CENTER_COLOR_BLEND = 0.23f
-private const val ACTIVE_CENTER_COLOR_BLEND = 0.78f
-private const val CENTER_TINT_SURFACE_MIX = 0.18f
-private const val LIGHT_CENTER_LUMINANCE_THRESHOLD = 0.48f
-private const val SHIMMER_TRAVEL_DISTANCE = 1.8f
-private const val SHIMMER_START_OFFSET = 0.4f
-private const val SHIMMER_RADIUS_FACTOR = 0.32f
-private const val SHIMMER_VERTICAL_POSITION = 0.34f
-private const val SHIMMER_MAX_ALPHA = 0.20f
-private const val SHIMMER_MIDPOINT = 0.5f
-private const val INDICATOR_ENTRANCE_ANIMATION_MILLIS = 500
-private const val INITIAL_PROGRESS_ANIMATION_MILLIS = 1_300
-private const val INITIAL_COIN_ANIMATION_MILLIS = 760
-private const val INITIAL_CENTER_COLOR_ANIMATION_MILLIS = 1_100
-private const val REPLAY_ANIMATION_MILLIS = 1_200
-private const val REPLAY_SCALE_ANIMATION_MILLIS = 520
-private const val COIN_FLIP_ANIMATION_MILLIS = 1_050
-private const val CENTER_COLOR_BLOOM_MILLIS = 650
-private const val CENTER_COLOR_SETTLE_MILLIS = 850
-private const val COIN_SHIMMER_ANIMATION_MILLIS = 1_050
-private const val REPLAY_INTERVAL_MILLIS = 10_000L

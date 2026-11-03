@@ -5,6 +5,7 @@ import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.AdaptiveLearningMessageResult
 import com.julesmeister.deutschcraft.feature.adaptivelearning.domain.usecase.RunAdaptiveLearningForMessageUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 
@@ -55,7 +56,7 @@ class ChatAdaptiveLearningProcessor
             throw cancellationException
         } catch (throwable: Throwable) {
             Log.e(
-                PROCESSOR_TAG,
+                ChatPresentationTokens.AdaptiveLearningProcessor.ProcessorTag,
                 "Adaptive learning could not be completed.",
                 throwable
             )
@@ -72,7 +73,7 @@ class ChatAdaptiveLearningProcessor
         result: AdaptiveLearningMessageResult
     ) {
         Log.d(
-            PROCESSOR_TAG,
+            ChatPresentationTokens.AdaptiveLearningProcessor.ProcessorTag,
             buildString {
                 append(
                     "Adaptive processing finished. "
@@ -112,7 +113,7 @@ class ChatAdaptiveLearningProcessor
 
         result.feedback?.let { feedback ->
             Log.d(
-                FEEDBACK_TAG,
+                ChatPresentationTokens.AdaptiveLearningProcessor.FeedbackTag,
                 buildString {
                     append(
                         "type="
@@ -137,12 +138,4 @@ class ChatAdaptiveLearningProcessor
         }
     }
 
-    private companion object {
-
-        const val PROCESSOR_TAG =
-            "AdaptiveLearningChat"
-
-        const val FEEDBACK_TAG =
-            "AdaptiveFeedback"
-    }
 }

@@ -5,6 +5,7 @@ import com.julesmeister.deutschcraft.feature.chat.data.local.ChatLocalDataSource
 import com.julesmeister.deutschcraft.feature.chat.data.local.toDomain
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -55,7 +56,7 @@ class ChatPostSendLearningProcessor
                     ?.toDomain()
                     ?: run {
                         Log.w(
-                            PROCESSOR_TAG,
+                            ChatPresentationTokens.PostSendLearningProcessor.ProcessorTag,
                             "Post-send learning was skipped " +
                                     "because the conversation was " +
                                     "not found. " +
@@ -87,7 +88,7 @@ class ChatPostSendLearningProcessor
                 )
                     ?: run {
                         Log.w(
-                            PROCESSOR_TAG,
+                            ChatPresentationTokens.PostSendLearningProcessor.ProcessorTag,
                             "Post-send learning was skipped " +
                                     "because the newly saved learner " +
                                     "message could not be identified. " +
@@ -116,11 +117,11 @@ class ChatPostSendLearningProcessor
                     }
                     .toList()
                     .takeLast(
-                        RECENT_LEARNING_MESSAGE_COUNT
+                        ChatPresentationTokens.PostSendLearningProcessor.RecentLearningMessageCount
                     )
 
             Log.d(
-                PROCESSOR_TAG,
+                ChatPresentationTokens.PostSendLearningProcessor.ProcessorTag,
                 buildString {
                     append(
                         "Processing persisted learner message. "
@@ -219,7 +220,7 @@ class ChatPostSendLearningProcessor
             throw cancellationException
         } catch (throwable: Throwable) {
             Log.e(
-                PROCESSOR_TAG,
+                ChatPresentationTokens.PostSendLearningProcessor.ProcessorTag,
                 "Post-send learning processing failed.",
                 throwable
             )
@@ -256,12 +257,4 @@ class ChatPostSendLearningProcessor
             }
     }
 
-    private companion object {
-
-        const val PROCESSOR_TAG =
-            "ChatPostSendLearning"
-
-        const val RECENT_LEARNING_MESSAGE_COUNT =
-            12
-    }
 }

@@ -7,6 +7,7 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.ObserveActiveMissionUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.ObserveChatMessagesUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.ObserveCurrentStreakUseCase
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -107,7 +108,7 @@ class ChatSessionObservers
                     throw cancellationException
                 } catch (throwable: Throwable) {
                     Log.e(
-                        OBSERVERS_TAG,
+                        ChatPresentationTokens.SessionObservers.ObserversTag,
                         "Streak observation failed.",
                         throwable
                     )
@@ -173,7 +174,7 @@ class ChatSessionObservers
                     throw cancellationException
                 } catch (throwable: Throwable) {
                     Log.e(
-                        OBSERVERS_TAG,
+                        ChatPresentationTokens.SessionObservers.ObserversTag,
                         "Message observation failed.",
                         throwable
                     )
@@ -223,7 +224,7 @@ class ChatSessionObservers
                     throw cancellationException
                 } catch (throwable: Throwable) {
                     Log.e(
-                        OBSERVERS_TAG,
+                        ChatPresentationTokens.SessionObservers.ObserversTag,
                         "Mission observation failed.",
                         throwable
                     )
@@ -274,7 +275,7 @@ class ChatSessionObservers
                      * observation fails.
                      */
                     Log.e(
-                        OBSERVERS_TAG,
+                        ChatPresentationTokens.SessionObservers.ObserversTag,
                         "Besser challenge observation failed.",
                         throwable
                     )
@@ -282,11 +283,6 @@ class ChatSessionObservers
             }
     }
 
-    private companion object {
-
-        const val OBSERVERS_TAG =
-            "ChatSessionObservers"
-    }
 }
 
 data class ChatMessagesUpdate(

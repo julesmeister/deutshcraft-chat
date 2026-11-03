@@ -33,7 +33,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.MissionOpportunity
 
 @Composable
@@ -62,7 +63,7 @@ internal fun MissionOfferCard(
             modifier
                 .fillMaxWidth()
                 .clip(
-                    CARD_SHAPE
+                    ChatDesignTokens.MissionOffer.CardShape
                 )
                 .background(
                     color =
@@ -73,16 +74,16 @@ internal fun MissionOfferCard(
                     animationSpec =
                         tween(
                             durationMillis =
-                                CARD_SIZE_ANIMATION_MILLIS,
+                                ChatDesignTokens.MissionOffer.CardSizeAnimationMillis,
                             easing =
                                 FastOutSlowInEasing
                         )
                 )
                 .padding(
                     horizontal =
-                        CARD_HORIZONTAL_PADDING,
+                        ChatDesignTokens.MissionOffer.CardHorizontalPadding,
                     vertical =
-                        CARD_VERTICAL_PADDING
+                        ChatDesignTokens.MissionOffer.CardVerticalPadding
                 )
     ) {
         /*
@@ -105,7 +106,7 @@ internal fun MissionOfferCard(
                 modifier =
                     Modifier
                         .size(
-                            ICON_CONTAINER_SIZE
+                            ChatDesignTokens.MissionOffer.IconContainerSize
                         )
                         .clip(
                             CircleShape
@@ -116,11 +117,11 @@ internal fun MissionOfferCard(
                                     .primary
                                     .copy(
                                         alpha =
-                                            ICON_BACKGROUND_ALPHA
+                                            ChatDesignTokens.MissionOffer.IconBackgroundAlpha
                                     )
                         )
                         .padding(
-                            ICON_PADDING
+                            ChatDesignTokens.MissionOffer.IconPadding
                         ),
 
                 style =
@@ -132,7 +133,7 @@ internal fun MissionOfferCard(
             Spacer(
                 modifier =
                     Modifier.width(
-                        HEADER_HORIZONTAL_SPACING
+                        ChatDesignTokens.MissionOffer.HeaderHorizontalSpacing
                     )
             )
 
@@ -147,7 +148,7 @@ internal fun MissionOfferCard(
             ) {
                 Text(
                     text =
-                        MISSION_LABEL,
+                        ChatPresentationTokens.MissionOfferCard.MissionLabel,
 
                     style =
                         MaterialTheme
@@ -201,7 +202,7 @@ internal fun MissionOfferCard(
                         .clip(
                             RoundedCornerShape(
                                 percent =
-                                    PILL_SHAPE_PERCENT
+                                    ChatDesignTokens.MissionOffer.PillShapePercent
                             )
                         )
                         .background(
@@ -210,14 +211,14 @@ internal fun MissionOfferCard(
                                     .primary
                                     .copy(
                                         alpha =
-                                            DIFFICULTY_BACKGROUND_ALPHA
+                                            ChatDesignTokens.MissionOffer.DifficultyBackgroundAlpha
                                     )
                         )
                         .padding(
                             horizontal =
-                                DIFFICULTY_HORIZONTAL_PADDING,
+                                ChatDesignTokens.MissionOffer.DifficultyHorizontalPadding,
                             vertical =
-                                DIFFICULTY_VERTICAL_PADDING
+                                ChatDesignTokens.MissionOffer.DifficultyVerticalPadding
                         ),
 
                 style =
@@ -236,7 +237,7 @@ internal fun MissionOfferCard(
         Spacer(
             modifier =
                 Modifier.height(
-                    DESCRIPTION_TOP_SPACING
+                    ChatDesignTokens.MissionOffer.DescriptionTopSpacing
                 )
         )
 
@@ -262,7 +263,7 @@ internal fun MissionOfferCard(
                     .onSurfaceVariant,
 
             maxLines =
-                DESCRIPTION_MAX_LINES,
+                ChatDesignTokens.MissionOffer.DescriptionMaxLines,
 
             overflow =
                 TextOverflow.Ellipsis
@@ -271,7 +272,7 @@ internal fun MissionOfferCard(
         Spacer(
             modifier =
                 Modifier.height(
-                    ACTIONS_TOP_SPACING
+                    ChatDesignTokens.MissionOffer.ActionsTopSpacing
                 )
         )
 
@@ -293,7 +294,7 @@ internal fun MissionOfferCard(
         ) {
             MissionOfferButton(
                 text =
-                    MAYBE_LATER_LABEL,
+                    ChatPresentationTokens.MissionOfferCard.MaybeLaterLabel,
 
                 enabled =
                     !isStarting,
@@ -308,13 +309,13 @@ internal fun MissionOfferCard(
             Spacer(
                 modifier =
                     Modifier.width(
-                        ACTION_SPACING
+                        ChatDesignTokens.MissionOffer.ActionSpacing
                     )
             )
 
             MissionOfferButton(
                 text =
-                    START_MISSION_LABEL,
+                    ChatPresentationTokens.MissionOfferCard.StartMissionLabel,
 
                 enabled =
                     !isStarting,
@@ -366,17 +367,17 @@ private fun MissionOfferButton(
                 isPressed &&
                 enabled
             ) {
-                PRESSED_BUTTON_SCALE
+                ChatDesignTokens.MissionOffer.PressedButtonScale
             } else {
-                NORMAL_BUTTON_SCALE
+                ChatDesignTokens.MissionOffer.NormalButtonScale
             },
 
         animationSpec =
             spring(
                 dampingRatio =
-                    BUTTON_DAMPING_RATIO,
+                    ChatDesignTokens.MissionOffer.ButtonDampingRatio,
                 stiffness =
-                    BUTTON_STIFFNESS
+                    ChatDesignTokens.MissionOffer.ButtonStiffness
             ),
 
         label =
@@ -407,7 +408,7 @@ private fun MissionOfferButton(
                     .primary
                     .copy(
                         alpha =
-                            DISABLED_PRIMARY_ALPHA
+                            ChatDesignTokens.MissionOffer.DisabledPrimaryAlpha
                     )
             }
 
@@ -440,7 +441,7 @@ private fun MissionOfferButton(
                 .clip(
                     RoundedCornerShape(
                         percent =
-                            PILL_SHAPE_PERCENT
+                            ChatDesignTokens.MissionOffer.PillShapePercent
                     )
                 )
                 .background(
@@ -462,10 +463,10 @@ private fun MissionOfferButton(
                 )
                 .padding(
                     horizontal =
-                        BUTTON_HORIZONTAL_PADDING,
+                        ChatDesignTokens.MissionOffer.ButtonHorizontalPadding,
 
                     vertical =
-                        BUTTON_VERTICAL_PADDING
+                        ChatDesignTokens.MissionOffer.ButtonVerticalPadding
                 ),
 
         verticalAlignment =
@@ -475,20 +476,20 @@ private fun MissionOfferButton(
             CircularProgressIndicator(
                 modifier =
                     Modifier.size(
-                        LOADING_INDICATOR_SIZE
+                        ChatDesignTokens.MissionOffer.LoadingIndicatorSize
                     ),
 
                 color =
                     colorScheme.onPrimary,
 
                 strokeWidth =
-                    LOADING_INDICATOR_STROKE_WIDTH
+                    ChatDesignTokens.MissionOffer.LoadingIndicatorStrokeWidth
             )
 
             Spacer(
                 modifier =
                     Modifier.width(
-                        LOADING_TEXT_SPACING
+                        ChatDesignTokens.MissionOffer.LoadingTextSpacing
                     )
             )
         }
@@ -516,137 +517,3 @@ private fun MissionOfferButton(
  * TEXT
  * ===========================================================
  */
-
-private const val MISSION_LABEL =
-    "Conversation mission"
-
-private const val MAYBE_LATER_LABEL =
-    "Maybe later"
-
-private const val START_MISSION_LABEL =
-    "Start mission"
-
-/*
- * ===========================================================
- * CARD
- * ===========================================================
- */
-
-private val CARD_SHAPE =
-    RoundedCornerShape(
-        22.dp
-    )
-
-private val CARD_ELEVATION =
-    12.dp
-
-private val CARD_HORIZONTAL_PADDING =
-    16.dp
-
-private val CARD_VERTICAL_PADDING =
-    14.dp
-
-/*
- * ===========================================================
- * HEADER
- * ===========================================================
- */
-
-private val ICON_CONTAINER_SIZE =
-    38.dp
-
-private val ICON_PADDING =
-    7.dp
-
-private val HEADER_HORIZONTAL_SPACING =
-    10.dp
-
-private const val ICON_BACKGROUND_ALPHA =
-    0.16f
-
-/*
- * ===========================================================
- * DIFFICULTY
- * ===========================================================
- */
-
-private const val PILL_SHAPE_PERCENT =
-    50
-
-private const val DIFFICULTY_BACKGROUND_ALPHA =
-    0.14f
-
-private val DIFFICULTY_HORIZONTAL_PADDING =
-    9.dp
-
-private val DIFFICULTY_VERTICAL_PADDING =
-    5.dp
-
-/*
- * ===========================================================
- * CONTENT
- * ===========================================================
- */
-
-private val DESCRIPTION_TOP_SPACING =
-    10.dp
-
-private const val DESCRIPTION_MAX_LINES =
-    3
-
-private val ACTIONS_TOP_SPACING =
-    12.dp
-
-private val ACTION_SPACING =
-    8.dp
-
-/*
- * ===========================================================
- * BUTTON
- * ===========================================================
- */
-
-private val BUTTON_HORIZONTAL_PADDING =
-    14.dp
-
-private val BUTTON_VERTICAL_PADDING =
-    9.dp
-
-private const val NORMAL_BUTTON_SCALE =
-    1f
-
-private const val PRESSED_BUTTON_SCALE =
-    0.95f
-
-private const val BUTTON_DAMPING_RATIO =
-    0.74f
-
-private const val BUTTON_STIFFNESS =
-    620f
-
-private const val DISABLED_PRIMARY_ALPHA =
-    0.38f
-
-/*
- * ===========================================================
- * LOADING
- * ===========================================================
- */
-
-private val LOADING_INDICATOR_SIZE =
-    16.dp
-
-private val LOADING_INDICATOR_STROKE_WIDTH =
-    2.dp
-
-private val LOADING_TEXT_SPACING =
-    7.dp
-
-/*
- * ===========================================================
- * ANIMATION
- * ===========================================================
- */
-
-private const val CARD_SIZE_ANIMATION_MILLIS =
-    260

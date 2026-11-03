@@ -510,6 +510,30 @@ Qwen
 
 AI credentials are never stored inside the Android application.
 
+## AI Cost Controls
+
+Chat persona and active-mission instructions use compact wording while retaining
+identity, CEFR adaptation, conversation behavior, learner-role suggestions, and
+mission coaching rules. Conversation history, model, thinking-disabled mode,
+response-token limits, and chat/mission repair attempts are unchanged.
+
+Sentence correction and sentence analysis send their rules and JSON schemas in a
+stable system prompt, with only sentence data in the user message. Both request
+JSON-object output to reduce formatting failures.
+
+Corrections, sentence analyses (translation, explanation, and all three rephrases),
+and contextual marked-phrase explanations reuse validated results in bounded,
+process-local caches (64 results per gateway). Identical concurrent requests share
+one operation. Correction/analysis keys trim only surrounding whitespace, retaining
+case and punctuation; phrase keys include the source sentence and phrase type.
+Valid "no correction needed" results are reusable; failures and invalid results are
+not. Caches are not written to disk and are discarded when the app process ends.
+
+Conversational replies, mission generation, and contextual learning evaluations
+are not served from these caches. No features or assessment cadence are disabled.
+Actual token/cost savings depend on provider tokenization and repeated requests;
+shorter prompts do not by themselves prove unchanged model response quality.
+
 ---
 
 # Technology Stack
@@ -696,6 +720,15 @@ Subscriptions
 ---
 
 # Animation Roadmap
+
+Chat presentation appearance and motion constants live in
+`feature/chat/presentation/theme/ChatDesignTokens.kt`. Shared tokens remain at
+the top level, while component-specific dimensions, colors, typography, and
+timings are grouped by component (for example, `TopBar`, `ReplySuggestions`,
+and `LevelProgressIndicator`). Non-visual presentation constants (including log
+tags, text labels, errors, formatter patterns, and presentation behavior limits)
+live in component/owner groups in `ChatPresentationTokens.kt` in the same theme
+folder. Data and domain constants remain outside the presentation theme layer.
 
 Implemented:
 

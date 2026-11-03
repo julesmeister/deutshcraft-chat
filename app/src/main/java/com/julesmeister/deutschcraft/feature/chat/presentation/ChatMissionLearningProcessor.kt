@@ -3,6 +3,7 @@ package com.julesmeister.deutschcraft.feature.chat.presentation
 import android.util.Log
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.learninganalytics.domain.MissionAnalytics
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import com.julesmeister.deutschcraft.feature.mission.domain.usecase.MissionMessageEvaluationSummary
@@ -27,7 +28,7 @@ class ChatMissionLearningProcessor
     ): ChatMissionLearningResult {
         if (activeMission == null) {
             Log.d(
-                PROCESSOR_TAG,
+                ChatPresentationTokens.MissionLearningProcessor.ProcessorTag,
                 "Mission evaluation skipped because this " +
                         "conversation has no active mission."
             )
@@ -54,7 +55,7 @@ class ChatMissionLearningProcessor
                 throw cancellationException
             } catch (throwable: Throwable) {
                 Log.e(
-                    PROCESSOR_TAG,
+                    ChatPresentationTokens.MissionLearningProcessor.ProcessorTag,
                     "Mission evaluation could not be completed.",
                     throwable
                 )
@@ -87,7 +88,7 @@ class ChatMissionLearningProcessor
             null
         ) {
             Log.i(
-                PROCESSOR_TAG,
+                ChatPresentationTokens.MissionLearningProcessor.ProcessorTag,
                 buildString {
                     append(
                         "Final mission analytics returned. "
@@ -126,11 +127,6 @@ class ChatMissionLearningProcessor
         )
     }
 
-    private companion object {
-
-        const val PROCESSOR_TAG =
-            "ChatMissionLearning"
-    }
 }
 
 data class ChatMissionLearningResult(

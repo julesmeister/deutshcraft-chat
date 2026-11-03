@@ -7,6 +7,7 @@ import com.julesmeister.deutschcraft.feature.besser.presentation.BesserChallenge
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestionAction
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.MissionOpportunity
 import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationMode
 import com.julesmeister.deutschcraft.feature.mission.domain.variation.MissionVariationUiState
@@ -164,7 +165,7 @@ data class ChatUiState(
                 suggestions
                     .filterNot { suggestion ->
                         suggestion.id ==
-                                ACTIVE_MISSION_BRANCH_SUGGESTION_ID
+                                ChatPresentationTokens.UiState.ActiveMissionBranchSuggestionId
                     }
                     .distinctBy { suggestion ->
                         suggestion.id
@@ -181,7 +182,7 @@ data class ChatUiState(
                             activeMissionBranchSuggestion
                     )
                 .takeLast(
-                    MAXIMUM_VISIBLE_SUGGESTION_COUNT
+                    ChatPresentationTokens.UiState.MaximumVisibleSuggestionCount
                 )
         }
 
@@ -196,25 +197,14 @@ data class ChatUiState(
         get() =
             ReplySuggestion(
                 id =
-                    ACTIVE_MISSION_BRANCH_SUGGESTION_ID,
+                    ChatPresentationTokens.UiState.ActiveMissionBranchSuggestionId,
 
                 text =
-                    ACTIVE_MISSION_BRANCH_SUGGESTION_TEXT,
+                    ChatPresentationTokens.UiState.ActiveMissionBranchSuggestionText,
 
                 action =
                     ReplySuggestionAction
                         .OpenMissionVariations
             )
 
-    companion object {
-
-        const val ACTIVE_MISSION_BRANCH_SUGGESTION_ID =
-            "active-mission-open-variations"
-
-        private const val ACTIVE_MISSION_BRANCH_SUGGESTION_TEXT =
-            "✦ Andere Richtung"
-
-        private const val MAXIMUM_VISIBLE_SUGGESTION_COUNT =
-            3
-    }
 }

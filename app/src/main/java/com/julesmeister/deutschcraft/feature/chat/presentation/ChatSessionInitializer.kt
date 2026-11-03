@@ -6,6 +6,7 @@ import com.julesmeister.deutschcraft.feature.chat.domain.ChatRepository
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.InitializeChatUseCase
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.mission.domain.usecase.SeedMissionCatalogUseCase
 import java.time.Clock
 import javax.inject.Inject
@@ -126,13 +127,13 @@ class ChatSessionInitializer
                 conversationId,
 
             content =
-                INITIAL_GREETING,
+                ChatPresentationTokens.SessionInitializer.InitialGreeting,
 
             sender =
                 MessageSender.ASSISTANT,
 
             sequenceNumber =
-                INITIAL_MESSAGE_SEQUENCE_NUMBER,
+                ChatPresentationTokens.SessionInitializer.InitialMessageSequenceNumber,
 
             timestamp =
                 clock.millis(),
@@ -146,20 +147,9 @@ class ChatSessionInitializer
         conversationId: String
     ): String {
         return conversationId +
-                PROVISIONAL_GREETING_ID_SUFFIX
+                ChatPresentationTokens.SessionInitializer.ProvisionalGreetingIdSuffix
     }
 
-    private companion object {
-
-        const val INITIAL_GREETING =
-            "Hallo! Wie war dein Tag?"
-
-        const val INITIAL_MESSAGE_SEQUENCE_NUMBER =
-            1L
-
-        const val PROVISIONAL_GREETING_ID_SUFFIX =
-            "-provisional-greeting"
-    }
 }
 
 data class ChatSessionInitializationResult(

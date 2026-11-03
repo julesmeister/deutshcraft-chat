@@ -38,10 +38,10 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.adaptivelearning.domain.model.AdaptiveLearningFeedbackType
 import com.julesmeister.deutschcraft.feature.chat.presentation.AdaptiveLearningFeedbackEvent
 import com.julesmeister.deutschcraft.feature.chat.presentation.MissionObjectiveCompletionEvent
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import kotlinx.coroutines.delay
 
@@ -89,7 +89,7 @@ internal fun AnimatedChatTopBarTitle(
                 ?: return@LaunchedEffect
 
         delay(
-            OBJECTIVE_COMPLETION_DISPLAY_MILLIS
+            ChatDesignTokens.AnimatedTopBarTitle.ObjectiveCompletionDisplayMillis
         )
 
         onObjectiveCompletionShown(
@@ -110,7 +110,7 @@ internal fun AnimatedChatTopBarTitle(
         }
 
         delay(
-            ADAPTIVE_FEEDBACK_DISPLAY_MILLIS
+            ChatDesignTokens.AnimatedTopBarTitle.AdaptiveFeedbackDisplayMillis
         )
 
         onAdaptiveLearningFeedbackShown(
@@ -168,13 +168,13 @@ internal fun AnimatedChatTopBarTitle(
                 .fillMaxWidth()
                 .heightIn(
                     min =
-                        TOP_BAR_CONTENT_MINIMUM_HEIGHT
+                        ChatDesignTokens.AnimatedTopBarTitle.TopBarContentMinimumHeight
                 )
                 .animateContentSize(
                     animationSpec =
                         tween(
                             durationMillis =
-                                STATUS_SIZE_ANIMATION_MILLIS,
+                                ChatDesignTokens.AnimatedTopBarTitle.StatusSizeAnimationMillis,
 
                             easing =
                                 FastOutSlowInEasing
@@ -187,7 +187,7 @@ internal fun AnimatedChatTopBarTitle(
                     animationSpec =
                         tween(
                             durationMillis =
-                                STATUS_ENTER_DURATION_MILLIS,
+                                ChatDesignTokens.AnimatedTopBarTitle.StatusEnterDurationMillis,
 
                             easing =
                                 LinearOutSlowInEasing
@@ -201,7 +201,7 @@ internal fun AnimatedChatTopBarTitle(
                             animationSpec =
                                 tween(
                                     durationMillis =
-                                        STATUS_ENTER_DURATION_MILLIS,
+                                        ChatDesignTokens.AnimatedTopBarTitle.StatusEnterDurationMillis,
 
                                     easing =
                                         FastOutSlowInEasing
@@ -209,7 +209,7 @@ internal fun AnimatedChatTopBarTitle(
                         ) +
                         scaleIn(
                             initialScale =
-                                STATUS_ENTER_SCALE
+                                ChatDesignTokens.AnimatedTopBarTitle.StatusEnterScale
                         )
 
             val exitTransition =
@@ -217,7 +217,7 @@ internal fun AnimatedChatTopBarTitle(
                     animationSpec =
                         tween(
                             durationMillis =
-                                STATUS_EXIT_DURATION_MILLIS
+                                ChatDesignTokens.AnimatedTopBarTitle.StatusExitDurationMillis
                         )
                 ) +
                         slideOutVertically(
@@ -228,12 +228,12 @@ internal fun AnimatedChatTopBarTitle(
                             animationSpec =
                                 tween(
                                     durationMillis =
-                                        STATUS_EXIT_DURATION_MILLIS
+                                        ChatDesignTokens.AnimatedTopBarTitle.StatusExitDurationMillis
                                 )
                         ) +
                         scaleOut(
                             targetScale =
-                                STATUS_EXIT_SCALE
+                                ChatDesignTokens.AnimatedTopBarTitle.StatusExitScale
                         )
 
             enterTransition togetherWith
@@ -348,11 +348,11 @@ private fun AdaptiveLearningStatus(
             modifier =
                 Modifier
                     .size(
-                        STATUS_ICON_SIZE
+                        ChatDesignTokens.AnimatedTopBarTitle.StatusIconSize
                     )
                     .clip(
                         RoundedCornerShape(
-                            STATUS_ICON_CORNER_RADIUS
+                            ChatDesignTokens.AnimatedTopBarTitle.StatusIconCornerRadius
                         )
                     )
                     .background(
@@ -378,7 +378,7 @@ private fun AdaptiveLearningStatus(
         Spacer(
             modifier =
                 Modifier.width(
-                    STATUS_CONTENT_SPACING
+                    ChatDesignTokens.AnimatedTopBarTitle.StatusContentSpacing
                 )
         )
 
@@ -442,7 +442,7 @@ private fun adaptiveFeedbackPresentation(
         colorScheme
             .background
             .luminance() >=
-                LIGHT_THEME_LUMINANCE_THRESHOLD
+                ChatDesignTokens.DarkLuminanceThreshold
 
     val limeTitleColor =
         if (isLightTheme) {
@@ -457,7 +457,7 @@ private fun adaptiveFeedbackPresentation(
         } else {
             DeutschLime.copy(
                 alpha =
-                    ADAPTIVE_ICON_BACKGROUND_ALPHA
+                    ChatDesignTokens.AnimatedTopBarTitle.AdaptiveIconBackgroundAlpha
             )
         }
 
@@ -475,9 +475,9 @@ private fun adaptiveFeedbackPresentation(
         colorScheme.tertiary.copy(
             alpha =
                 if (isLightTheme) {
-                    LIGHT_TERTIARY_CONTAINER_ALPHA
+                    ChatDesignTokens.AnimatedTopBarTitle.LightTertiaryContainerAlpha
                 } else {
-                    ADAPTIVE_ICON_BACKGROUND_ALPHA
+                    ChatDesignTokens.AnimatedTopBarTitle.AdaptiveIconBackgroundAlpha
                 }
         )
 
@@ -667,7 +667,7 @@ private fun NormalStatus() {
             modifier =
                 Modifier.padding(
                     top =
-                        NORMAL_SUBTITLE_TOP_PADDING
+                        ChatDesignTokens.AnimatedTopBarTitle.NormalSubtitleTopPadding
                 ),
 
             verticalAlignment =
@@ -678,7 +678,7 @@ private fun NormalStatus() {
             Spacer(
                 modifier =
                     Modifier.width(
-                        ONLINE_DOT_SPACING
+                        ChatDesignTokens.AnimatedTopBarTitle.OnlineDotSpacing
                     )
             )
 
@@ -723,11 +723,11 @@ private fun SimpleStatus(
             modifier =
                 Modifier
                     .size(
-                        STATUS_ICON_SIZE
+                        ChatDesignTokens.AnimatedTopBarTitle.StatusIconSize
                     )
                     .clip(
                         RoundedCornerShape(
-                            STATUS_ICON_CORNER_RADIUS
+                            ChatDesignTokens.AnimatedTopBarTitle.StatusIconCornerRadius
                         )
                     )
                     .background(
@@ -752,7 +752,7 @@ private fun SimpleStatus(
         Spacer(
             modifier =
                 Modifier.width(
-                    STATUS_CONTENT_SPACING
+                    ChatDesignTokens.AnimatedTopBarTitle.StatusContentSpacing
                 )
         )
 
@@ -870,51 +870,3 @@ private sealed interface ChatTopBarTemporaryStatus {
         val focusTitle: String?
     ) : ChatTopBarTemporaryStatus
 }
-
-private const val OBJECTIVE_COMPLETION_DISPLAY_MILLIS =
-    1_650L
-
-private const val ADAPTIVE_FEEDBACK_DISPLAY_MILLIS =
-    3_000L
-
-private val TOP_BAR_CONTENT_MINIMUM_HEIGHT =
-    42.dp
-
-private val ONLINE_DOT_SPACING =
-    5.dp
-
-private val NORMAL_SUBTITLE_TOP_PADDING =
-    1.dp
-
-private val STATUS_ICON_SIZE =
-    32.dp
-
-private val STATUS_ICON_CORNER_RADIUS =
-    12.dp
-
-private val STATUS_CONTENT_SPACING =
-    8.dp
-
-private const val ADAPTIVE_ICON_BACKGROUND_ALPHA =
-    0.15f
-
-private const val LIGHT_TERTIARY_CONTAINER_ALPHA =
-    0.12f
-
-private const val LIGHT_THEME_LUMINANCE_THRESHOLD =
-    0.5f
-
-private const val STATUS_SIZE_ANIMATION_MILLIS =
-    380
-
-private const val STATUS_ENTER_DURATION_MILLIS =
-    360
-
-private const val STATUS_EXIT_DURATION_MILLIS =
-    220
-
-private const val STATUS_ENTER_SCALE =
-    0.97f
-
-private const val STATUS_EXIT_SCALE =
-    0.98f

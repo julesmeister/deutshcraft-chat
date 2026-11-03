@@ -10,6 +10,7 @@ import com.julesmeister.deutschcraft.feature.besser.domain.RefinementVerdict
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.CompleteBesserChallengeUseCase
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.EvaluateBesserRefinementUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.learninganalytics.domain.MissionAnalytics
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -122,7 +123,7 @@ class ChatSessionMessageController
             runtime.activeConversationId
                 ?: run {
                     onError(
-                        CONVERSATION_LOADING_ERROR
+                        ChatPresentationTokens.SessionMessageController.ConversationLoadingError
                     )
 
                     return
@@ -250,7 +251,7 @@ class ChatSessionMessageController
             }
 
             Log.d(
-                CONTROLLER_TAG,
+                ChatPresentationTokens.SessionMessageController.ControllerTag,
                 buildString {
                     append(
                         "Assistant reply persisted. "
@@ -358,7 +359,7 @@ class ChatSessionMessageController
                             )
 
                             Log.i(
-                                CONTROLLER_TAG,
+                                ChatPresentationTokens.SessionMessageController.ControllerTag,
                                 buildString {
                                     append(
                                         "Completed mission forwarded. "
@@ -402,7 +403,7 @@ class ChatSessionMessageController
 
                     onFailure = { throwable ->
                         Log.e(
-                            CONTROLLER_TAG,
+                            ChatPresentationTokens.SessionMessageController.ControllerTag,
                             "Supplementary post-send learning failed.",
                             throwable
                         )
@@ -415,7 +416,7 @@ class ChatSessionMessageController
             throw cancellationException
         } catch (throwable: Throwable) {
             Log.e(
-                CONTROLLER_TAG,
+                ChatPresentationTokens.SessionMessageController.ControllerTag,
                 "Critical message sending failed.",
                 throwable
             )
@@ -431,7 +432,7 @@ class ChatSessionMessageController
             uiState.update { state ->
                 state.sendingFailed(
                     message =
-                        SEND_ERROR
+                        ChatPresentationTokens.SessionMessageController.SendError
                 )
             }
         }
@@ -460,7 +461,7 @@ class ChatSessionMessageController
             uiState.update { state ->
                 state.besserRefinementNeedsRevision(
                     feedback =
-                        UNCHANGED_FEEDBACK,
+                        ChatPresentationTokens.SessionMessageController.UnchangedFeedback,
 
                     score =
                         null
@@ -506,7 +507,7 @@ class ChatSessionMessageController
                     )
                         .onFailure { throwable ->
                             Log.w(
-                                CONTROLLER_TAG,
+                                ChatPresentationTokens.SessionMessageController.ControllerTag,
                                 "Besser evaluation unavailable. " +
                                         "Completing without evaluation.",
                                 throwable
@@ -531,7 +532,7 @@ class ChatSessionMessageController
                         val feedback =
                             if (canRevealHint) {
                                 evaluation.feedback +
-                                        HINT_SUGGESTION_SUFFIX
+                                        ChatPresentationTokens.SessionMessageController.HintSuggestionSuffix
                             } else {
                                 evaluation.feedback
                             }
@@ -592,7 +593,7 @@ class ChatSessionMessageController
                 throw cancellationException
             } catch (throwable: Throwable) {
                 Log.e(
-                    CONTROLLER_TAG,
+                    ChatPresentationTokens.SessionMessageController.ControllerTag,
                     "Besser refinement submission failed.",
                     throwable
                 )
@@ -601,7 +602,7 @@ class ChatSessionMessageController
                     state.besserRefinementSubmissionFailed(
                         message =
                             throwable.message
-                                ?: BESSER_REFINEMENT_ERROR
+                                ?: ChatPresentationTokens.SessionMessageController.BesserRefinementError
                     )
                 }
             }
@@ -646,7 +647,7 @@ class ChatSessionMessageController
                 }
 
                 Log.i(
-                    CONTROLLER_TAG,
+                    ChatPresentationTokens.SessionMessageController.ControllerTag,
                     buildString {
                         append(
                             "Besser refinement completed. "
@@ -672,7 +673,7 @@ class ChatSessionMessageController
             }
             .onFailure { throwable ->
                 Log.w(
-                    CONTROLLER_TAG,
+                    ChatPresentationTokens.SessionMessageController.ControllerTag,
                     "Besser refinement was rejected.",
                     throwable
                 )
@@ -681,7 +682,7 @@ class ChatSessionMessageController
                     state.besserRefinementSubmissionFailed(
                         message =
                             throwable.message
-                                ?: BESSER_REFINEMENT_ERROR
+                                ?: ChatPresentationTokens.SessionMessageController.BesserRefinementError
                     )
                 }
             }
@@ -702,25 +703,4 @@ class ChatSessionMessageController
         }
     }
 
-    private companion object {
-
-        const val CONTROLLER_TAG =
-            "ChatSessionMessage"
-
-        const val CONVERSATION_LOADING_ERROR =
-            "The conversation is still loading."
-
-        const val SEND_ERROR =
-            "The assistant could not respond. " +
-                    "Your message was saved locally."
-
-        const val BESSER_REFINEMENT_ERROR =
-            "Die Verbesserung konnte nicht gespeichert werden."
-
-        const val UNCHANGED_FEEDBACK =
-            "Ändere deinen Satz, damit er die Aufgabe erfüllt."
-
-        const val HINT_SUGGESTION_SUFFIX =
-            " Tippe auf „Tipp“, wenn du Hilfe brauchst."
-    }
 }

@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschOutlineSoft
 import com.julesmeister.deutschcraft.ui.theme.DeutschSurfaceHighest
@@ -88,7 +89,7 @@ fun FloatingReplySuggestions(
             ) {
                 delay(
                     index *
-                            SUGGESTION_STAGGER_MILLIS
+                            ChatDesignTokens.ReplySuggestions.SuggestionStaggerMillis
                 )
 
                 visibleSuggestions[
@@ -108,7 +109,7 @@ fun FloatingReplySuggestions(
                 animationSpec =
                     tween(
                         durationMillis =
-                            CONTAINER_ENTER_MILLIS,
+                            ChatDesignTokens.ReplySuggestions.ContainerEnterMillis,
                         easing =
                             LinearOutSlowInEasing
                     )
@@ -120,7 +121,7 @@ fun FloatingReplySuggestions(
                         animationSpec =
                             tween(
                                 durationMillis =
-                                    CONTAINER_ENTER_MILLIS,
+                                    ChatDesignTokens.ReplySuggestions.ContainerEnterMillis,
                                 easing =
                                     FastOutSlowInEasing
                             )
@@ -130,7 +131,7 @@ fun FloatingReplySuggestions(
                 animationSpec =
                     tween(
                         durationMillis =
-                            CONTAINER_EXIT_MILLIS
+                            ChatDesignTokens.ReplySuggestions.ContainerExitMillis
                     )
             ) +
                     slideOutVertically(
@@ -140,7 +141,7 @@ fun FloatingReplySuggestions(
                         animationSpec =
                             tween(
                                 durationMillis =
-                                    CONTAINER_EXIT_MILLIS
+                                    ChatDesignTokens.ReplySuggestions.ContainerExitMillis
                             )
                     )
     ) {
@@ -173,16 +174,16 @@ fun FloatingReplySuggestions(
                             animationSpec =
                                 tween(
                                     durationMillis =
-                                        CHIP_ENTER_MILLIS
+                                        ChatDesignTokens.ReplySuggestions.ChipEnterMillis
                                 )
                         ) +
                                 scaleIn(
                                     initialScale =
-                                        CHIP_ENTER_SCALE,
+                                        ChatDesignTokens.ReplySuggestions.ChipEnterScale,
                                     animationSpec =
                                         tween(
                                             durationMillis =
-                                                CHIP_ENTER_MILLIS,
+                                                ChatDesignTokens.ReplySuggestions.ChipEnterMillis,
                                             easing =
                                                 FastOutSlowInEasing
                                         )
@@ -194,7 +195,7 @@ fun FloatingReplySuggestions(
                                     animationSpec =
                                         tween(
                                             durationMillis =
-                                                CHIP_ENTER_MILLIS,
+                                                ChatDesignTokens.ReplySuggestions.ChipEnterMillis,
                                             easing =
                                                 FastOutSlowInEasing
                                         )
@@ -204,12 +205,12 @@ fun FloatingReplySuggestions(
                             animationSpec =
                                 tween(
                                     durationMillis =
-                                        CHIP_EXIT_MILLIS
+                                        ChatDesignTokens.ReplySuggestions.ChipExitMillis
                                 )
                         ) +
                                 scaleOut(
                                     targetScale =
-                                        CHIP_EXIT_SCALE
+                                        ChatDesignTokens.ReplySuggestions.ChipExitScale
                                 )
                 ) {
                     FloatingSuggestionChip(
@@ -253,16 +254,16 @@ private fun FloatingSuggestionChip(
     animateFloatAsState(
         targetValue =
             if (isPressed && enabled) {
-                PRESSED_CHIP_SCALE
+                ChatDesignTokens.ReplySuggestions.PressedChipScale
             } else {
-                NORMAL_CHIP_SCALE
+                ChatDesignTokens.ReplySuggestions.NormalChipScale
             },
         animationSpec =
             spring(
                 dampingRatio =
-                    CHIP_PRESS_DAMPING_RATIO,
+                    ChatDesignTokens.ReplySuggestions.ChipPressDampingRatio,
                 stiffness =
-                    CHIP_PRESS_STIFFNESS
+                    ChatDesignTokens.ReplySuggestions.ChipPressStiffness
             ),
         label =
             "SuggestionChipScale"
@@ -281,9 +282,9 @@ private fun FloatingSuggestionChip(
             }
             .sizeIn(
                 minHeight =
-                    MINIMUM_CHIP_HEIGHT,
+                    ChatDesignTokens.ReplySuggestions.MinimumChipHeight,
                 maxWidth =
-                    MAXIMUM_CHIP_WIDTH
+                    ChatDesignTokens.ReplySuggestions.MaximumChipWidth
             )
             .clip(
                 RoundedCornerShape(
@@ -340,42 +341,3 @@ private fun FloatingSuggestionChip(
             TextOverflow.Ellipsis
     )
 }
-
-private val MINIMUM_CHIP_HEIGHT =
-    38.dp
-
-private val MAXIMUM_CHIP_WIDTH =
-    280.dp
-
-private const val NORMAL_CHIP_SCALE =
-    1f
-
-private const val PRESSED_CHIP_SCALE =
-    0.96f
-
-private const val CHIP_ENTER_SCALE =
-    0.92f
-
-private const val CHIP_EXIT_SCALE =
-    0.96f
-
-private const val CHIP_PRESS_DAMPING_RATIO =
-    0.72f
-
-private const val CHIP_PRESS_STIFFNESS =
-    620f
-
-private const val SUGGESTION_STAGGER_MILLIS =
-    90L
-
-private const val CONTAINER_ENTER_MILLIS =
-    280
-
-private const val CONTAINER_EXIT_MILLIS =
-    180
-
-private const val CHIP_ENTER_MILLIS =
-    320
-
-private const val CHIP_EXIT_MILLIS =
-    160

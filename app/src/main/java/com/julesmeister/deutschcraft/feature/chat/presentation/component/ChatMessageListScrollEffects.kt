@@ -13,6 +13,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -257,7 +258,7 @@ private fun InitialBottomSettlementEffect(
         )
 
         delay(
-            CHAT_INITIAL_BOTTOM_SETTLE_DELAY_MILLIS
+            ChatDesignTokens.MessageListScroll.ChatInitialBottomSettleDelayMillis
         )
 
         awaitChatLayoutFrames()
@@ -373,7 +374,7 @@ private fun KeyboardScrollEffect(
             true
 
         delay(
-            CHAT_KEYBOARD_SCROLL_DELAY_MILLIS
+            ChatDesignTokens.MessageListScroll.ChatKeyboardScrollDelayMillis
         )
 
         awaitChatLayoutFrames()
@@ -432,7 +433,7 @@ private fun NewMessageScrollEffect(
         }
 
         delay(
-            CHAT_CONTENT_SCROLL_DELAY_MILLIS
+            ChatDesignTokens.MessageListScroll.ChatContentScrollDelayMillis
         )
 
         awaitChatLayoutFrames()
@@ -446,7 +447,7 @@ private fun NewMessageScrollEffect(
         )
 
         delay(
-            CHAT_MESSAGE_FINAL_CORRECTION_DELAY_MILLIS
+            ChatDesignTokens.MessageListScroll.ChatMessageFinalCorrectionDelayMillis
         )
 
         awaitChatLayoutFrames()
@@ -546,7 +547,7 @@ private fun SuggestionScrollEffect(
         }
 
         delay(
-            CHAT_SUGGESTION_SCROLL_DELAY_MILLIS
+            ChatDesignTokens.MessageListScroll.ChatSuggestionScrollDelayMillis
         )
 
         awaitChatLayoutFrames()
@@ -594,7 +595,7 @@ private fun BottomOverlayScrollEffect(
         awaitChatLayoutFrames()
 
         delay(
-            CHAT_OVERLAY_SCROLL_SETTLE_DELAY_MILLIS
+            ChatDesignTokens.MessageListScroll.ChatOverlayScrollSettleDelayMillis
         )
 
         if (
@@ -612,7 +613,7 @@ private fun BottomOverlayScrollEffect(
         )
 
         delay(
-            CHAT_OVERLAY_FINAL_CORRECTION_DELAY_MILLIS
+            ChatDesignTokens.MessageListScroll.ChatOverlayFinalCorrectionDelayMillis
         )
 
         awaitChatLayoutFrames()
@@ -776,7 +777,7 @@ private fun LazyListState.isAtConversationBottom():
 
     return finalItemBottom <=
             layout.viewportEndOffset +
-            CHAT_BOTTOM_VISIBILITY_TOLERANCE_PX
+            ChatDesignTokens.MessageListScroll.ChatBottomVisibilityTolerancePx
 }
 
 private suspend fun awaitChatLayoutFrames() {
@@ -786,34 +787,3 @@ private suspend fun awaitChatLayoutFrames() {
     withFrameNanos {
     }
 }
-
-/*
- * These names intentionally use a Chat-specific prefix.
- *
- * The previous build failed because the project already
- * contained top-level KEYBOARD_SCROLL_DELAY_MILLIS and
- * CONTENT_SCROLL_DELAY_MILLIS declarations in this package.
- */
-private const val CHAT_INITIAL_BOTTOM_SETTLE_DELAY_MILLIS =
-    120L
-
-private const val CHAT_KEYBOARD_SCROLL_DELAY_MILLIS =
-    80L
-
-private const val CHAT_CONTENT_SCROLL_DELAY_MILLIS =
-    80L
-
-private const val CHAT_MESSAGE_FINAL_CORRECTION_DELAY_MILLIS =
-    120L
-
-private const val CHAT_SUGGESTION_SCROLL_DELAY_MILLIS =
-    160L
-
-private const val CHAT_OVERLAY_SCROLL_SETTLE_DELAY_MILLIS =
-    80L
-
-private const val CHAT_OVERLAY_FINAL_CORRECTION_DELAY_MILLIS =
-    120L
-
-private const val CHAT_BOTTOM_VISIBILITY_TOLERANCE_PX =
-    8

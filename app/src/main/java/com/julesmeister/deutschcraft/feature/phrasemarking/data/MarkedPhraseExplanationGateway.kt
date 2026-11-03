@@ -6,6 +6,7 @@ import com.julesmeister.deutschcraft.feature.chat.data.ai.QwenApi
 import com.julesmeister.deutschcraft.feature.chat.data.ai.QwenChatCompletionRequest
 import com.julesmeister.deutschcraft.feature.chat.data.ai.QwenMessage
 import com.julesmeister.deutschcraft.feature.chat.data.ai.QwenResponseFormat
+import com.julesmeister.deutschcraft.feature.chat.data.cache.AiResultCache
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhraseType
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.PhraseExplanation
 import javax.inject.Inject
@@ -27,6 +28,14 @@ class MarkedPhraseExplanationGateway
     private val json: Json
 ) {
 
+    private data class ExplanationKey(
+        val phrase: String,
+        val sourceSentence: String,
+        val type: MarkedPhraseType
+    )
+
+    private val explanations = AiResultCache<ExplanationKey, PhraseExplanation?>()
+
     suspend fun explain(
         phrase: String,
         sourceSentence: String,
@@ -36,6 +45,19 @@ class MarkedPhraseExplanationGateway
             return null
         }
 
+        return explanations.getOrLoad(
+            key = ExplanationKey(phrase, sourceSentence, type),
+            cacheable = { it != null }
+        ) {
+            requestExplanation(phrase, sourceSentence, type)
+        }
+    }
+
+    private suspend fun requestExplanation(
+        phrase: String,
+        sourceSentence: String,
+        type: MarkedPhraseType
+    ): PhraseExplanation? {
         return try {
             val response =
                 qwenApi.createChatCompletion(
@@ -59,7 +81,9 @@ class MarkedPhraseExplanationGateway
                     ?.trim()
                     .orEmpty()
 
-            parse(content)
+            parse(content) ?: throw IllegalStateException(
+                "Qwen returned an invalid phrase explanation."
+            )
         } catch (cancellationException: CancellationException) {
             throw cancellationException
         } catch (throwable: Throwable) {

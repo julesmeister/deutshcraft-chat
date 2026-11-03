@@ -1,6 +1,7 @@
 package com.julesmeister.deutschcraft.feature.chat.presentation.progress
 
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.mission.domain.recommendation.MissionLearningContext
 import com.julesmeister.deutschcraft.feature.mission.domain.usecase.BuildMissionLearningContextUseCase
 import javax.inject.Inject
@@ -76,7 +77,7 @@ class SelectImmediateLevelNeedUseCase
                             true
                     ) &&
                             signal.prefix ==
-                            NEXT_STEP_PREFIX
+                            ChatPresentationTokens.SelectImmediateLevelNeedUseCase.NextStepPrefix
                 }
                 ?: parsedSignals
                     .firstOrNull { signal: CapabilitySignal ->
@@ -245,7 +246,7 @@ class SelectImmediateLevelNeedUseCase
                     ImmediateNeedSource.PROGRESSION -> {
                         if (
                             prefix ==
-                            NEXT_STEP_PREFIX
+                            ChatPresentationTokens.SelectImmediateLevelNeedUseCase.NextStepPrefix
                         ) {
                             "Your prerequisite skill is established, " +
                                     "so this is the most useful next step " +
@@ -408,7 +409,7 @@ class SelectImmediateLevelNeedUseCase
 
         if (
             parts.size <
-            MINIMUM_CAPABILITY_SIGNAL_PART_COUNT
+            ChatPresentationTokens.SelectImmediateLevelNeedUseCase.MinimumCapabilitySignalPartCount
         ) {
             return null
         }
@@ -471,13 +472,13 @@ class SelectImmediateLevelNeedUseCase
 
         parts
             .drop(
-                MINIMUM_CAPABILITY_SIGNAL_PART_COUNT
+                ChatPresentationTokens.SelectImmediateLevelNeedUseCase.MinimumCapabilitySignalPartCount
             )
             .forEach { part: String ->
                 when {
                     part.startsWith(
                         prefix =
-                            CEFR_FIELD_PREFIX,
+                            ChatPresentationTokens.SelectImmediateLevelNeedUseCase.CefrFieldPrefix,
 
                         ignoreCase =
                             true
@@ -493,7 +494,7 @@ class SelectImmediateLevelNeedUseCase
 
                     part.startsWith(
                         prefix =
-                            SCORE_FIELD_PREFIX,
+                            ChatPresentationTokens.SelectImmediateLevelNeedUseCase.ScoreFieldPrefix,
 
                         ignoreCase =
                             true
@@ -556,7 +557,7 @@ class SelectImmediateLevelNeedUseCase
          */
         val firstSeparatorIndex =
             rawSignal.indexOf(
-                REINFORCEMENT_SEPARATOR
+                ChatPresentationTokens.SelectImmediateLevelNeedUseCase.ReinforcementSeparator
             )
 
         if (
@@ -568,11 +569,11 @@ class SelectImmediateLevelNeedUseCase
 
         val secondSeparatorIndex =
             rawSignal.indexOf(
-                REINFORCEMENT_SEPARATOR,
+                ChatPresentationTokens.SelectImmediateLevelNeedUseCase.ReinforcementSeparator,
 
                 startIndex =
                     firstSeparatorIndex +
-                            REINFORCEMENT_SEPARATOR.length
+                            ChatPresentationTokens.SelectImmediateLevelNeedUseCase.ReinforcementSeparator.length
             )
 
         val focusKey =
@@ -595,7 +596,7 @@ class SelectImmediateLevelNeedUseCase
                     .substring(
                         startIndex =
                             firstSeparatorIndex +
-                                    REINFORCEMENT_SEPARATOR.length,
+                                    ChatPresentationTokens.SelectImmediateLevelNeedUseCase.ReinforcementSeparator.length,
 
                         endIndex =
                             secondSeparatorIndex
@@ -606,7 +607,7 @@ class SelectImmediateLevelNeedUseCase
                     .substring(
                         startIndex =
                             firstSeparatorIndex +
-                                    REINFORCEMENT_SEPARATOR.length
+                                    ChatPresentationTokens.SelectImmediateLevelNeedUseCase.ReinforcementSeparator.length
                     )
                     .trim()
             }
@@ -620,7 +621,7 @@ class SelectImmediateLevelNeedUseCase
                     .substring(
                         startIndex =
                             secondSeparatorIndex +
-                                    REINFORCEMENT_SEPARATOR.length
+                                    ChatPresentationTokens.SelectImmediateLevelNeedUseCase.ReinforcementSeparator.length
                     )
                     .trim()
             } else {
@@ -959,21 +960,4 @@ class SelectImmediateLevelNeedUseCase
         DEVELOPING
     }
 
-    private companion object {
-
-        const val NEXT_STEP_PREFIX =
-            "next_step"
-
-        const val CEFR_FIELD_PREFIX =
-            "cefr="
-
-        const val SCORE_FIELD_PREFIX =
-            "score="
-
-        const val REINFORCEMENT_SEPARATOR =
-            " | "
-
-        const val MINIMUM_CAPABILITY_SIGNAL_PART_COUNT =
-            2
-    }
 }

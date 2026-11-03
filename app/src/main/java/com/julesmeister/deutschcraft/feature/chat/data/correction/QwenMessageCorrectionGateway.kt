@@ -4,6 +4,8 @@ import com.julesmeister.deutschcraft.BuildConfig
 import com.julesmeister.deutschcraft.feature.chat.data.ai.QwenApi
 import com.julesmeister.deutschcraft.feature.chat.data.ai.QwenChatCompletionRequest
 import com.julesmeister.deutschcraft.feature.chat.data.ai.QwenMessage
+import com.julesmeister.deutschcraft.feature.chat.data.ai.QwenResponseFormat
+import com.julesmeister.deutschcraft.feature.chat.data.cache.AiResultCache
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
@@ -16,6 +18,8 @@ class QwenMessageCorrectionGateway @Inject constructor(
     private val json: Json
 ) : MessageCorrectionGateway {
 
+    private val corrections = AiResultCache<String, String?>()
+
     override suspend fun correctSentence(
         sentence: String
     ): String? {
@@ -26,6 +30,14 @@ class QwenMessageCorrectionGateway @Inject constructor(
             return null
         }
 
+        return corrections.getOrLoad(cleanedSentence) {
+            requestCorrection(cleanedSentence)
+        }
+    }
+
+    private suspend fun requestCorrection(
+        cleanedSentence: String
+    ): String? {
         val request =
             QwenChatCompletionRequest(
                 model =
@@ -38,17 +50,15 @@ class QwenMessageCorrectionGateway @Inject constructor(
                     QwenMessage(
                         role = USER_ROLE,
                         content =
-                            createUserPrompt(
-                                sentence =
-                                    cleanedSentence
-                            )
+                            "Learner sentence:\n$cleanedSentence"
                     )
                 ),
                 enableThinking = false,
                 temperature =
                     CORRECTION_TEMPERATURE,
                 maxTokens =
-                    MAXIMUM_RESPONSE_TOKENS
+                    MAXIMUM_RESPONSE_TOKENS,
+                responseFormat = QwenResponseFormat(type = "json_object")
             )
 
         return try {
@@ -85,7 +95,9 @@ class QwenMessageCorrectionGateway @Inject constructor(
 
                 payload.correctedSentence
                     .isNullOrBlank() -> {
-                    null
+                    throw MessageCorrectionException(
+                        message = "Qwen requested a correction but omitted the corrected sentence."
+                    )
                 }
 
                 sentencesAreEquivalent(
@@ -212,52 +224,6 @@ class QwenMessageCorrectionGateway @Inject constructor(
             )
     }
 
-    private fun createUserPrompt(
-        sentence: String
-    ): String {
-        return """
-            Check the following learner sentence:
-
-            "$sentence"
-
-            Decide whether it needs a meaningful correction.
-
-            Correct only:
-            - English words accidentally inserted into German
-            - Incorrect German grammar
-            - Incorrect verb conjugation
-            - Incorrect word order
-            - Missing words that make the sentence incomplete
-            - Clearly unnatural German phrasing
-
-            Do not correct:
-            - Proper names
-            - Harmless punctuation differences
-            - Capitalization alone
-            - Valid regional or conversational German
-            - Stylistic preferences when the sentence is
-              already correct
-            - The learner's intended meaning
-
-            If a correction is necessary, return the
-            complete corrected German sentence.
-
-            Return JSON only:
-
-            {
-              "needsCorrection": true,
-              "correctedSentence": "Corrected German sentence"
-            }
-
-            If no meaningful correction is needed:
-
-            {
-              "needsCorrection": false,
-              "correctedSentence": null
-            }
-        """.trimIndent()
-    }
-
     private companion object {
         const val SYSTEM_ROLE =
             "system"
@@ -276,17 +242,17 @@ class QwenMessageCorrectionGateway @Inject constructor(
 
         val SYSTEM_PROMPT =
             """
-                You are DeutschCraft's German sentence
-                correction assistant.
-
-                Correct meaningful language mistakes while
-                preserving the learner's intended meaning.
-
-                Do not unnecessarily rewrite sentences that
-                are already acceptable German.
-
-                Return only valid JSON matching the requested
-                structure.
+                You are DeutschCraft's German sentence correction assistant.
+                Check the learner sentence for meaningful mistakes, preserving intended meaning.
+                Correct only accidental English words, incorrect German grammar, verb conjugation,
+                word order, missing words making a sentence incomplete, or clearly unnatural phrasing.
+                Do not change proper names, harmless punctuation, capitalization alone, valid
+                regional/conversational German, intended meaning, or style of acceptable German.
+                If needed, return the complete corrected German sentence, not a fragment.
+                Return only one valid JSON object, no Markdown or code fences:
+                {"needsCorrection":true,"correctedSentence":"Complete corrected German sentence"}
+                If no meaningful correction is needed:
+                {"needsCorrection":false,"correctedSentence":null}
             """.trimIndent()
     }
 }

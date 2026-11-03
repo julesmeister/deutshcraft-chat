@@ -6,6 +6,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestionAction
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionObjectiveProgress
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.MissionOpportunity
@@ -150,7 +151,7 @@ internal fun ChatUiState.withProgressiveSuggestions(
                         .lowercase()
                 }
                 .take(
-                    MAXIMUM_VISIBLE_SUGGESTIONS
+                    ChatPresentationTokens.UiStateExtensions.MaximumVisibleSuggestions
                 )
     )
 }
@@ -634,7 +635,7 @@ internal fun ChatUiState.missionContinuationAvailable(
             listOf(
                 ReplySuggestion(
                     id =
-                        MISSION_CONTINUATION_SUGGESTION_ID,
+                        ChatPresentationTokens.UiStateExtensions.MissionContinuationSuggestionId,
 
                     text =
                         "↻ Noch eine Runde?",
@@ -646,7 +647,7 @@ internal fun ChatUiState.missionContinuationAvailable(
 
                 ReplySuggestion(
                     id =
-                        MISSION_CONTINUATION_DISMISS_SUGGESTION_ID,
+                        ChatPresentationTokens.UiStateExtensions.MissionContinuationDismissSuggestionId,
 
                     text =
                         "✓ Für jetzt fertig",
@@ -800,9 +801,9 @@ internal fun ChatUiState.missionContinuationDismissed():
         suggestions =
             suggestions.filterNot { suggestion ->
                 suggestion.id ==
-                        MISSION_CONTINUATION_SUGGESTION_ID ||
+                        ChatPresentationTokens.UiStateExtensions.MissionContinuationSuggestionId ||
                         suggestion.id ==
-                        MISSION_CONTINUATION_DISMISS_SUGGESTION_ID
+                        ChatPresentationTokens.UiStateExtensions.MissionContinuationDismissSuggestionId
             },
 
         missionVariation =
@@ -882,7 +883,7 @@ private fun buildMissionVariationOptions(
         }
 
         context.safeOverallScore >=
-                STRONG_VARIATION_SCORE_THRESHOLD -> {
+                ChatPresentationTokens.UiStateExtensions.StrongVariationScoreThreshold -> {
             listOf(
                 complication,
                 grammar,
@@ -899,15 +900,3 @@ private fun buildMissionVariationOptions(
         }
     }
 }
-
-internal const val MISSION_CONTINUATION_SUGGESTION_ID =
-    "mission-continuation-open"
-
-internal const val MISSION_CONTINUATION_DISMISS_SUGGESTION_ID =
-    "mission-continuation-dismiss"
-
-private const val MAXIMUM_VISIBLE_SUGGESTIONS =
-    3
-
-private const val STRONG_VARIATION_SCORE_THRESHOLD =
-    75

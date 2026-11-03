@@ -6,8 +6,11 @@ import android.util.Log
 import com.julesmeister.deutschcraft.feature.chat.data.cache.ReplySuggestionCache
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestion
 import com.julesmeister.deutschcraft.feature.chat.domain.usecase.SendChatMessageUseCase
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -129,7 +132,7 @@ class ChatMessageSender
         val firstSuggestions =
             suggestions.take(
                 n =
-                    FIRST_SUGGESTION_COUNT
+                    ChatPresentationTokens.MessageSender.FirstSuggestionCount
             )
 
         if (firstSuggestions.isNotEmpty()) {
@@ -144,7 +147,7 @@ class ChatMessageSender
         }
 
         Log.d(
-            MESSAGE_SENDER_TAG,
+            ChatPresentationTokens.MessageSender.MessageSenderTag,
             buildString {
                 append(
                     "Critical conversational send completed. "
@@ -194,7 +197,7 @@ class ChatMessageSender
             remainingSuggestions =
                 suggestions.drop(
                     n =
-                        FIRST_SUGGESTION_COUNT
+                        ChatPresentationTokens.MessageSender.FirstSuggestionCount
                 ),
 
             finalSuggestions =
@@ -240,7 +243,7 @@ class ChatMessageSender
                          * suggestion streaming is implemented.
                          */
                         delay(
-                            SUGGESTION_REVEAL_DELAY_MILLIS
+                            ChatDesignTokens.ReplySuggestions.RevealDelayMillis.milliseconds
                         )
 
                         val updatedSuggestions =
@@ -260,7 +263,7 @@ class ChatMessageSender
                     }
 
                 Log.d(
-                    MESSAGE_SENDER_TAG,
+                    ChatPresentationTokens.MessageSender.MessageSenderTag,
                     buildString {
                         append(
                             "Suggestion presentation completed. "
@@ -314,7 +317,7 @@ class ChatMessageSender
                  * response into a failed conversation.
                  */
                 Log.e(
-                    MESSAGE_SENDER_TAG,
+                    ChatPresentationTokens.MessageSender.MessageSenderTag,
                     "Progressive suggestion presentation failed.",
                     throwable
                 )
@@ -366,7 +369,7 @@ class ChatMessageSender
                     normalizedSubmittedMessage.isBlank()
                 ) {
                     Log.w(
-                        MESSAGE_SENDER_TAG,
+                        ChatPresentationTokens.MessageSender.MessageSenderTag,
                         "Skipping post-send learning because " +
                                 "the submitted message is blank."
                     )
@@ -412,7 +415,7 @@ class ChatMessageSender
                 )
 
                 Log.d(
-                    MESSAGE_SENDER_TAG,
+                    ChatPresentationTokens.MessageSender.MessageSenderTag,
                     buildString {
                         append(
                             "Post-send learning completed. "
@@ -471,7 +474,7 @@ class ChatMessageSender
                  * failed send.
                  */
                 Log.e(
-                    MESSAGE_SENDER_TAG,
+                    ChatPresentationTokens.MessageSender.MessageSenderTag,
                     "Post-send learning processing failed.",
                     throwable
                 )
@@ -543,29 +546,11 @@ class ChatMessageSender
             }
             .take(
                 n =
-                    MAXIMUM_SUGGESTION_COUNT
+                    ChatPresentationTokens.MessageSender.MaximumSuggestionCount
             )
     }
 
     private companion object {
-
-        const val MESSAGE_SENDER_TAG =
-            "ChatMessageSender"
-
-        const val FIRST_SUGGESTION_COUNT =
-            1
-
-        const val MAXIMUM_SUGGESTION_COUNT =
-            3
-
-        /*
-         * Presentation-only delay.
-         *
-         * Suggestions have already been returned by Qwen at
-         * this point.
-         */
-        const val SUGGESTION_REVEAL_DELAY_MILLIS =
-            140L
 
         val MULTIPLE_WHITESPACE_REGEX =
             Regex(

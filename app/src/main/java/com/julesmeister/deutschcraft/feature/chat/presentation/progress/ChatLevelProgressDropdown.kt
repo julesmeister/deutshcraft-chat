@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.sin
@@ -96,18 +96,18 @@ internal fun ChatLevelProgressDropdown(
         remember(density) {
             CradlePopupPositionProvider(
                 cradleCenterFromRightPx =
-                    with(density) { CRADLE_RADIUS.roundToPx() },
+                    with(density) { ChatDesignTokens.LevelProgressDropdown.CradleRadius.roundToPx() },
                 cradleCenterFromTopPx =
-                    with(density) { CRADLE_RADIUS.roundToPx() },
+                    with(density) { ChatDesignTokens.LevelProgressDropdown.CradleRadius.roundToPx() },
                 windowMarginPx =
-                    with(density) { WINDOW_MARGIN.roundToPx() }
+                    with(density) { ChatDesignTokens.LevelProgressDropdown.WindowMargin.roundToPx() }
             )
         }
 
     val pivot =
         TransformOrigin(
             pivotFractionX =
-                1f - CRADLE_RADIUS.value / DROPDOWN_WIDTH.value,
+                1f - ChatDesignTokens.LevelProgressDropdown.CradleRadius.value / ChatDesignTokens.LevelProgressDropdown.DropdownWidth.value,
             pivotFractionY = 0.04f
         )
 
@@ -128,12 +128,12 @@ internal fun ChatLevelProgressDropdown(
                 fadeIn(
                     animationSpec =
                         tween(
-                            durationMillis = DROPDOWN_ENTER_MILLIS,
+                            durationMillis = ChatDesignTokens.LevelProgressDropdown.DropdownEnterMillis,
                             easing = FastOutSlowInEasing
                         )
                 ) +
                         scaleIn(
-                            initialScale = DROPDOWN_INITIAL_SCALE,
+                            initialScale = ChatDesignTokens.LevelProgressDropdown.DropdownInitialScale,
                             transformOrigin = pivot,
                             animationSpec =
                                 spring(
@@ -144,14 +144,14 @@ internal fun ChatLevelProgressDropdown(
             exit =
                 fadeOut(
                     animationSpec =
-                        tween(durationMillis = DROPDOWN_EXIT_MILLIS)
+                        tween(durationMillis = ChatDesignTokens.LevelProgressDropdown.DropdownExitMillis)
                 ) +
                         scaleOut(
-                            targetScale = DROPDOWN_EXIT_SCALE,
+                            targetScale = ChatDesignTokens.LevelProgressDropdown.DropdownExitScale,
                             transformOrigin = pivot,
                             animationSpec =
                                 tween(
-                                    durationMillis = DROPDOWN_EXIT_MILLIS,
+                                    durationMillis = ChatDesignTokens.LevelProgressDropdown.DropdownExitMillis,
                                     easing = FastOutSlowInEasing
                                 )
                         )
@@ -183,25 +183,25 @@ private fun CradledProgressBento(
     val shape =
         remember {
             CradleDropdownShape(
-                cradleRadius = CRADLE_RADIUS,
-                bodyTopOffset = BODY_TOP_OFFSET,
-                filletLength = FILLET_LENGTH,
-                cornerRadius = BODY_CORNER_RADIUS
+                cradleRadius = ChatDesignTokens.LevelProgressDropdown.CradleRadius,
+                bodyTopOffset = ChatDesignTokens.LevelProgressDropdown.BodyTopOffset,
+                filletLength = ChatDesignTokens.LevelProgressDropdown.FilletLength,
+                cornerRadius = ChatDesignTokens.LevelProgressDropdown.BodyCornerRadius
             )
         }
 
     Box(
         modifier =
             Modifier
-                .requiredWidth(DROPDOWN_WIDTH)
-                .padding(bottom = SHADOW_SPACE)
+                .requiredWidth(ChatDesignTokens.LevelProgressDropdown.DropdownWidth)
+                .padding(bottom = ChatDesignTokens.LevelProgressDropdown.ShadowSpace)
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .shadow(
-                        elevation = DROPDOWN_ELEVATION,
+                        elevation = ChatDesignTokens.LevelProgressDropdown.DropdownElevation,
                         shape = shape,
                         clip = false,
                         ambientColor = Color.Black.copy(alpha = 0.18f),
@@ -210,21 +210,21 @@ private fun CradledProgressBento(
                     .clip(shape)
                     .background(colors.surfaceContainerHigh)
                     .border(
-                        width = DROPDOWN_BORDER_WIDTH,
+                        width = ChatDesignTokens.LevelProgressDropdown.DropdownBorderWidth,
                         color =
                             colors.outlineVariant.copy(
-                                alpha = DROPDOWN_BORDER_ALPHA
+                                alpha = ChatDesignTokens.LevelProgressDropdown.DropdownBorderAlpha
                             ),
                         shape = shape
                     )
                     .padding(
-                        start = DROPDOWN_PADDING,
-                        end = DROPDOWN_PADDING,
-                        bottom = DROPDOWN_PADDING,
-                        top = CRADLE_RADIUS * 2 + CONTENT_GAP_BELOW_CRADLE
+                        start = ChatDesignTokens.LevelProgressDropdown.DropdownPadding,
+                        end = ChatDesignTokens.LevelProgressDropdown.DropdownPadding,
+                        bottom = ChatDesignTokens.LevelProgressDropdown.DropdownPadding,
+                        top = ChatDesignTokens.LevelProgressDropdown.CradleRadius * 2 + ChatDesignTokens.LevelProgressDropdown.ContentGapBelowCradle
                     ),
             verticalArrangement =
-                Arrangement.spacedBy(BENTO_GAP)
+                Arrangement.spacedBy(ChatDesignTokens.LevelProgressDropdown.BentoGap)
         ) {
             ProgressHeaderBento(
                 state = state,
@@ -241,7 +241,7 @@ private fun CradledProgressBento(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(BENTO_GAP)
+                    horizontalArrangement = Arrangement.spacedBy(ChatDesignTokens.LevelProgressDropdown.BentoGap)
                 ) {
                     TeachingTargetBento(
                         label = "SAY IT WITH",
@@ -275,10 +275,10 @@ private fun CradledProgressBento(
                 Modifier
                     .align(Alignment.TopEnd)
                     .offset(
-                        x = -(CRADLE_RADIUS - INDICATOR_TOUCH_SIZE / 2),
-                        y = CRADLE_RADIUS - INDICATOR_TOUCH_SIZE / 2
+                        x = -(ChatDesignTokens.LevelProgressDropdown.CradleRadius - ChatDesignTokens.LevelProgressIndicator.IndicatorTouchSize / 2),
+                        y = ChatDesignTokens.LevelProgressDropdown.CradleRadius - ChatDesignTokens.LevelProgressIndicator.IndicatorTouchSize / 2
                     )
-                    .size(INDICATOR_TOUCH_SIZE)
+                    .size(ChatDesignTokens.LevelProgressIndicator.IndicatorTouchSize)
                     .clip(CircleShape)
                     .clickable(
                         interactionSource =
@@ -305,9 +305,9 @@ private fun ProgressHeaderBento(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(HEADER_SHAPE)
-                .background(accent.copy(alpha = HEADER_BACKGROUND_ALPHA))
-                .padding(HEADER_PADDING),
+                .clip(ChatDesignTokens.LevelProgressDropdown.HeaderShape)
+                .background(accent.copy(alpha = ChatDesignTokens.LevelProgressDropdown.HeaderBackgroundAlpha))
+                .padding(ChatDesignTokens.LevelProgressDropdown.HeaderPadding),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
@@ -328,10 +328,10 @@ private fun ProgressHeaderBento(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(READINESS_TRACK_HEIGHT)
+                        .height(ChatDesignTokens.LevelProgressDropdown.ReadinessTrackHeight)
                         .clip(CircleShape)
                         .background(
-                            colors.surface.copy(alpha = READINESS_TRACK_ALPHA)
+                            colors.surface.copy(alpha = ChatDesignTokens.LevelProgressDropdown.ReadinessTrackAlpha)
                         )
             ) {
                 Box(
@@ -340,14 +340,14 @@ private fun ProgressHeaderBento(
                             .fillMaxWidth(
                                 fraction = state.safeReadinessPercentage / 100f
                             )
-                            .height(READINESS_TRACK_HEIGHT)
+                            .height(ChatDesignTokens.LevelProgressDropdown.ReadinessTrackHeight)
                             .clip(CircleShape)
                             .background(accent)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.width(HEADER_CONTENT_SPACING))
+        Spacer(modifier = Modifier.width(ChatDesignTokens.LevelProgressDropdown.HeaderContentSpacing))
 
         Text(
             text =
@@ -375,14 +375,14 @@ private fun PrimaryNeedBento(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(PRIMARY_NEED_SHAPE)
+                .clip(ChatDesignTokens.LevelProgressDropdown.PrimaryNeedShape)
                 .background(colors.surfaceContainer)
                 .border(
-                    width = PRIMARY_NEED_BORDER_WIDTH,
-                    color = accent.copy(alpha = PRIMARY_NEED_BORDER_ALPHA),
-                    shape = PRIMARY_NEED_SHAPE
+                    width = ChatDesignTokens.LevelProgressDropdown.PrimaryNeedBorderWidth,
+                    color = accent.copy(alpha = ChatDesignTokens.LevelProgressDropdown.PrimaryNeedBorderAlpha),
+                    shape = ChatDesignTokens.LevelProgressDropdown.PrimaryNeedShape
                 )
-                .padding(PRIMARY_NEED_PADDING),
+                .padding(ChatDesignTokens.LevelProgressDropdown.PrimaryNeedPadding),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(
@@ -422,9 +422,9 @@ private fun PrimaryNeedBento(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .clip(WHY_NOW_SHAPE)
-                    .background(accent.copy(alpha = WHY_NOW_BACKGROUND_ALPHA))
-                    .padding(WHY_NOW_PADDING)
+                    .clip(ChatDesignTokens.LevelProgressDropdown.WhyNowShape)
+                    .background(accent.copy(alpha = ChatDesignTokens.LevelProgressDropdown.WhyNowBackgroundAlpha))
+                    .padding(ChatDesignTokens.LevelProgressDropdown.WhyNowPadding)
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(3.dp)
@@ -459,10 +459,10 @@ private fun TeachingTargetBento(
     Column(
         modifier =
             modifier
-                .height(TEACHING_BENTO_HEIGHT)
-                .clip(SMALL_BENTO_SHAPE)
+                .height(ChatDesignTokens.LevelProgressDropdown.TeachingBentoHeight)
+                .clip(ChatDesignTokens.LevelProgressDropdown.SmallBentoShape)
                 .background(colors.surfaceContainer)
-                .padding(SMALL_BENTO_PADDING),
+                .padding(ChatDesignTokens.LevelProgressDropdown.SmallBentoPadding),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(
@@ -473,7 +473,7 @@ private fun TeachingTargetBento(
         )
 
         values
-            .take(MAXIMUM_TARGET_COUNT)
+            .take(ChatDesignTokens.LevelProgressDropdown.MaximumTargetCount)
             .forEach { value ->
                 Row(
                     verticalAlignment = Alignment.Top
@@ -481,13 +481,13 @@ private fun TeachingTargetBento(
                     Box(
                         modifier =
                             Modifier
-                                .padding(top = TARGET_DOT_TOP_PADDING)
-                                .size(TARGET_DOT_SIZE)
+                                .padding(top = ChatDesignTokens.LevelProgressDropdown.TargetDotTopPadding)
+                                .size(ChatDesignTokens.LevelProgressDropdown.TargetDotSize)
                                 .clip(CircleShape)
                                 .background(accent)
                     )
 
-                    Spacer(modifier = Modifier.width(TARGET_DOT_SPACING))
+                    Spacer(modifier = Modifier.width(ChatDesignTokens.LevelProgressDropdown.TargetDotSpacing))
 
                     Text(
                         text = value,
@@ -510,9 +510,9 @@ private fun ExampleBento(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(EXAMPLE_SHAPE)
-                .background(accent.copy(alpha = EXAMPLE_BACKGROUND_ALPHA))
-                .padding(EXAMPLE_PADDING),
+                .clip(ChatDesignTokens.LevelProgressDropdown.ExampleShape)
+                .background(accent.copy(alpha = ChatDesignTokens.LevelProgressDropdown.ExampleBackgroundAlpha))
+                .padding(ChatDesignTokens.LevelProgressDropdown.ExamplePadding),
         verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Text(
@@ -540,9 +540,9 @@ private fun EmptyNeedBento(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(PRIMARY_NEED_SHAPE)
+                .clip(ChatDesignTokens.LevelProgressDropdown.PrimaryNeedShape)
                 .background(MaterialTheme.colorScheme.surfaceContainer)
-                .padding(PRIMARY_NEED_PADDING),
+                .padding(ChatDesignTokens.LevelProgressDropdown.PrimaryNeedPadding),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(
@@ -609,7 +609,7 @@ private class CradleDropdownShape(
         // Start the circle arc slightly above the crossing so the
         // fillet curve blends into it.
         val arcStartAngle =
-            intersectionAngle + FILLET_ARC_DEGREES
+            intersectionAngle + ChatDesignTokens.LevelProgressDropdown.FilletArcDegrees
 
         val arcStartRadians =
             Math.toRadians(arcStartAngle)
@@ -673,9 +673,6 @@ private class CradleDropdownShape(
         return Outline.Generic(path)
     }
 
-    private companion object {
-        const val FILLET_ARC_DEGREES = 14.0
-    }
 }
 
 /*
@@ -721,81 +718,17 @@ private fun readinessColor(
     val progress =
         readiness.coerceIn(0, 100) / 100f
 
-    return if (progress <= COLOR_MIDPOINT) {
+    return if (progress <= ChatDesignTokens.LevelProgress.ColorMidpoint) {
         lerp(
-            start = PROGRESS_ORANGE,
-            stop = PROGRESS_AMBER,
-            fraction = progress / COLOR_MIDPOINT
+            start = ChatDesignTokens.LevelProgress.Orange,
+            stop = ChatDesignTokens.LevelProgress.Amber,
+            fraction = progress / ChatDesignTokens.LevelProgress.ColorMidpoint
         )
     } else {
         lerp(
-            start = PROGRESS_AMBER,
-            stop = PROGRESS_GREEN,
-            fraction = (progress - COLOR_MIDPOINT) / COLOR_MIDPOINT
+            start = ChatDesignTokens.LevelProgress.Amber,
+            stop = ChatDesignTokens.LevelProgress.Green,
+            fraction = (progress - ChatDesignTokens.LevelProgress.ColorMidpoint) / ChatDesignTokens.LevelProgress.ColorMidpoint
         )
     }
 }
-
-/*
- * Cradle geometry.
- *
- * The indicator touch area is 48.dp (radius 24.dp). A 30.dp
- * cradle radius leaves a 6.dp collar of dropdown surface around
- * the button.
- */
-private val CRADLE_RADIUS = 30.dp
-private val BODY_TOP_OFFSET = 44.dp
-private val FILLET_LENGTH = 14.dp
-private val CONTENT_GAP_BELOW_CRADLE = 4.dp
-private val WINDOW_MARGIN = 8.dp
-
-private val DROPDOWN_WIDTH = 304.dp
-private val DROPDOWN_PADDING = 12.dp
-private val DROPDOWN_BORDER_WIDTH = 1.dp
-private val DROPDOWN_ELEVATION = 14.dp
-private val SHADOW_SPACE = 16.dp
-private val BODY_CORNER_RADIUS = 26.dp
-
-private val BENTO_GAP = 8.dp
-
-private val HEADER_SHAPE = RoundedCornerShape(18.dp)
-private val HEADER_PADDING = 12.dp
-private val HEADER_CONTENT_SPACING = 10.dp
-private val READINESS_TRACK_HEIGHT = 6.dp
-
-private val PRIMARY_NEED_SHAPE = RoundedCornerShape(20.dp)
-private val PRIMARY_NEED_BORDER_WIDTH = 0.75.dp
-private val PRIMARY_NEED_PADDING = 14.dp
-
-private val WHY_NOW_SHAPE = RoundedCornerShape(13.dp)
-private val WHY_NOW_PADDING = 10.dp
-
-private val SMALL_BENTO_SHAPE = RoundedCornerShape(17.dp)
-private val SMALL_BENTO_PADDING = 11.dp
-private val TEACHING_BENTO_HEIGHT = 126.dp
-
-private val TARGET_DOT_SIZE = 5.dp
-private val TARGET_DOT_TOP_PADDING = 5.dp
-private val TARGET_DOT_SPACING = 7.dp
-
-private val EXAMPLE_SHAPE = RoundedCornerShape(18.dp)
-private val EXAMPLE_PADDING = 13.dp
-
-private val PROGRESS_ORANGE = Color(0xFFE87516)
-private val PROGRESS_AMBER = Color(0xFFE6B522)
-private val PROGRESS_GREEN = Color(0xFF2E9B57)
-
-private const val DROPDOWN_ENTER_MILLIS = 240
-private const val DROPDOWN_EXIT_MILLIS = 160
-private const val DROPDOWN_INITIAL_SCALE = 0.86f
-private const val DROPDOWN_EXIT_SCALE = 0.92f
-private const val DROPDOWN_BORDER_ALPHA = 0.55f
-
-private const val HEADER_BACKGROUND_ALPHA = 0.13f
-private const val READINESS_TRACK_ALPHA = 0.72f
-private const val PRIMARY_NEED_BORDER_ALPHA = 0.30f
-private const val WHY_NOW_BACKGROUND_ALPHA = 0.10f
-private const val EXAMPLE_BACKGROUND_ALPHA = 0.13f
-
-private const val MAXIMUM_TARGET_COUNT = 4
-private const val COLOR_MIDPOINT = 0.5f

@@ -4,6 +4,7 @@ import android.util.Log
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.feature.chat.data.local.ChatLocalDataSource
 import com.julesmeister.deutschcraft.feature.chat.data.local.toDomain
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.mission.data.cache.MissionOfferCache
 import com.julesmeister.deutschcraft.feature.mission.domain.generated.MissionOpportunity
 import com.julesmeister.deutschcraft.feature.mission.domain.usecase.AcceptMissionOfferUseCase
@@ -89,7 +90,7 @@ class ChatMissionOfferCoordinator @Inject constructor(
              * to appear as failed.
              */
             Log.e(
-                COORDINATOR_TAG,
+                ChatPresentationTokens.MissionOfferCoordinator.CoordinatorTag,
                 "Mission opportunity detection failed.",
                 throwable
             )
@@ -125,8 +126,4 @@ class ChatMissionOfferCoordinator @Inject constructor(
         )
     }
 
-    private companion object {
-        const val COORDINATOR_TAG =
-            "ChatMissionOffer"
-    }
 }

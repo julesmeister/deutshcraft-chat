@@ -48,9 +48,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.LineHeightStyle
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatGlassColors
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.LocalChatFontScale
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.scaledForChat
 import com.kyant.backdrop.Backdrop
@@ -58,18 +58,6 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
-
-/*
- * Removes excess font padding above and below visible letters
- * while preserving a centered line box.
- */
-private val CenteredLineHeightStyle =
-    LineHeightStyle(
-        alignment =
-            LineHeightStyle.Alignment.Center,
-        trim =
-            LineHeightStyle.Trim.Both
-    )
 
 @Composable
 internal fun ChatGlassInputField(
@@ -351,7 +339,7 @@ internal fun ChatGlassInputField(
             .merge(
                 TextStyle(
                     lineHeightStyle =
-                        CenteredLineHeightStyle
+                        ChatDesignTokens.ComposerCenteredLineHeightStyle
                 )
             )
 
@@ -746,9 +734,9 @@ internal fun ChatGlassInputField(
                             Text(
                                 text =
                                     if (isRefinementMode) {
-                                        REFINEMENT_PLACEHOLDER
+                                        ChatPresentationTokens.GlassInputField.RefinementPlaceholder
                                     } else {
-                                        DEFAULT_PLACEHOLDER
+                                        ChatPresentationTokens.GlassInputField.DefaultPlaceholder
                                     },
                                 style =
                                     inputTextStyle,
@@ -801,9 +789,3 @@ internal fun ChatGlassInputField(
         }
     }
 }
-
-private const val DEFAULT_PLACEHOLDER =
-    "Nachricht"
-
-private const val REFINEMENT_PLACEHOLDER =
-    "Verbessere deine Antwort"

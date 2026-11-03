@@ -8,6 +8,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.feature.besser.presentation.BesserChallengeUiModel
 import com.julesmeister.deutschcraft.feature.chat.domain.ReplySuggestionAction
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.learninganalytics.domain.MissionAnalytics
 import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultController
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
@@ -239,8 +240,7 @@ class ChatSessionCoordinator
     ) {
         if (
             suggestionId ==
-            ChatUiState
-                .ACTIVE_MISSION_BRANCH_SUGGESTION_ID
+            ChatPresentationTokens.UiState.ActiveMissionBranchSuggestionId
         ) {
             openActiveMissionVariationPicker()
 
@@ -302,7 +302,7 @@ class ChatSessionCoordinator
                 ?: run {
                     showError(
                         message =
-                            ACTIVE_MISSION_UNAVAILABLE_ERROR
+                            ChatPresentationTokens.SessionCoordinator.ActiveMissionUnavailableError
                     )
 
                     return
@@ -347,7 +347,7 @@ class ChatSessionCoordinator
         }
 
         Log.d(
-            COORDINATOR_TAG,
+            ChatPresentationTokens.SessionCoordinator.CoordinatorTag,
             buildString {
                 append(
                     "Active mission variation picker opened. "
@@ -397,7 +397,7 @@ class ChatSessionCoordinator
                     .title
                     .trim()
                     .ifBlank {
-                        DEFAULT_MISSION_TITLE
+                        ChatPresentationTokens.SessionCoordinator.DefaultMissionTitle
                     },
 
             cefrLevel =
@@ -607,7 +607,7 @@ class ChatSessionCoordinator
             throw cancellationException
         } catch (throwable: Throwable) {
             Log.e(
-                COORDINATOR_TAG,
+                ChatPresentationTokens.SessionCoordinator.CoordinatorTag,
                 "Chat initialization failed.",
                 throwable
             )
@@ -619,7 +619,7 @@ class ChatSessionCoordinator
                 state.initializationFailed(
                     message =
                         throwable.message
-                            ?: LOAD_ERROR
+                            ?: ChatPresentationTokens.SessionCoordinator.LoadError
                 )
             }
         } finally {
@@ -661,7 +661,7 @@ class ChatSessionCoordinator
             onMessageObservationFailed = {
                 showError(
                     message =
-                        MESSAGE_LOAD_ERROR
+                        ChatPresentationTokens.SessionCoordinator.MessageLoadError
                 )
             }
         )
@@ -896,21 +896,4 @@ class ChatSessionCoordinator
         }
     }
 
-    private companion object {
-
-        const val COORDINATOR_TAG =
-            "ChatSessionCoordinator"
-
-        const val LOAD_ERROR =
-            "DeutschCraft could not load the conversation."
-
-        const val MESSAGE_LOAD_ERROR =
-            "The saved conversation could not be loaded."
-
-        const val ACTIVE_MISSION_UNAVAILABLE_ERROR =
-            "Die aktive Mission ist noch nicht verfügbar."
-
-        const val DEFAULT_MISSION_TITLE =
-            "Gesprächsmission"
-    }
 }

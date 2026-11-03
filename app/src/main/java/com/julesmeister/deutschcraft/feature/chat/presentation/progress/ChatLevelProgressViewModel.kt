@@ -9,6 +9,7 @@ import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.core.cefr.model.DefaultLearnerProfile
 import com.julesmeister.deutschcraft.core.database.dao.LearnerProfileDao
 import com.julesmeister.deutschcraft.core.database.entity.LearnerProfileEntity
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.progress.domain.ProgressRepository
 import com.julesmeister.deutschcraft.feature.progress.domain.model.ProgressSummary
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -88,7 +89,7 @@ class ChatLevelProgressViewModel
                     }
 
                     Log.e(
-                        VIEW_MODEL_TAG,
+                        ChatPresentationTokens.LevelProgressViewModel.ViewModelTag,
                         "Chat level progress observation failed.",
                         throwable
                     )
@@ -155,7 +156,7 @@ class ChatLevelProgressViewModel
                 throw cancellationException
             } catch (throwable: Throwable) {
                 Log.e(
-                    VIEW_MODEL_TAG,
+                    ChatPresentationTokens.LevelProgressViewModel.ViewModelTag,
                     "Immediate level need could not be selected.",
                     throwable
                 )
@@ -200,9 +201,4 @@ class ChatLevelProgressViewModel
         val progress: ProgressSummary?
     )
 
-    private companion object {
-
-        const val VIEW_MODEL_TAG =
-            "ChatLevelProgress"
-    }
 }

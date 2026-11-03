@@ -35,9 +35,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatGlassColors
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 
 @Composable
 internal fun BesserRefinementHeader(
@@ -117,7 +117,7 @@ internal fun BesserRefinementHeader(
                     color =
                         colorScheme.primary,
                     strokeWidth =
-                        EVALUATING_STROKE_WIDTH
+                        ChatDesignTokens.RefinementFeedback.EvaluatingStrokeWidth
                 )
             } else {
                 Icon(
@@ -156,9 +156,9 @@ internal fun BesserRefinementHeader(
             Text(
                 text =
                     if (isEvaluating) {
-                        EVALUATING_LABEL
+                        ChatPresentationTokens.BesserRefinementHeader.EvaluatingLabel
                     } else {
-                        TITLE_LABEL
+                        ChatPresentationTokens.BesserRefinementHeader.TitleLabel
                     },
                 style =
                     MaterialTheme
@@ -203,7 +203,7 @@ internal fun BesserRefinementHeader(
                     modifier =
                         Modifier.padding(
                             top =
-                                FEEDBACK_TOP_PADDING
+                                ChatDesignTokens.RefinementFeedback.FeedbackTopPadding
                         ),
                     style =
                         MaterialTheme
@@ -214,7 +214,7 @@ internal fun BesserRefinementHeader(
                     color =
                         colorScheme.tertiary,
                     maxLines =
-                        FEEDBACK_MAX_LINES,
+                        ChatDesignTokens.RefinementFeedback.FeedbackMaxLines,
                     overflow =
                         TextOverflow.Ellipsis
                 )
@@ -283,18 +283,3 @@ internal fun BesserRefinementHeader(
         }
     }
 }
-
-private const val TITLE_LABEL =
-    "Besser"
-
-private const val EVALUATING_LABEL =
-    "Wird geprüft…"
-
-private const val FEEDBACK_MAX_LINES =
-    3
-
-private val FEEDBACK_TOP_PADDING =
-    2.dp
-
-private val EVALUATING_STROKE_WIDTH =
-    2.dp

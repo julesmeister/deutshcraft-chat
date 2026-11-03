@@ -7,6 +7,7 @@ import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.feature.besser.domain.repository.BesserChallengeRepository
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.GenerateAndPersistBesserChallengeUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
+import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -66,7 +67,7 @@ class ChatBesserProcessor
                 )
 
             Log.d(
-                BESSER_TAG,
+                ChatPresentationTokens.BesserProcessor.BesserTag,
                 buildString {
                     append(
                         "Preparing contextual Besser selection. "
@@ -138,7 +139,7 @@ class ChatBesserProcessor
 
             if (challenge == null) {
                 Log.d(
-                    BESSER_TAG,
+                    ChatPresentationTokens.BesserProcessor.BesserTag,
                     buildString {
                         append(
                             "No contextual Besser challenge. "
@@ -158,7 +159,7 @@ class ChatBesserProcessor
             }
 
             Log.i(
-                BESSER_TAG,
+                ChatPresentationTokens.BesserProcessor.BesserTag,
                 buildString {
                     append(
                         "Contextual Besser challenge saved. "
@@ -213,7 +214,7 @@ class ChatBesserProcessor
             throw cancellationException
         } catch (throwable: Throwable) {
             Log.e(
-                BESSER_TAG,
+                ChatPresentationTokens.BesserProcessor.BesserTag,
                 "Contextual Besser generation failed.",
                 throwable
             )
@@ -262,7 +263,7 @@ class ChatBesserProcessor
                 challenge.capabilityId
             }
             .take(
-                RECENT_CAPABILITY_HISTORY_LIMIT
+                ChatPresentationTokens.BesserProcessor.RecentCapabilityHistoryLimit
             )
             .map { challenge ->
                 challenge.capabilityId
@@ -306,12 +307,4 @@ class ChatBesserProcessor
         }
     }
 
-    private companion object {
-
-        const val BESSER_TAG =
-            "ContextualBesser"
-
-        const val RECENT_CAPABILITY_HISTORY_LIMIT =
-            4
-    }
 }
