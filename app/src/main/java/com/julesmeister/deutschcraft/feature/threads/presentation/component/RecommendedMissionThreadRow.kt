@@ -177,7 +177,7 @@ fun RecommendedMissionThreadRow(
                 style =
                     MaterialTheme
                         .typography
-                        .bodySmall,
+                        .bodyMedium,
                 maxLines =
                     1,
                 overflow =

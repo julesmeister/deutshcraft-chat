@@ -19,10 +19,19 @@ val localProperties = Properties().apply {
     }
 }
 
-val qwenApiKey =
-    localProperties.getProperty(
-        "QWEN_API_KEY"
-    ).orEmpty()
+/*
+ * The app no longer holds any Qwen credentials.
+ * All AI calls go through API Gateway -> Lambda, which reads the
+ * key from AWS Secrets Manager.
+ */
+val aiProxyBaseUrl =
+    localProperties
+        .getProperty("AI_PROXY_BASE_URL")
+        .orEmpty()
+        .trim()
+        .let { url ->
+            if (url.isEmpty() || url.endsWith("/")) url else "$url/"
+        }
 
 android {
     namespace = "com.julesmeister.deutschcraft"
@@ -41,14 +50,8 @@ android {
 
         buildConfigField(
             type = "String",
-            name = "QWEN_API_KEY",
-            value = "\"$qwenApiKey\""
-        )
-
-        buildConfigField(
-            type = "String",
             name = "QWEN_BASE_URL",
-            value = "\"https://ap-southeast-1.maas.qwencloudapi.com/compatible-mode/v1/\""
+            value = "\"$aiProxyBaseUrl\""
         )
 
         buildConfigField(
