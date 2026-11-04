@@ -4,6 +4,8 @@ package com.julesmeister.deutschcraft.core.di
 
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.julesmeister.deutschcraft.BuildConfig
+import com.julesmeister.deutschcraft.feature.auth.data.network.AuthInterceptor
+import com.julesmeister.deutschcraft.feature.auth.data.network.TokenAuthenticator
 import com.julesmeister.deutschcraft.feature.chat.data.ai.DeutschCraftAiGateway
 import com.julesmeister.deutschcraft.feature.chat.data.ai.QwenAiGateway
 import com.julesmeister.deutschcraft.feature.chat.data.ai.QwenApi
@@ -64,7 +66,10 @@ object AiNetworkModule {
 
     @Provides
     @Singleton
-    fun provideQwenOkHttpClient(): OkHttpClient {
+    fun provideQwenOkHttpClient(
+        authInterceptor: AuthInterceptor,
+        tokenAuthenticator: TokenAuthenticator
+    ): OkHttpClient {
         val loggingInterceptor =
             HttpLoggingInterceptor().apply {
                 level =
@@ -81,13 +86,12 @@ object AiNetworkModule {
 
         return OkHttpClient.Builder()
             /*
-             * No Authorization header.
-             *
              * Requests go to the DeutschCraft AI proxy
              * (API Gateway -> Lambda). The Lambda reads the Qwen
              * key from AWS Secrets Manager and adds it upstream.
              *
-             * Step 2 (Cognito) will add the user's JWT here.
+             * Signed-in users get their Cognito access token as a
+             * Bearer header; guests send no Authorization header.
              */
             .addInterceptor { chain ->
                 val request =
@@ -101,6 +105,8 @@ object AiNetworkModule {
 
                 chain.proceed(request)
             }
+            .addInterceptor(authInterceptor)
+            .authenticator(tokenAuthenticator)
             .addInterceptor(loggingInterceptor)
             .connectTimeout(20, TimeUnit.SECONDS)
             /*

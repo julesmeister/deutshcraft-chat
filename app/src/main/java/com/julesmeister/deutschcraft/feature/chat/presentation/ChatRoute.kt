@@ -15,6 +15,7 @@ import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
 @Composable
 fun ChatRoute(
     onBackClick: () -> Unit,
+    onSignInClick: () -> Unit,
     viewModel: ChatViewModel = hiltViewModel(),
     levelProgressViewModel: ChatLevelProgressViewModel = hiltViewModel()
 ) {
@@ -36,6 +37,11 @@ fun ChatRoute(
     val markedPhrases by
     viewModel
         .markedPhrases
+        .collectAsStateWithLifecycle()
+
+    val guestGate by
+    viewModel
+        .guestGate
         .collectAsStateWithLifecycle()
 
     val levelProgressState by
@@ -122,7 +128,13 @@ fun ChatRoute(
                 viewModel::markPhrase,
 
             onRemoveMarkedPhrase =
-                viewModel::removeMarkedPhrase
+                viewModel::removeMarkedPhrase,
+
+            guestGate =
+                guestGate,
+
+            onSignInClick =
+                onSignInClick
         )
     }
 }

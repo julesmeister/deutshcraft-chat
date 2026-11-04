@@ -150,6 +150,7 @@ object SettingsDesignTokens {
      */
 
     const val HeaderKey = "header"
+    const val AccountSectionKey = "account"
     const val AppearanceSectionKey = "appearance"
     const val LearningSupportSectionKey = "learning_support"
     const val AboutSectionKey = "about"

@@ -68,6 +68,11 @@ fun DeutschCraftNavHost() {
                 navController =
                     navController
             )
+
+            authDestinations(
+                navController =
+                    navController
+            )
         }
     }
 }

@@ -8,6 +8,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.julesmeister.deutschcraft.app.navigation.ChatDestination
 import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
+import com.julesmeister.deutschcraft.feature.auth.domain.AuthRepository
+import com.julesmeister.deutschcraft.feature.auth.domain.GuestMessagePolicy
+import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.AcceptBesserChallengeUseCase
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.RevealNextBesserHintUseCase
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.SkipBesserChallengeUseCase
@@ -25,7 +28,12 @@ import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -56,7 +64,10 @@ class ChatViewModel
     RevealNextBesserHintUseCase,
 
     private val skipBesserChallengeUseCase:
-    SkipBesserChallengeUseCase
+    SkipBesserChallengeUseCase,
+
+    authRepository:
+    AuthRepository
 ) : ViewModel() {
 
     private val conversationId: String =
@@ -81,6 +92,31 @@ class ChatViewModel
     val markedPhrases:
             StateFlow<Map<String, List<MarkedPhrase>>> =
         markedPhraseController.phrasesByMessage
+
+    val guestGate: StateFlow<ChatGuestGate> =
+        combine(
+            uiState
+                .map { state ->
+                    state.messages.count { message ->
+                        message.sender == MessageSender.USER
+                    }
+                }
+                .distinctUntilChanged(),
+            authRepository.session
+        ) { sentUserMessages, session ->
+            ChatGuestGate(
+                remaining =
+                    GuestMessagePolicy.remainingMessages(
+                        session = session,
+                        sentUserMessages = sentUserMessages
+                    )
+            )
+        }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Eagerly,
+                initialValue = ChatGuestGate()
+            )
 
     init {
         missionGuidanceController.attachScope(
@@ -108,6 +144,10 @@ class ChatViewModel
     fun onAction(
         action: ChatUiAction
     ) {
+        if (guestGate.value.isLocked && action.requiresAiCall()) {
+            return
+        }
+
         coordinator.onAction(
             action =
                 action,
@@ -366,6 +406,11 @@ class ChatViewModel
 
         super.onCleared()
     }
+
+    private fun ChatUiAction.requiresAiCall(): Boolean =
+        this == ChatUiAction.SendMessage ||
+                this == ChatUiAction.StartOfferedMission ||
+                this is ChatUiAction.StartMissionVariation
 
     private fun String.toCefrLevel():
             CefrLevel {

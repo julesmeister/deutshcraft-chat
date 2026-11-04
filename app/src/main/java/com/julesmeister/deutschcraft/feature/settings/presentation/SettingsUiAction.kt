@@ -33,4 +33,6 @@ sealed interface SettingsUiAction {
     data class ShowTargetVocabularyChanged(
         val enabled: Boolean
     ) : SettingsUiAction
+
+    data object SignOut : SettingsUiAction
 }

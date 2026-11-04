@@ -8,6 +8,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun SettingsRoute(
     onBackClick: () -> Unit,
+    onSignInClick: () -> Unit,
     viewModel: SettingsViewModel =
         hiltViewModel()
 ) {
@@ -16,12 +17,21 @@ fun SettingsRoute(
         .settings
         .collectAsStateWithLifecycle()
 
+    val session by
+    viewModel
+        .session
+        .collectAsStateWithLifecycle()
+
     SettingsScreen(
         settings =
             settings,
         onAction =
             viewModel::onAction,
         onBackClick =
-            onBackClick
+            onBackClick,
+        session =
+            session,
+        onSignInClick =
+            onSignInClick
     )
 }

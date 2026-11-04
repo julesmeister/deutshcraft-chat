@@ -2,6 +2,8 @@ package com.julesmeister.deutschcraft.feature.settings.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.julesmeister.deutschcraft.feature.auth.domain.AuthRepository
+import com.julesmeister.deutschcraft.feature.auth.domain.AuthSession
 import com.julesmeister.deutschcraft.feature.settings.data.SettingsRepository
 import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,8 +16,13 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repository:
-    SettingsRepository
+    SettingsRepository,
+    private val authRepository:
+    AuthRepository
 ) : ViewModel() {
+
+    val session: StateFlow<AuthSession> =
+        authRepository.session
 
     val settings: StateFlow<UserSettings> =
         repository
@@ -84,6 +91,10 @@ class SettingsViewModel @Inject constructor(
                         enabled =
                             action.enabled
                     )
+                }
+
+                SettingsUiAction.SignOut -> {
+                    authRepository.signOut()
                 }
             }
         }

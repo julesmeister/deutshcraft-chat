@@ -1,5 +1,6 @@
 package com.julesmeister.deutschcraft
 
+import android.content.Intent
 import android.database.ContentObserver
 import android.os.Bundle
 import android.os.Handler
@@ -14,11 +15,14 @@ import androidx.compose.ui.platform.createLifecycleAwareWindowRecomposer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.view.WindowCompat
 import com.julesmeister.deutschcraft.app.navigation.DeutschCraftNavHost
+import com.julesmeister.deutschcraft.feature.auth.data.CognitoConfig
+import com.julesmeister.deutschcraft.feature.auth.domain.AuthRepository
 import com.julesmeister.deutschcraft.feature.settings.domain.AppTheme
 import com.julesmeister.deutschcraft.feature.settings.presentation.AppMotionDurationScale
 import com.julesmeister.deutschcraft.feature.settings.presentation.AppSettingsProvider
 import com.julesmeister.deutschcraft.ui.theme.DeutschCraftTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -33,12 +37,20 @@ class MainActivity : ComponentActivity() {
     private val viewModel:
             MainViewModel by viewModels()
 
+    @Inject
+    lateinit var authRepository:
+            AuthRepository
+
     override fun onCreate(
         savedInstanceState: Bundle?
     ) {
         super.onCreate(
             savedInstanceState
         )
+
+        if (savedInstanceState == null) {
+            handleAuthRedirect(intent)
+        }
 
         WindowCompat.setDecorFitsSystemWindows(
             window,
@@ -76,6 +88,36 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(
+        intent: Intent
+    ) {
+        super.onNewIntent(intent)
+
+        handleAuthRedirect(intent)
+    }
+
+    /*
+     * Cognito redirects Google sign-in back to
+     * deutschcraft://auth/callback?code=...&state=...
+     */
+    private fun handleAuthRedirect(
+        intent: Intent?
+    ) {
+        val uri =
+            intent
+                ?.data
+                ?.takeIf { data ->
+                    data.scheme == CognitoConfig.RedirectScheme &&
+                            data.host == CognitoConfig.RedirectHost
+                }
+                ?: return
+
+        // Consume the link so recreation does not replay it.
+        intent.data = null
+
+        authRepository.handleOAuthRedirect(uri)
     }
 
     private fun updateSystemAnimationScale() {

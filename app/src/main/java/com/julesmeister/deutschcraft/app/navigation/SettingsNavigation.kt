@@ -16,6 +16,9 @@ fun NavGraphBuilder.settingsDestination(
         SettingsRoute(
             onBackClick = {
                 navController.popBackStack()
+            },
+            onSignInClick = {
+                navController.navigateToSignIn()
             }
         )
     }

@@ -38,6 +38,7 @@ import com.julesmeister.deutschcraft.feature.chat.presentation.component.Mission
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.missionDrawerDrag
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.rememberMissionDrawerState
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.FloatingReplySuggestions
+import com.julesmeister.deutschcraft.feature.chat.presentation.component.GuestSignInPromptCard
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionOfferCard
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionVariationDialog
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens as ChatTokens
@@ -95,6 +96,12 @@ fun ChatScreen(
         Modifier,
 
     onAddClick: () -> Unit =
+        {},
+
+    guestGate: ChatGuestGate =
+        ChatGuestGate(),
+
+    onSignInClick: () -> Unit =
         {},
 
     messageActionViewModel:
@@ -447,7 +454,8 @@ fun ChatScreen(
             )
 
             val hasSuggestionContent =
-                !uiState.isBesserRefinementMode &&
+                guestGate.isLocked ||
+                        !uiState.isBesserRefinementMode &&
                         (
                                 uiState.missionOffer !=
                                         null ||
@@ -487,7 +495,8 @@ fun ChatScreen(
 
                 enabled =
                     !uiState.isInitializing &&
-                            !uiState.isMissionVariationBusy,
+                            !uiState.isMissionVariationBusy &&
+                            !guestGate.isLocked,
 
                 isSending =
                     uiState.isSending ||
@@ -521,7 +530,14 @@ fun ChatScreen(
                 },
 
                 suggestionContent =
-                    if (hasSuggestionContent) {
+                    if (guestGate.isLocked) {
+                        {
+                            GuestSignInPromptCard(
+                                onSignInClick =
+                                    onSignInClick
+                            )
+                        }
+                    } else if (hasSuggestionContent) {
                         {
                             uiState
                                 .missionOffer

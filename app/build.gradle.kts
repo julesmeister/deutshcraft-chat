@@ -33,6 +33,36 @@ val aiProxyBaseUrl =
             if (url.isEmpty() || url.endsWith("/")) url else "$url/"
         }
 
+/*
+ * Cognito (Singapore). Values come from local.properties so no
+ * pool IDs are committed. Blank values make the auth screens show a
+ * "not configured" message instead of crashing.
+ */
+fun cognitoProperty(
+    name: String,
+    default: String = ""
+): String =
+    localProperties
+        .getProperty(name)
+        .orEmpty()
+        .trim()
+        .ifEmpty { default }
+
+val cognitoRegion =
+    cognitoProperty(
+        name = "COGNITO_REGION",
+        default = "ap-southeast-1"
+    )
+
+val cognitoUserPoolId =
+    cognitoProperty("COGNITO_USER_POOL_ID")
+
+val cognitoClientId =
+    cognitoProperty("COGNITO_CLIENT_ID")
+
+val cognitoDomainPrefix =
+    cognitoProperty("COGNITO_DOMAIN_PREFIX")
+
 android {
     namespace = "com.julesmeister.deutschcraft"
     compileSdk {
@@ -58,6 +88,30 @@ android {
             type = "String",
             name = "QWEN_MODEL",
             value = "\"qwen3.8-flash\""
+        )
+
+        buildConfigField(
+            type = "String",
+            name = "COGNITO_REGION",
+            value = "\"$cognitoRegion\""
+        )
+
+        buildConfigField(
+            type = "String",
+            name = "COGNITO_USER_POOL_ID",
+            value = "\"$cognitoUserPoolId\""
+        )
+
+        buildConfigField(
+            type = "String",
+            name = "COGNITO_CLIENT_ID",
+            value = "\"$cognitoClientId\""
+        )
+
+        buildConfigField(
+            type = "String",
+            name = "COGNITO_DOMAIN_PREFIX",
+            value = "\"$cognitoDomainPrefix\""
         )
     }
 
@@ -86,6 +140,7 @@ dependencies {
     implementation("io.github.kyant0:backdrop:1.0.0")
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("androidx.work:work-runtime-ktx:2.10.4")
+    implementation("androidx.browser:browser:1.8.0")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

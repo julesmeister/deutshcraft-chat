@@ -33,6 +33,9 @@ internal fun NavGraphBuilder.chatDestination(
                     navController =
                         navController
                 )
+            },
+            onSignInClick = {
+                navController.navigateToSignIn()
             }
         )
     }

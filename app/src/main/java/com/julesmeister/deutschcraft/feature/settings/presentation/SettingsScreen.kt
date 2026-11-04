@@ -15,9 +15,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.julesmeister.deutschcraft.feature.auth.domain.AuthSession
 import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
 import com.julesmeister.deutschcraft.feature.settings.presentation.component.FontScalePicker
 import com.julesmeister.deutschcraft.feature.settings.presentation.component.SettingsAboutCard
+import com.julesmeister.deutschcraft.feature.settings.presentation.component.SettingsAccountSection
 import com.julesmeister.deutschcraft.feature.settings.presentation.component.SettingsDivider
 import com.julesmeister.deutschcraft.feature.settings.presentation.component.SettingsHeader
 import com.julesmeister.deutschcraft.feature.settings.presentation.component.SettingsLabeledBlock
@@ -32,7 +34,9 @@ fun SettingsScreen(
     settings: UserSettings,
     onAction: (SettingsUiAction) -> Unit,
     onBackClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    session: AuthSession = AuthSession.Loading,
+    onSignInClick: () -> Unit = {}
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -55,6 +59,16 @@ fun SettingsScreen(
         ) {
             item(key = Tokens.HeaderKey) {
                 SettingsHeader()
+            }
+
+            item(key = Tokens.AccountSectionKey) {
+                SettingsAccountSection(
+                    session = session,
+                    onSignInClick = onSignInClick,
+                    onSignOutClick = {
+                        onAction(SettingsUiAction.SignOut)
+                    }
+                )
             }
 
             item(key = Tokens.AppearanceSectionKey) {
