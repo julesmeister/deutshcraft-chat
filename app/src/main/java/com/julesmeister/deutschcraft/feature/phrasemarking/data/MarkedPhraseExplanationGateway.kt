@@ -41,7 +41,7 @@ class MarkedPhraseExplanationGateway
         sourceSentence: String,
         type: MarkedPhraseType
     ): PhraseExplanation? {
-        if (BuildConfig.QWEN_API_KEY.isBlank()) {
+        if (BuildConfig.QWEN_BASE_URL.isBlank()) {
             return null
         }
 

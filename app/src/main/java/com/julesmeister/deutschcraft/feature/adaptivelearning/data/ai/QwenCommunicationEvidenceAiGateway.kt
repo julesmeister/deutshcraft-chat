@@ -53,11 +53,11 @@ class QwenCommunicationEvidenceAiGateway
             return CommunicationEvidenceBatch()
         }
 
-        if (BuildConfig.QWEN_API_KEY.isBlank()) {
+        if (BuildConfig.QWEN_BASE_URL.isBlank()) {
             Log.w(
                 GATEWAY_TAG,
                 "Communication evaluation skipped because " +
-                        "the Qwen API key is missing."
+                        "the Qwen base URL is missing."
             )
 
             return CommunicationEvidenceBatch()

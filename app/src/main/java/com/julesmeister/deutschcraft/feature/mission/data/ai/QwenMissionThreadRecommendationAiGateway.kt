@@ -42,7 +42,7 @@ class QwenMissionThreadRecommendationAiGateway
         MissionScenarioDefinition
     ): MissionThreadRecommendation? {
         if (
-            BuildConfig.QWEN_API_KEY.isBlank()
+            BuildConfig.QWEN_BASE_URL.isBlank()
         ) {
             Log.w(
                 RECOMMENDATION_TAG,

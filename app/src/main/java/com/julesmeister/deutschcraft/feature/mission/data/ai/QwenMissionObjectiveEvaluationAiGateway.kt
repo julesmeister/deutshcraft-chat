@@ -61,7 +61,7 @@ class QwenMissionObjectiveEvaluationAiGateway
         }
 
         if (
-            BuildConfig.QWEN_API_KEY.isBlank()
+            BuildConfig.QWEN_BASE_URL.isBlank()
         ) {
             Log.w(
                 GATEWAY_TAG,

@@ -34,7 +34,7 @@ class QwenMissionOpportunityAiGateway @Inject constructor(
         conversationHistory: List<ChatMessage>,
         cefrLevel: CefrLevel
     ): AiMissionOpportunity {
-        if (BuildConfig.QWEN_API_KEY.isBlank()) {
+        if (BuildConfig.QWEN_BASE_URL.isBlank()) {
             return noOpportunity(
                 reason =
                     "Mission detection is unavailable."

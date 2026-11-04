@@ -1,10 +1,14 @@
+// app/src/main/java/com/julesmeister/deutschcraft/core/di/AiModule.kt
+
 package com.julesmeister.deutschcraft.core.di
 
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.julesmeister.deutschcraft.BuildConfig
+import com.julesmeister.deutschcraft.feature.chat.data.ai.DeutschCraftAiGateway
 import com.julesmeister.deutschcraft.feature.chat.data.ai.QwenAiGateway
 import com.julesmeister.deutschcraft.feature.chat.data.ai.QwenApi
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
-import com.julesmeister.deutschcraft.feature.chat.data.ai.DeutschCraftAiGateway
+import com.julesmeister.deutschcraft.feature.chat.data.correction.MessageCorrectionGateway
+import com.julesmeister.deutschcraft.feature.chat.data.correction.QwenMessageCorrectionGateway
 import com.julesmeister.deutschcraft.feature.messageactions.data.QwenSentenceInsightGateway
 import com.julesmeister.deutschcraft.feature.messageactions.data.SentenceInsightGateway
 import dagger.Binds
@@ -12,15 +16,13 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-import java.util.concurrent.TimeUnit
-import com.julesmeister.deutschcraft.feature.chat.data.correction.MessageCorrectionGateway
-import com.julesmeister.deutschcraft.feature.chat.data.correction.QwenMessageCorrectionGateway
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -41,8 +43,7 @@ abstract class AiBindingModule {
     @Binds
     @Singleton
     abstract fun bindMessageCorrectionGateway(
-        implementation:
-        QwenMessageCorrectionGateway
+        implementation: QwenMessageCorrectionGateway
     ): MessageCorrectionGateway
 }
 
@@ -63,64 +64,51 @@ object AiNetworkModule {
 
     @Provides
     @Singleton
-    fun provideQwenOkHttpClient():
-            OkHttpClient {
+    fun provideQwenOkHttpClient(): OkHttpClient {
         val loggingInterceptor =
             HttpLoggingInterceptor().apply {
                 level =
                     if (BuildConfig.DEBUG) {
                         /*
-                         * BASIC logs the request path and
-                         * status but not learner messages.
+                         * BASIC logs the request path and status
+                         * but not learner messages.
                          */
-                        HttpLoggingInterceptor
-                            .Level
-                            .BASIC
+                        HttpLoggingInterceptor.Level.BASIC
                     } else {
-                        HttpLoggingInterceptor
-                            .Level
-                            .NONE
+                        HttpLoggingInterceptor.Level.NONE
                     }
             }
 
         return OkHttpClient.Builder()
+            /*
+             * No Authorization header.
+             *
+             * Requests go to the DeutschCraft AI proxy
+             * (API Gateway -> Lambda). The Lambda reads the Qwen
+             * key from AWS Secrets Manager and adds it upstream.
+             *
+             * Step 2 (Cognito) will add the user's JWT here.
+             */
             .addInterceptor { chain ->
-                val originalRequest =
+                val request =
                     chain.request()
-
-                val authenticatedRequest =
-                    originalRequest
                         .newBuilder()
-                        .header(
-                            name = "Authorization",
-                            value =
-                                "Bearer " +
-                                        BuildConfig
-                                            .QWEN_API_KEY
-                        )
                         .header(
                             name = "Content-Type",
                             value = "application/json"
                         )
                         .build()
 
-                chain.proceed(
-                    authenticatedRequest
-                )
+                chain.proceed(request)
             }
             .addInterceptor(loggingInterceptor)
-            .connectTimeout(
-                20,
-                TimeUnit.SECONDS
-            )
-            .readTimeout(
-                45,
-                TimeUnit.SECONDS
-            )
-            .writeTimeout(
-                20,
-                TimeUnit.SECONDS
-            )
+            .connectTimeout(20, TimeUnit.SECONDS)
+            /*
+             * API Gateway HTTP APIs time out at 30 seconds, and the
+             * Lambda timeout is 29 seconds.
+             */
+            .readTimeout(35, TimeUnit.SECONDS)
+            .writeTimeout(20, TimeUnit.SECONDS)
             .build()
     }
 
@@ -131,13 +119,19 @@ object AiNetworkModule {
         okHttpClient: OkHttpClient
     ): Retrofit {
         val contentType =
-            "application/json"
-                .toMediaType()
+            "application/json".toMediaType()
+
+        /*
+         * Retrofit throws at startup for a blank base URL. Use a
+         * placeholder so the app still launches; the gateways
+         * report the missing proxy URL to the user instead.
+         */
+        val baseUrl =
+            BuildConfig.QWEN_BASE_URL
+                .ifBlank { MISSING_PROXY_PLACEHOLDER_URL }
 
         return Retrofit.Builder()
-            .baseUrl(
-                BuildConfig.QWEN_BASE_URL
-            )
+            .baseUrl(baseUrl)
             .client(okHttpClient)
             .addConverterFactory(
                 json.asConverterFactory(
@@ -152,10 +146,9 @@ object AiNetworkModule {
     fun provideQwenApi(
         retrofit: Retrofit
     ): QwenApi {
-        return retrofit.create(
-            QwenApi::class.java
-        )
+        return retrofit.create(QwenApi::class.java)
     }
 
-
+    private const val MISSING_PROXY_PLACEHOLDER_URL =
+        "https://ai-proxy.invalid/"
 }

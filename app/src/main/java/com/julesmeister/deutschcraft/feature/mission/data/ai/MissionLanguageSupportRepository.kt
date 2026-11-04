@@ -117,7 +117,7 @@ class MissionLanguageSupportAiGateway @Inject constructor(
     private val json: Json
 ) {
     suspend fun generate(request: MissionLanguageSupportRequest): MissionLanguageSupport {
-        check(BuildConfig.QWEN_API_KEY.isNotBlank()) { "Mission language support requires an AI connection." }
+        check(BuildConfig.QWEN_BASE_URL.isNotBlank()) { "Mission language support requires an AI connection." }
         val response = api.createChatCompletion(
             QwenChatCompletionRequest(
                 model = BuildConfig.QWEN_MODEL,
