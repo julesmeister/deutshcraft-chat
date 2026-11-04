@@ -45,10 +45,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -67,6 +70,7 @@ import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschSky
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnSky
+import com.julesmeister.deutschcraft.ui.component.AttachedBubbleGeometry
 
 @Composable
 fun MarkedPhraseBubble(
@@ -74,7 +78,21 @@ fun MarkedPhraseBubble(
     isUserMessage: Boolean,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier,
-    isLast: Boolean = true
+
+    /*
+     * Provided by the owning attachment stack, see
+     * AttachedBubbleGeometry.
+     */
+    shape: Shape =
+        AttachedBubbleGeometry.attachmentShape(
+            isUserMessage = isUserMessage,
+            aboveWidthPx = 0,
+            selfWidthPx = 0,
+            belowWidthPx = null,
+            radius = AttachedBubbleGeometry.CornerRadius,
+            density = LocalDensity.current
+        ),
+    onBubbleWidthChanged: (Int) -> Unit = {}
 ) {
     val colors =
         MaterialTheme.colorScheme
@@ -126,21 +144,6 @@ fun MarkedPhraseBubble(
             else ->
                 LIGHT_MODE_ASSISTANT_ACCENT
         }
-
-    val bottomCorner =
-        if (isLast) {
-            BOTTOM_CORNER_RADIUS
-        } else {
-            0.dp
-        }
-
-    val shape =
-        RoundedCornerShape(
-            topStart = 0.dp,
-            topEnd = 0.dp,
-            bottomStart = bottomCorner,
-            bottomEnd = bottomCorner
-        )
 
     val containerColor =
         accent
@@ -224,6 +227,11 @@ fun MarkedPhraseBubble(
                         max =
                             maxWidth
                     )
+                    .onSizeChanged { size ->
+                        onBubbleWidthChanged(
+                            size.width
+                        )
+                    }
                     .clip(
                         shape
                     )
@@ -1065,9 +1073,6 @@ private val LIGHT_MODE_ASSISTANT_ACCENT =
 
 private const val LIGHT_THEME_LUMINANCE_THRESHOLD =
     0.5f
-
-private val BOTTOM_CORNER_RADIUS =
-    14.dp
 
 private const val MAXIMUM_WIDTH_FRACTION =
     0.72f

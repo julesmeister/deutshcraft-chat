@@ -7,6 +7,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschSky
@@ -147,26 +149,31 @@ internal fun rememberMessageBubbleColors(
  *     normal:
  *         bottom-right = small tail
  *
- *     attached phrase:
+ *     attached content:
  *         bottom-right = completely flat
+ *         bottom-left  = [attachedOuterCorner], rounded only when
+ *                        the source sticks out past the first
+ *                        attachment (see AttachedBubbleGeometry)
  *
- * Assistant:
- *
- *     normal:
- *         bottom-left = small tail
- *
- *     attached phrase:
- *         bottom-left = completely flat
+ * Assistant: mirrored.
  */
 internal fun messageBubbleShape(
     isUserMessage: Boolean,
-    hasAttachedPhrase: Boolean = false
+    hasAttachedPhrase: Boolean = false,
+    attachedOuterCorner: Dp = 0.dp
 ): RoundedCornerShape {
     val tailSideCorner =
         if (hasAttachedPhrase) {
             ChatDesignTokens.BubbleStyle.AttachmentCorner
         } else {
             ChatDesignTokens.BubbleStyle.SourceBubbleTailCorner
+        }
+
+    val outerBottomCorner =
+        if (hasAttachedPhrase) {
+            attachedOuterCorner
+        } else {
+            ChatDesignTokens.BubbleStyle.SourceBubbleCorner
         }
 
     return if (isUserMessage) {
@@ -176,7 +183,7 @@ internal fun messageBubbleShape(
             topEnd =
                 ChatDesignTokens.BubbleStyle.SourceBubbleCorner,
             bottomStart =
-                ChatDesignTokens.BubbleStyle.SourceBubbleCorner,
+                outerBottomCorner,
             bottomEnd =
                 tailSideCorner
         )
@@ -189,7 +196,7 @@ internal fun messageBubbleShape(
             bottomStart =
                 tailSideCorner,
             bottomEnd =
-                ChatDesignTokens.BubbleStyle.SourceBubbleCorner
+                outerBottomCorner
         )
     }
 }

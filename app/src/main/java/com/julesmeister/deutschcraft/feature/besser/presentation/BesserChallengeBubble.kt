@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Lightbulb
@@ -31,17 +30,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
@@ -50,17 +47,31 @@ import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschSky
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnSky
+import com.julesmeister.deutschcraft.ui.component.AttachedBubbleGeometry
 
 @Composable
 fun BesserChallengeBubble(
     challenge: BesserChallengeUiModel,
     isUserMessage: Boolean,
-    sourceBubbleWidthPx: Int,
     onImprove: () -> Unit,
     onHint: () -> Unit,
     onSkip: () -> Unit,
     modifier: Modifier = Modifier,
-    isLast: Boolean = true
+
+    /*
+     * Provided by the owning attachment stack, see
+     * AttachedBubbleGeometry.
+     */
+    shape: Shape =
+        AttachedBubbleGeometry.attachmentShape(
+            isUserMessage = isUserMessage,
+            aboveWidthPx = 0,
+            selfWidthPx = 0,
+            belowWidthPx = null,
+            radius = AttachedBubbleGeometry.CornerRadius,
+            density = LocalDensity.current
+        ),
+    onBubbleWidthChanged: (Int) -> Unit = {}
 ) {
     val colorScheme =
         MaterialTheme.colorScheme
@@ -77,69 +88,6 @@ fun BesserChallengeBubble(
             DeutschTextOnLime
         } else {
             DeutschTextOnSky
-        }
-
-    var challengeBubbleWidthPx by
-    remember(
-        challenge.id
-    ) {
-        mutableIntStateOf(
-            0
-        )
-    }
-
-    val extendsBeyondSource =
-        sourceBubbleWidthPx > 0 &&
-                challengeBubbleWidthPx >
-                sourceBubbleWidthPx +
-                WIDTH_COMPARISON_TOLERANCE_PX
-
-    val exposedTopCorner =
-        if (extendsBeyondSource) {
-            EXPOSED_TOP_CORNER_RADIUS
-        } else {
-            0.dp
-        }
-
-    val bottomCorner =
-        if (isLast) {
-            BOTTOM_CORNER_RADIUS
-        } else {
-            0.dp
-        }
-
-    /*
-     * User challenges share their top-right attachment edge
-     * with the user message.
-     *
-     * If the challenge grows farther left than its source,
-     * only the newly exposed top-left corner becomes rounded.
-     *
-     * The rule is mirrored for assistant-side attachments.
-     */
-    val shape =
-        if (isUserMessage) {
-            RoundedCornerShape(
-                topStart =
-                    exposedTopCorner,
-                topEnd =
-                    0.dp,
-                bottomStart =
-                    bottomCorner,
-                bottomEnd =
-                    bottomCorner
-            )
-        } else {
-            RoundedCornerShape(
-                topStart =
-                    0.dp,
-                topEnd =
-                    exposedTopCorner,
-                bottomStart =
-                    bottomCorner,
-                bottomEnd =
-                    bottomCorner
-            )
         }
 
     val containerColor =
@@ -181,13 +129,9 @@ fun BesserChallengeBubble(
                             maxWidth
                     )
                     .onSizeChanged { size ->
-                        if (
-                            challengeBubbleWidthPx !=
+                        onBubbleWidthChanged(
                             size.width
-                        ) {
-                            challengeBubbleWidthPx =
-                                size.width
-                        }
+                        )
                     }
                     .clip(
                         shape
@@ -514,15 +458,6 @@ private fun BesserChallengeAction(
         }
     }
 }
-
-private val BOTTOM_CORNER_RADIUS =
-    14.dp
-
-private val EXPOSED_TOP_CORNER_RADIUS =
-    14.dp
-
-private const val WIDTH_COMPARISON_TOLERANCE_PX =
-    2
 
 private const val MAXIMUM_WIDTH_FRACTION =
     0.72f

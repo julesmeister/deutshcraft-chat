@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
@@ -52,6 +53,11 @@ fun MessageBubble(
     isLatestUserMessage: Boolean,
     isLatestAssistantMessage: Boolean,
     hasAttachedPhrase: Boolean,
+
+    /*
+     * Outer bottom corner used while content is attached.
+     */
+    attachedOuterCorner: Dp,
     onClick: () -> Unit,
     onMessageCopied: () -> Unit,
 
@@ -168,7 +174,9 @@ fun MessageBubble(
                     isUserMessage =
                         isUserMessage,
                     hasAttachedPhrase =
-                        hasAttachedPhrase
+                        hasAttachedPhrase,
+                    attachedOuterCorner =
+                        attachedOuterCorner
                 ),
             backgroundColor =
                 colors.backgroundColor,

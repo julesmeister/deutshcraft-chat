@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
@@ -37,6 +38,12 @@ internal fun AnimatedMessageItem(
      * source message.
      */
     hasAttachedPhrase: Boolean,
+
+    /*
+     * Outer bottom corner of the source bubble while content is
+     * attached, see AttachedBubbleGeometry.
+     */
+    attachedOuterCorner: Dp,
 
     onAnimationStarted: () -> Unit,
     onClick: () -> Unit,
@@ -101,6 +108,8 @@ internal fun AnimatedMessageItem(
                 isLatestAssistantMessage,
             hasAttachedPhrase =
                 hasAttachedPhrase,
+            attachedOuterCorner =
+                attachedOuterCorner,
             onClick =
                 onClick,
             onMessageCopied =

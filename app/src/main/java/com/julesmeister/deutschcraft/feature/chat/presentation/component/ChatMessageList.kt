@@ -36,6 +36,7 @@ import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignT
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.phrasemarking.domain.MarkedPhrase
 import com.julesmeister.deutschcraft.feature.phrasemarking.presentation.MarkedPhraseBubble
+import com.julesmeister.deutschcraft.ui.component.AttachedBubbleGeometry
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -198,6 +199,11 @@ fun ChatMessageList(
             mutableStateMapOf<String, Int>()
         }
 
+    val attachedBubbleWidths =
+        remember {
+            mutableStateMapOf<String, Int>()
+        }
+
     ChatMessageListScrollEffects(
         listState =
             listState,
@@ -301,6 +307,97 @@ fun ChatMessageList(
                         visibleChallenge != null ||
                                 attachedPhrases.isNotEmpty()
 
+                    /*
+                     * Ordered attachment keys, top to bottom. Widths
+                     * of neighbouring bubbles decide which outer
+                     * corners are exposed (AttachedBubbleGeometry).
+                     */
+                    val attachmentKeys =
+                        buildList {
+                            visibleChallenge?.let { challenge ->
+                                add(
+                                    besserAttachmentKey(
+                                        challenge.id
+                                    )
+                                )
+                            }
+
+                            attachedPhrases.forEach { phrase ->
+                                add(
+                                    phraseAttachmentKey(
+                                        phrase.id
+                                    )
+                                )
+                            }
+                        }
+
+                    val sourceWidthPx =
+                        sourceBubbleWidths[
+                            message.id
+                        ] ?: 0
+
+                    val stackWidthsPx =
+                        listOf(sourceWidthPx) +
+                                attachmentKeys.map { key ->
+                                    attachedBubbleWidths[
+                                        key
+                                    ] ?: 0
+                                }
+
+                    fun attachmentShapeAt(
+                        attachmentIndex: Int
+                    ) =
+                        AttachedBubbleGeometry.attachmentShape(
+                            isUserMessage =
+                                isUserMessage,
+                            aboveWidthPx =
+                                stackWidthsPx[
+                                    attachmentIndex
+                                ],
+                            selfWidthPx =
+                                stackWidthsPx[
+                                    attachmentIndex + 1
+                                ],
+                            belowWidthPx =
+                                stackWidthsPx.getOrNull(
+                                    attachmentIndex + 2
+                                ),
+                            radius =
+                                AttachedBubbleGeometry.CornerRadius,
+                            density =
+                                density
+                        )
+
+                    val sourceAttachedOuterCorner =
+                        AttachedBubbleGeometry.exposedOuterCorner(
+                            selfWidthPx =
+                                sourceWidthPx,
+                            neighbourWidthPx =
+                                stackWidthsPx.getOrElse(
+                                    1
+                                ) { 0 },
+                            maxRadius =
+                                ChatTokens.BubbleStyle.SourceBubbleCorner,
+                            density =
+                                density
+                        )
+
+                    val onAttachmentWidthChanged: (String, Int) -> Unit =
+                        { key, width ->
+                            if (
+                                width > 0 &&
+                                attachedBubbleWidths[
+                                    key
+                                ] !=
+                                width
+                            ) {
+                                attachedBubbleWidths[
+                                    key
+                                ] =
+                                    width
+                            }
+                        }
+
                     Column(
                         modifier =
                             Modifier
@@ -347,6 +444,9 @@ fun ChatMessageList(
                             hasAttachedPhrase =
                                 hasAttachedContent,
 
+                            attachedOuterCorner =
+                                sourceAttachedOuterCorner,
+
                             onAnimationStarted = {
                                 seenMessageIds[
                                     message.id
@@ -390,13 +490,19 @@ fun ChatMessageList(
                                 isUserMessage =
                                     isUserMessage,
 
-                                sourceBubbleWidthPx =
-                                    sourceBubbleWidths[
-                                        message.id
-                                    ] ?: 0,
+                                shape =
+                                    attachmentShapeAt(
+                                        0
+                                    ),
 
-                                isLast =
-                                    attachedPhrases.isEmpty(),
+                                onBubbleWidthChanged = { width ->
+                                    onAttachmentWidthChanged(
+                                        besserAttachmentKey(
+                                            challenge.id
+                                        ),
+                                        width
+                                    )
+                                },
 
                                 onImprove = {
                                     onBesserImprove(
@@ -418,6 +524,13 @@ fun ChatMessageList(
                             )
                         }
 
+                        val phraseIndexOffset =
+                            if (visibleChallenge != null) {
+                                1
+                            } else {
+                                0
+                            }
+
                         attachedPhrases.forEachIndexed {
                                 index,
                                 phrase ->
@@ -429,9 +542,20 @@ fun ChatMessageList(
                                 isUserMessage =
                                     isUserMessage,
 
-                                isLast =
-                                    index ==
-                                            attachedPhrases.lastIndex,
+                                shape =
+                                    attachmentShapeAt(
+                                        phraseIndexOffset +
+                                                index
+                                    ),
+
+                                onBubbleWidthChanged = { width ->
+                                    onAttachmentWidthChanged(
+                                        phraseAttachmentKey(
+                                            phrase.id
+                                        ),
+                                        width
+                                    )
+                                },
 
                                 onRemove = {
                                     onRemoveMarkedPhrase(
@@ -717,3 +841,13 @@ private fun ChatMessageListEmptyState(
         ChatEmptyState()
     }
 }
+
+private fun besserAttachmentKey(
+    challengeId: String
+): String =
+    "besser:$challengeId"
+
+private fun phraseAttachmentKey(
+    phraseId: String
+): String =
+    "phrase:$phraseId"
