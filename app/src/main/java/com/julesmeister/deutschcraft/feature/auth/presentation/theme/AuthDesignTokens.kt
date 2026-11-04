@@ -1,6 +1,5 @@
 package com.julesmeister.deutschcraft.feature.auth.presentation.theme
 
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -28,13 +27,11 @@ object AuthDesignTokens {
     val TopBarStartPadding = 8.dp
     val TopBarButtonSize = 40.dp
 
-    val HeaderStartPadding = 8.dp
-    val HeaderBadgeSize = 52.dp
-    val HeaderBadgeShape = CircleShape
-    val HeaderBadgeBottomPadding = 18.dp
+    val HeaderLogoMaxWidth = 280.dp
+    val HeaderLogoHeight = 90.dp
+    val HeaderLogoBottomPadding = 18.dp
     val HeaderSubtitleTopPadding = 4.dp
     val HeaderBottomPadding = 6.dp
-    const val HeaderMonogram = "DC"
 
     /*
      * =======================================================

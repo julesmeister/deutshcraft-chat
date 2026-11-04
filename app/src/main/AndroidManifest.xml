@@ -38,7 +38,9 @@
 
                 <data
                     android:host="auth"
-                    android:scheme="deutschcraft" />
+                    android:scheme="deutschcraft"
+                    android:path="/callback"
+                    />
             </intent-filter>
         </activity>
     </application>

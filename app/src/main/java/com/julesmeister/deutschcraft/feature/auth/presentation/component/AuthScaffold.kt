@@ -1,5 +1,6 @@
 package com.julesmeister.deutschcraft.feature.auth.presentation.component
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,10 +9,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -28,8 +31,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import com.julesmeister.deutschcraft.R
 import com.julesmeister.deutschcraft.feature.auth.presentation.theme.AuthDesignTokens as Tokens
 
 /*
@@ -122,31 +129,27 @@ private fun AuthHeader(
     val colorScheme = MaterialTheme.colorScheme
 
     Column(
-        modifier = Modifier.padding(
-            start = Tokens.HeaderStartPadding,
-            bottom = Tokens.HeaderBottomPadding
-        )
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = Tokens.HeaderBottomPadding),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
+        Image(
+            painter = painterResource(R.drawable.deutschcraft_wordmark),
+            contentDescription = "DeutschCraft",
+            contentScale = ContentScale.Fit,
             modifier = Modifier
-                .padding(bottom = Tokens.HeaderBadgeBottomPadding)
-                .size(Tokens.HeaderBadgeSize)
-                .clip(Tokens.HeaderBadgeShape)
-                .background(colorScheme.primary),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = Tokens.HeaderMonogram,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Black,
-                color = colorScheme.onPrimary
-            )
-        }
+                .padding(bottom = Tokens.HeaderLogoBottomPadding)
+                .widthIn(max = Tokens.HeaderLogoMaxWidth)
+                .fillMaxWidth()
+                .height(Tokens.HeaderLogoHeight)
+        )
 
         Text(
             text = title,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
             color = colorScheme.onBackground
         )
 
@@ -154,6 +157,7 @@ private fun AuthHeader(
             text = subtitle,
             modifier = Modifier.padding(top = Tokens.HeaderSubtitleTopPadding),
             style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
             color = colorScheme.onSurfaceVariant
         )
     }
