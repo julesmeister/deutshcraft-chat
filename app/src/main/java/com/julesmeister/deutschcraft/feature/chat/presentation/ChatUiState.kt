@@ -92,6 +92,9 @@ data class ChatUiState(
     val errorMessage: String? =
         null,
 
+    val error: ChatErrorType? =
+        null,
+
     val currentStreak: Int =
         0
 ) {

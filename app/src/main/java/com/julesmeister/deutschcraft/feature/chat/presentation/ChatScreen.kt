@@ -32,15 +32,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.julesmeister.deutschcraft.feature.chat.domain.ChatMessage
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatBottomBar
+import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatErrorBar
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatMessageList
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ChatTopBar
-import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionTopBarDrawer
-import com.julesmeister.deutschcraft.feature.chat.presentation.component.missionDrawerDrag
-import com.julesmeister.deutschcraft.feature.chat.presentation.component.rememberMissionDrawerState
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.FloatingReplySuggestions
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.GuestSignInPromptCard
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionOfferCard
+import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionTopBarDrawer
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.MissionVariationDialog
+import com.julesmeister.deutschcraft.feature.chat.presentation.component.missionDrawerDrag
+import com.julesmeister.deutschcraft.feature.chat.presentation.component.rememberMissionDrawerState
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens as ChatTokens
 import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultBottomSheet
 import com.julesmeister.deutschcraft.feature.learninganalytics.presentation.result.MissionResultUiState
@@ -160,6 +161,20 @@ fun ChatScreen(
         mutableStateOf(
             false
         )
+    }
+
+    var displayedError by
+    remember {
+        mutableStateOf<ChatErrorType?>(
+            null
+        )
+    }
+
+    LaunchedEffect(
+        uiState.error
+    ) {
+        displayedError =
+            uiState.error
     }
 
     LaunchedEffect(
@@ -390,6 +405,15 @@ fun ChatScreen(
             SnackbarHost(
                 hostState =
                     snackbarHostState
+            )
+        },
+
+        bottomBar = {
+            ChatErrorBar(
+                error = displayedError,
+                onDismiss = {
+                    displayedError = null
+                }
             )
         }
     ) { innerPadding ->

@@ -607,6 +607,9 @@ internal fun ChatUiState.errorDismissed():
 
     return copy(
         errorMessage =
+            null,
+
+        error =
             null
     )
 }

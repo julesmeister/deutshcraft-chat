@@ -896,4 +896,15 @@ class ChatSessionCoordinator
         }
     }
 
+    fun showError(
+        errorType: ChatErrorType
+    ) {
+        _uiState.update { state ->
+            state.copy(
+                error =
+                    errorType
+            )
+        }
+    }
+
 }
