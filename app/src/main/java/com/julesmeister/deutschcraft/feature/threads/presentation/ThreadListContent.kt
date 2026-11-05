@@ -252,7 +252,9 @@ fun ThreadListContent(
                 uiState.sections.forEach { section ->
                     item(
                         key =
-                            "header-${section.id}"
+                            "header-${section.id}",
+                        contentType =
+                            THREAD_HEADER_CONTENT_TYPE
                     ) {
                         ThreadSectionHeader(
                             title =
@@ -265,6 +267,9 @@ fun ThreadListContent(
                             section.threads,
                         key = { thread ->
                             thread.id
+                        },
+                        contentType = {
+                            THREAD_ROW_CONTENT_TYPE
                         }
                     ) { thread ->
                         ThreadRow(
@@ -296,6 +301,13 @@ private const val ARCHIVED_ROW_KEY =
 
 private const val RECOMMENDED_MISSION_THREAD_KEY =
     "recommended-mission-thread"
+
+// Lets the list recycle row and header compositions only into the same kind of slot.
+private const val THREAD_HEADER_CONTENT_TYPE =
+    "thread-section-header"
+
+private const val THREAD_ROW_CONTENT_TYPE =
+    "thread-row"
 
 private val THREAD_LIST_BOTTOM_PADDING =
     100.dp

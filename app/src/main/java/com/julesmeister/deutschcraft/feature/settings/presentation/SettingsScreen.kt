@@ -3,6 +3,7 @@ package com.julesmeister.deutschcraft.feature.settings.presentation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Animation
@@ -13,7 +14,10 @@ import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.julesmeister.deutschcraft.feature.auth.domain.AuthSession
 import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
@@ -27,6 +31,7 @@ import com.julesmeister.deutschcraft.feature.settings.presentation.component.Set
 import com.julesmeister.deutschcraft.feature.settings.presentation.component.SettingsSwitchRow
 import com.julesmeister.deutschcraft.feature.settings.presentation.component.SettingsTopBar
 import com.julesmeister.deutschcraft.feature.settings.presentation.component.ThemePicker
+import com.julesmeister.deutschcraft.feature.threads.presentation.component.DeutschCraftSnackbar
 import com.julesmeister.deutschcraft.feature.settings.presentation.theme.SettingsDesignTokens as Tokens
 
 @Composable
@@ -36,11 +41,20 @@ fun SettingsScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     session: AuthSession = AuthSession.Loading,
-    onSignInClick: () -> Unit = {}
+    onSignInClick: () -> Unit = {},
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.padding(horizontal = Tokens.ScreenHorizontalPadding)
+            ) { snackbarData ->
+                DeutschCraftSnackbar(snackbarData = snackbarData)
+            }
+        },
         topBar = {
             SettingsTopBar(
                 onBackClick = onBackClick

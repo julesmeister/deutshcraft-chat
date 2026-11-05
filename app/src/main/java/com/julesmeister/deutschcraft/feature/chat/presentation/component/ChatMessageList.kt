@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -203,6 +204,70 @@ fun ChatMessageList(
         remember {
             mutableStateMapOf<String, Int>()
         }
+
+    /*
+     * These maps outlive individual list items, so drop entries for
+     * messages and attachments that no longer exist (deleted,
+     * unmarked or replaced) instead of letting them grow forever.
+     */
+    LaunchedEffect(
+        uiState.messages,
+        markedPhrases,
+        uiState.besserChallenges
+    ) {
+        val liveMessageIds =
+            uiState
+                .messages
+                .mapTo(
+                    HashSet()
+                ) { message ->
+                    message.id
+                }
+
+        val liveAttachmentKeys =
+            HashSet<String>().apply {
+                uiState
+                    .besserChallenges
+                    .values
+                    .forEach { challenge ->
+                        add(
+                            besserAttachmentKey(
+                                challenge.id
+                            )
+                        )
+                    }
+
+                markedPhrases
+                    .values
+                    .forEach { phrases ->
+                        phrases.forEach { phrase ->
+                            add(
+                                phraseAttachmentKey(
+                                    phrase.id
+                                )
+                            )
+                        }
+                    }
+            }
+
+        seenMessageIds
+            .keys
+            .retainAll(
+                liveMessageIds
+            )
+
+        sourceBubbleWidths
+            .keys
+            .retainAll(
+                liveMessageIds
+            )
+
+        attachedBubbleWidths
+            .keys
+            .retainAll(
+                liveAttachmentKeys
+            )
+    }
 
     ChatMessageListScrollEffects(
         listState =
@@ -572,6 +637,9 @@ fun ChatMessageList(
         if (hasTypingIndicator) {
             item(
                 key =
+                    ChatTokens.TypingIndicatorKey,
+
+                contentType =
                     ChatTokens.TypingIndicatorKey
             ) {
                 TypingIndicator(
@@ -600,6 +668,9 @@ fun ChatMessageList(
          */
         item(
             key =
+                ChatTokens.BottomAnchorKey,
+
+            contentType =
                 ChatTokens.BottomAnchorKey
         ) {
             Spacer(
@@ -745,23 +816,30 @@ private fun formatDateSeparator(
         date.year ==
                 today.year -> {
             date.format(
-                DateTimeFormatter.ofPattern(
-                    ChatPresentationTokens.MessageList.CurrentYearDatePattern,
-                    Locale.GERMAN
-                )
+                CurrentYearDateFormatter
             )
         }
 
         else -> {
             date.format(
-                DateTimeFormatter.ofPattern(
-                    ChatPresentationTokens.MessageList.OtherYearDatePattern,
-                    Locale.GERMAN
-                )
+                OtherYearDateFormatter
             )
         }
     }
 }
+
+// DateTimeFormatter is immutable and thread-safe, so build each pattern once.
+private val CurrentYearDateFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern(
+        ChatPresentationTokens.MessageList.CurrentYearDatePattern,
+        Locale.GERMAN
+    )
+
+private val OtherYearDateFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern(
+        ChatPresentationTokens.MessageList.OtherYearDatePattern,
+        Locale.GERMAN
+    )
 
 @Composable
 private fun ChatDateSeparator(

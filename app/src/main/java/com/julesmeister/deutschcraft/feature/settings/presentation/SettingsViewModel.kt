@@ -7,9 +7,12 @@ import com.julesmeister.deutschcraft.feature.auth.domain.AuthSession
 import com.julesmeister.deutschcraft.feature.settings.data.SettingsRepository
 import com.julesmeister.deutschcraft.feature.settings.domain.UserSettings
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.io.IOException
 import javax.inject.Inject
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -23,6 +26,12 @@ class SettingsViewModel @Inject constructor(
 
     val session: StateFlow<AuthSession> =
         authRepository.session
+
+    private val snackbarChannel =
+        Channel<String>(Channel.BUFFERED)
+
+    val snackbarEvents =
+        snackbarChannel.receiveAsFlow()
 
     val settings: StateFlow<UserSettings> =
         repository
@@ -94,7 +103,12 @@ class SettingsViewModel @Inject constructor(
                 }
 
                 SettingsUiAction.SignOut -> {
-                    authRepository.signOut()
+                    try {
+                        authRepository.signOut()
+                        snackbarChannel.send("Signed out. Your conversations are still on this device.")
+                    } catch (_: IOException) {
+                        snackbarChannel.send("Couldn't sign out. Please try again.")
+                    }
                 }
             }
         }

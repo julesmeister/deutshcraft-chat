@@ -1026,6 +1026,15 @@ object ChatDesignTokens {
         const val ContentExitDurationMillis = 220
         const val ContentEnterScale = 0.88f
         const val ContentExitScale = 0.92f
+        const val FireInitialScale = 0f
+        const val FireInitialRotationDegrees = -24f
+        // Fire grows from its base, like a flame igniting.
+        const val FirePivotX = 0.5f
+        const val FirePivotY = 1f
+        const val CountStartDelayMillis = 120L
+        const val CountDurationMillis = 700
+        const val CountPulseScale = 1.18f
+        const val CountPulseUpDurationMillis = 110
     }
 
     object TypingIndicator {

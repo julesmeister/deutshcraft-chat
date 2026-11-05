@@ -1,16 +1,18 @@
 package com.julesmeister.deutschcraft.feature.threads.presentation.component
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -19,9 +21,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.julesmeister.deutschcraft.R
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ProgressStreakButton
+import com.julesmeister.deutschcraft.feature.threads.presentation.theme.ThreadDesignTokens as Tokens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,19 +65,32 @@ fun ThreadListTopBar(
                         .onBackground
             ),
         title = {
-            Text(
-                text =
+            val threadColors =
+                rememberThreadColors()
+
+            Image(
+                painter =
+                    painterResource(
+                        id =
+                            if (threadColors.isDark) {
+                                R.drawable.threads_title_dark
+                            } else {
+                                R.drawable.threads_title_light
+                            }
+                    ),
+                contentDescription =
                     "Unterhaltungen",
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onBackground,
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleLarge,
-                fontWeight =
-                    FontWeight.Bold
+                modifier =
+                    Modifier
+                        .height(
+                            Tokens.TopBarTitleHeight
+                        )
+                        .widthIn(
+                            max =
+                                Tokens.TopBarTitleMaxWidth
+                        ),
+                contentScale =
+                    ContentScale.Fit
             )
         },
         actions = {
