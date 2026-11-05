@@ -520,7 +520,8 @@ fun ChatScreen(
                 enabled =
                     !uiState.isInitializing &&
                             !uiState.isMissionVariationBusy &&
-                            !guestGate.isLocked,
+                            !guestGate.isLocked &&
+                            uiState.error == null,
 
                 isSending =
                     uiState.isSending ||

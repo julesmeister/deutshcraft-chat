@@ -145,6 +145,7 @@ class ChatSessionMessageController
             currentState.isStartingMission ||
             currentState.missionVariation.isStarting ||
             currentState.isSubmittingBesserRefinement ||
+            currentState.error != null ||
             runtime.isSending
         ) {
             return
