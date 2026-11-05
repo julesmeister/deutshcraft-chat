@@ -159,7 +159,12 @@ class ChatSessionCoordinator
                         ::showMissionResult,
 
                     onError =
-                        ::showError
+                        ::showError,
+
+                    onChatError = {
+                            errorType ->
+                        showError(errorType)
+                    }
                 )
             }
 
