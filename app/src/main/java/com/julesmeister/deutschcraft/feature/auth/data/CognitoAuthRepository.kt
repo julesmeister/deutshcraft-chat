@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 @Singleton
 class CognitoAuthRepository
@@ -45,7 +46,8 @@ class CognitoAuthRepository
     private val authApi: CognitoAuthApi,
     private val oauthApi: CognitoOAuthApi,
     private val tokenStore: TokenStore,
-    private val googleSignInLauncher: GoogleSignInLauncher
+    private val googleSignInLauncher: GoogleSignInLauncher,
+    private val logoutLauncher: CognitoLogoutLauncher
 ) : AuthRepository {
 
     private val scope =
@@ -355,6 +357,11 @@ class CognitoAuthRepository
     private suspend fun completeOAuthRedirect(
         uri: Uri
     ) {
+        /*
+         * deutschcraft://auth/signout (Cognito logout return) also
+         * reaches MainActivity. It needs no handling here: local
+         * tokens were already cleared before the logout tab opened.
+         */
         if (uri.path != CognitoConfig.RedirectCallbackPath) {
             return
         }
@@ -527,15 +534,26 @@ class CognitoAuthRepository
             }
         }
 
+    /*
+     * Sign-out order:
+     *
+     * 1. Clear local tokens (always, even offline).
+     * 2. Revoke the refresh token on Cognito (best effort).
+     * 3. Google only: open Cognito /logout to clear the
+     *    hosted-UI browser cookie. Email users never had a
+     *    browser session, so no browser opens for them.
+     */
     override suspend fun signOut() {
         val tokens =
             currentTokens()
+
+        val wasGoogleSession =
+            tokens?.provider == AuthProvider.GOOGLE.name
 
         clearLocalSession()
 
         if (tokens != null && config.isPasswordAuthConfigured) {
             scope.launch {
-                // Best effort: invalidates the refresh token server-side.
                 runCatching {
                     authApi.revokeToken(
                         RevokeTokenRequest(
@@ -544,6 +562,12 @@ class CognitoAuthRepository
                         )
                     )
                 }
+            }
+        }
+
+        if (wasGoogleSession) {
+            withContext(Dispatchers.Main) {
+                logoutLauncher.launch()
             }
         }
     }

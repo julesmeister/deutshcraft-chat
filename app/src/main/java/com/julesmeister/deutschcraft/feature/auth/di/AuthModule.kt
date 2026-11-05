@@ -6,7 +6,9 @@ import com.julesmeister.deutschcraft.feature.auth.data.CognitoAuthRepository
 import com.julesmeister.deutschcraft.feature.auth.data.CognitoConfig
 import com.julesmeister.deutschcraft.feature.auth.data.remote.CognitoAuthApi
 import com.julesmeister.deutschcraft.feature.auth.data.remote.CognitoOAuthApi
+import com.julesmeister.deutschcraft.feature.auth.di.SyncWorkerStartupEffect
 import com.julesmeister.deutschcraft.feature.auth.domain.AuthRepository
+import com.julesmeister.deutschcraft.feature.sync.domain.SyncRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
