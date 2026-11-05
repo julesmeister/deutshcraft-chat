@@ -138,10 +138,11 @@ The chat level indicator and threads overflow menu share a cradled dropdown
 surface: the trigger is visually embedded in the curved top-right corner, with
 matching popup alignment, border/shadow, and opening/closing animation.
 The threads menu uses a compact 280dp body below the adjacent streak control,
-with a 16dp minimum window gutter and a gentle fade/slide/scale transition.
-Its buttons rest close to the right edge. Tapping the menu first animates the
-trigger inward and increases its gap from the streak button, then opens the
-dropdown. Dismissal closes the dropdown before returning the buttons to rest.
+with an 8dp minimum window gutter and a gentle fade/slide/scale transition.
+Its cradle matches the menu button's 40dp diameter without an expanded collar,
+so both buttons stay in their resting positions near the right edge. Its
+lower-left connector is straight, while the dropdown retains its fade/slide/scale
+animation. The chat level indicator retains its larger, curved cradle.
 Post-send mission evaluation runs before supplementary Besser/adaptive processing;
 new goal-completion confirmations interrupt the header's rotating mission pages
 as soon as the completion reaches Room.

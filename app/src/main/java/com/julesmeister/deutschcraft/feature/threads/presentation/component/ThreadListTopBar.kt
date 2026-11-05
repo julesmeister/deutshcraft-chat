@@ -1,8 +1,6 @@
 package com.julesmeister.deutschcraft.feature.threads.presentation.component
 
 import androidx.compose.foundation.Image
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,7 +15,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,7 +27,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.R
 import com.julesmeister.deutschcraft.feature.chat.presentation.component.ProgressStreakButton
-import com.julesmeister.deutschcraft.feature.settings.presentation.LocalUserSettings
 import com.julesmeister.deutschcraft.feature.threads.presentation.theme.ThreadDesignTokens as Tokens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,23 +41,6 @@ fun ThreadListTopBar(
     var isMenuExpanded by
     remember {
         mutableStateOf(false)
-    }
-
-    var isMakingMenuRoom by remember { mutableStateOf(false) }
-    val roomProgress = remember { Animatable(0f) }
-    val reduceAnimations = LocalUserSettings.current.reduceAnimations
-
-    LaunchedEffect(isMakingMenuRoom, reduceAnimations) {
-        val target = if (isMakingMenuRoom) 1f else 0f
-        if (reduceAnimations) {
-            roomProgress.snapTo(target)
-        } else {
-            roomProgress.animateTo(
-                target,
-                spring(dampingRatio = 0.72f, stiffness = 650f)
-            )
-        }
-        if (isMakingMenuRoom) isMenuExpanded = true
     }
 
     TopAppBar(
@@ -126,7 +105,7 @@ fun ThreadListTopBar(
             Spacer(
                 modifier =
                     Modifier.width(
-                        8.dp + 20.dp * roomProgress.value
+                        8.dp
                     )
             )
 
@@ -146,16 +125,13 @@ fun ThreadListTopBar(
                 }
                 ThreadTopBarIconButton(
                     onClick = {
-                        isMakingMenuRoom = true
+                        isMenuExpanded = true
                     }
                 ) {
                     menuVisual()
                 }
 
                 ThreadListTopBarMenu(
-                    onClosed = {
-                        isMakingMenuRoom = false
-                    },
                     anchorContent = menuVisual,
                     expanded =
                         isMenuExpanded,
@@ -178,7 +154,7 @@ fun ThreadListTopBar(
                 )
             }
 
-            Spacer(Modifier.width(8.dp + 20.dp * roomProgress.value))
+            Spacer(Modifier.width(8.dp))
         }
     )
 }

@@ -294,7 +294,7 @@ private fun ThreadRowContent(
                 style =
                     MaterialTheme
                         .typography
-                        .bodyMedium,
+                        .titleMedium,
                 maxLines =
                     1,
                 overflow =

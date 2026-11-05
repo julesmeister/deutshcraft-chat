@@ -10,16 +10,16 @@ import org.junit.Test
 class CradlePopupPositionProviderTest {
     @Test
     fun threadsMenuKeepsRightGutterAndCradleAlignedWithInsetTrigger() {
-        val provider = CradlePopupPositionProvider(30, 30, 16)
+        val provider = CradlePopupPositionProvider(20, 20, 8)
         val position = provider.calculatePosition(
-            IntRect(332, 24, 372, 64),
+            IntRect(352, 24, 392, 64),
             IntSize(400, 800),
             LayoutDirection.Ltr,
             IntSize(280, 260)
         )
-        assertEquals(352, position.x + 280 - 30)
-        assertEquals(18, 400 - (position.x + 280))
-        assertEquals(44, position.y + 30)
+        assertEquals(372, position.x + 280 - 20)
+        assertEquals(8, 400 - (position.x + 280))
+        assertEquals(44, position.y + 20)
     }
 
     @Test

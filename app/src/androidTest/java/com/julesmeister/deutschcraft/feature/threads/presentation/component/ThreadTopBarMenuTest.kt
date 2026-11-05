@@ -13,7 +13,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.espresso.Espresso.pressBack
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -27,7 +26,7 @@ class ThreadTopBarMenuTest {
     fun darkMenuKeepsActionsAndDismissesFromEmbeddedTriggerAndBack() = verifyMenu(true)
 
     @Test
-    fun buttonsMakeRoomBeforePopupOpensAndReturnAfterItCloses() {
+    fun menuTriggerStaysFixedWhenPopupOpensAndCloses() {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             MaterialTheme {
@@ -42,13 +41,12 @@ class ThreadTopBarMenuTest {
         val trigger = compose.onNodeWithContentDescription("More options")
         val closedX = trigger.fetchSemanticsNode().boundsInRoot.center.x
         trigger.performClick()
-        compose.mainClock.advanceTimeBy(128)
-        compose.onNodeWithText("QUICK ACTIONS").assertDoesNotExist()
-        val movingX = trigger.fetchSemanticsNode().boundsInRoot.center.x
-        assertTrue(movingX < closedX)
-
         compose.mainClock.advanceTimeBy(1_000)
         compose.onNodeWithText("QUICK ACTIONS").assertIsDisplayed()
+        val openX = compose.onNode(
+            hasContentDescription("More options") and !hasAnyAncestor(isPopup())
+        ).fetchSemanticsNode().boundsInRoot.center.x
+        assertEquals(closedX, openX, 1f)
         compose.onNode(
             hasContentDescription("More options") and hasAnyAncestor(isPopup())
         ).performClick()

@@ -30,9 +30,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -79,24 +76,17 @@ internal fun CradledDropdown(
     anchorContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     anchorSize: Dp = CradledDropdownDefaults.AnchorSize,
+    cradleRadius: Dp = CradledDropdownDefaults.Radius,
     anchorDescription: String,
     width: Dp = CradledDropdownDefaults.Width,
     windowMargin: Dp = CradledDropdownDefaults.WindowMargin,
     bodyTopOffset: Dp = 44.dp,
-    onClosed: () -> Unit = {},
+    curvedConnector: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val transition = remember { MutableTransitionState(false) }
-    var hasOpened by remember { mutableStateOf(false) }
     LaunchedEffect(expanded) {
-        if (expanded) hasOpened = true
         transition.targetState = expanded
-    }
-    LaunchedEffect(transition.isIdle, transition.currentState, expanded) {
-        if (hasOpened && !expanded && transition.isIdle && !transition.currentState) {
-            hasOpened = false
-            onClosed()
-        }
     }
     if (!transition.currentState && !transition.targetState && transition.isIdle) return
 
@@ -104,18 +94,20 @@ internal fun CradledDropdown(
     val availableWidth = (LocalConfiguration.current.screenWidthDp.dp - windowMargin * 2)
         .coerceAtLeast(1.dp)
     val popupWidth = width.coerceAtMost(availableWidth)
-    val positionProvider = remember(density, windowMargin) {
+    val positionProvider = remember(density, windowMargin, cradleRadius) {
         CradlePopupPositionProvider(
-            cradleCenterFromRightPx = with(density) { CradledDropdownDefaults.Radius.roundToPx() },
-            cradleCenterFromTopPx = with(density) { CradledDropdownDefaults.Radius.roundToPx() },
+            cradleCenterFromRightPx = with(density) { cradleRadius.roundToPx() },
+            cradleCenterFromTopPx = with(density) { cradleRadius.roundToPx() },
             windowMarginPx = with(density) { windowMargin.roundToPx() }
         )
     }
     val pivot = TransformOrigin(
-        1f - CradledDropdownDefaults.Radius.value / popupWidth.value,
+        1f - cradleRadius.value / popupWidth.value,
         0.04f
     )
-    val shape = remember(bodyTopOffset) { CradleDropdownShape(bodyTopOffset) }
+    val shape = remember(bodyTopOffset, cradleRadius, curvedConnector) {
+        CradleDropdownShape(bodyTopOffset, cradleRadius, curvedConnector)
+    }
     val colors = MaterialTheme.colorScheme
 
     Popup(
@@ -173,7 +165,7 @@ internal fun CradledDropdown(
                             start = CradledDropdownDefaults.Padding,
                             end = CradledDropdownDefaults.Padding,
                             bottom = CradledDropdownDefaults.Padding,
-                            top = CradledDropdownDefaults.Radius * 2 + 4.dp
+                            top = maxOf(cradleRadius * 2 + 4.dp, bodyTopOffset + 16.dp)
                         ),
                     verticalArrangement = Arrangement.spacedBy(CradledDropdownDefaults.ContentSpacing),
                     content = content
@@ -183,8 +175,8 @@ internal fun CradledDropdown(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .offset(
-                            x = -(CradledDropdownDefaults.Radius - anchorSize / 2),
-                            y = CradledDropdownDefaults.Radius - anchorSize / 2
+                            x = -(cradleRadius - anchorSize / 2),
+                            y = cradleRadius - anchorSize / 2
                         )
                         .size(anchorSize)
                         .clip(CircleShape)
@@ -204,10 +196,12 @@ internal fun CradledDropdown(
 }
 
 internal class CradleDropdownShape(
-    private val bodyTopOffset: Dp = 44.dp
+    private val bodyTopOffset: Dp = 44.dp,
+    private val cradleRadius: Dp = CradledDropdownDefaults.Radius,
+    private val curvedConnector: Boolean = true
 ) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
-        val radius = with(density) { CradledDropdownDefaults.Radius.toPx() }
+        val radius = with(density) { cradleRadius.toPx() }
         val bodyTop = with(density) { bodyTopOffset.toPx() }
         val fillet = with(density) { 14.dp.toPx() }
         val corner = with(density) { 26.dp.toPx() }
@@ -228,12 +222,21 @@ internal class CradleDropdownShape(
             Path().apply {
                 moveTo(0f, bodyTop + corner)
                 arcTo(Rect(0f, bodyTop, corner * 2, bodyTop + corner * 2), 180f, 90f, false)
-                lineTo(intersectionX - fillet, bodyTop)
-                quadraticTo(intersectionX, bodyTop, arcStart.x, arcStart.y)
-                arcTo(
-                    Rect(centerX - radius, centerY - radius, centerX + radius, centerY + radius),
-                    arcStartAngle.toFloat(), (360.0 - arcStartAngle).toFloat(), false
-                )
+                if (curvedConnector) {
+                    lineTo(intersectionX - fillet, bodyTop)
+                    quadraticTo(intersectionX, bodyTop, arcStart.x, arcStart.y)
+                    arcTo(
+                        Rect(centerX - radius, centerY - radius, centerX + radius, centerY + radius),
+                        arcStartAngle.toFloat(), (360.0 - arcStartAngle).toFloat(), false
+                    )
+                } else {
+                    lineTo(centerX - radius, bodyTop)
+                    lineTo(centerX - radius, centerY)
+                    arcTo(
+                        Rect(centerX - radius, centerY - radius, centerX + radius, centerY + radius),
+                        180f, 180f, false
+                    )
+                }
                 lineTo(width, height - corner)
                 arcTo(Rect(width - corner * 2, height - corner * 2, width, height), 0f, 90f, false)
                 lineTo(corner, height)

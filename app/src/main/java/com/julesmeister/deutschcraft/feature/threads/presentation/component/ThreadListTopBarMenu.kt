@@ -47,7 +47,6 @@ internal fun ThreadListTopBarMenu(
     onNewConversationClick: () -> Unit,
     onSettingsClick: () -> Unit,
     anchorContent: @Composable () -> Unit,
-    onClosed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = rememberThreadColors()
@@ -57,11 +56,12 @@ internal fun ThreadListTopBarMenu(
         onDismiss = onDismissRequest,
         anchorContent = anchorContent,
         anchorSize = Tokens.TopBarIconButtonSize,
+        cradleRadius = Tokens.TopBarIconButtonSize / 2,
         anchorDescription = "Close more options",
         width = 280.dp,
-        windowMargin = 16.dp,
-        bodyTopOffset = 56.dp,
-        onClosed = onClosed,
+        windowMargin = 8.dp,
+        bodyTopOffset = 44.dp,
+        curvedConnector = false,
         modifier = modifier
     ) {
         Column(
