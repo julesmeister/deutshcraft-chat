@@ -726,6 +726,7 @@ object ChatDesignTokens {
         val OnlineDotSpacing = 5.dp
         val NormalSubtitleTopPadding = 1.dp
         val StatusIconSize = 32.dp
+        const val TypingDotsSizeScale = 0.6f
         val StatusIconCornerRadius = 12.dp
         val StatusContentSpacing = 8.dp
         const val AdaptiveIconBackgroundAlpha = 0.15f
@@ -1057,18 +1058,6 @@ object ChatDesignTokens {
     }
 
     object LevelProgressDropdown {
-        // A 30.dp cradle leaves a 6.dp collar around the indicator's 48.dp touch area.
-        val CradleRadius = 30.dp
-        val BodyTopOffset = 44.dp
-        val FilletLength = 14.dp
-        val ContentGapBelowCradle = 4.dp
-        val WindowMargin = 8.dp
-        val DropdownWidth = 304.dp
-        val DropdownPadding = 12.dp
-        val DropdownBorderWidth = 1.dp
-        val DropdownElevation = 14.dp
-        val ShadowSpace = 16.dp
-        val BodyCornerRadius = 26.dp
         val BentoGap = 8.dp
         val HeaderShape = RoundedCornerShape(18.dp)
         val HeaderPadding = 12.dp
@@ -1087,18 +1076,12 @@ object ChatDesignTokens {
         val TargetDotSpacing = 7.dp
         val ExampleShape = RoundedCornerShape(18.dp)
         val ExamplePadding = 13.dp
-        const val DropdownEnterMillis = 240
-        const val DropdownExitMillis = 160
-        const val DropdownInitialScale = 0.86f
-        const val DropdownExitScale = 0.92f
-        const val DropdownBorderAlpha = 0.55f
         const val HeaderBackgroundAlpha = 0.13f
         const val ReadinessTrackAlpha = 0.72f
         const val PrimaryNeedBorderAlpha = 0.30f
         const val WhyNowBackgroundAlpha = 0.10f
         const val ExampleBackgroundAlpha = 0.13f
         const val MaximumTargetCount = 4
-        const val FilletArcDegrees = 14.0
     }
 
     object LevelProgress {

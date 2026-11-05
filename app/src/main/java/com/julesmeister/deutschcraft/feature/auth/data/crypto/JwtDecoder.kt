@@ -16,7 +16,11 @@ internal data class JwtClaims(
     val email: String?,
     val name: String?,
     val expiresAtEpochSeconds: Long?,
-    val identityProviderName: String?
+    val identityProviderName: String?,
+    val issuer: String?,
+    val clientId: String?,
+    val audience: String?,
+    val tokenUse: String?
 )
 
 internal object JwtDecoder {
@@ -52,7 +56,11 @@ internal object JwtDecoder {
             name = payload.string("name"),
             expiresAtEpochSeconds =
                 (payload["exp"] as? JsonPrimitive)?.longOrNull,
-            identityProviderName = payload.identityProviderName()
+            identityProviderName = payload.identityProviderName(),
+            issuer = payload.string("iss"),
+            clientId = payload.string("client_id"),
+            audience = payload.string("aud"),
+            tokenUse = payload.string("token_use")
         )
     }
 

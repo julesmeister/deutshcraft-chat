@@ -63,6 +63,9 @@ data class ChatUiState(
     val currentMissionObjective: String? =
         null,
 
+    val currentMissionObjectiveDescription: String? =
+        null,
+
     val currentMissionGuidance: String? =
         null,
 

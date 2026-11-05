@@ -1,6 +1,7 @@
 package com.julesmeister.deutschcraft.feature.auth.data
 
 import android.net.Uri
+import com.julesmeister.deutschcraft.feature.auth.data.network.AuthDiagnostics
 import com.julesmeister.deutschcraft.feature.auth.data.crypto.JwtDecoder
 import com.julesmeister.deutschcraft.feature.auth.data.crypto.Pkce
 import com.julesmeister.deutschcraft.feature.auth.data.local.PendingOAuth
@@ -461,12 +462,16 @@ class CognitoAuthRepository
     override suspend fun validAccessToken(): String? {
         val tokens =
             currentTokens()
-                ?: return null
+                ?: run {
+                    AuthDiagnostics.event("access-token-unavailable reason=no-stored-session")
+                    return null
+                }
 
         if (!tokens.isNearExpiry()) {
             return tokens.accessToken
         }
 
+        AuthDiagnostics.event("refresh-requested reason=near-local-expiry")
         return refreshAccessToken(
             failedAccessToken = tokens.accessToken
         )
@@ -478,16 +483,21 @@ class CognitoAuthRepository
         refreshMutex.withLock {
             val tokens =
                 currentTokens()
-                    ?: return@withLock null
+                    ?: run {
+                        AuthDiagnostics.event("refresh-skipped reason=no-stored-session")
+                        return@withLock null
+                    }
 
             /*
              * Another request refreshed while this one waited
              * for the lock.
              */
             if (tokens.accessToken != failedAccessToken && !tokens.isNearExpiry()) {
+                AuthDiagnostics.event("refresh-reused reason=another-request-already-refreshed")
                 return@withLock tokens.accessToken
             }
 
+            AuthDiagnostics.event("refresh-started flow=REFRESH_TOKEN_AUTH")
             val result =
                 runAuth {
                     val response =
@@ -518,14 +528,18 @@ class CognitoAuthRepository
                 }
 
             when (result) {
-                is AuthResult.Success ->
+                is AuthResult.Success -> {
+                    AuthDiagnostics.event("refresh-succeeded")
                     result.value
+                }
 
                 is AuthResult.Failure -> {
+                    AuthDiagnostics.event("refresh-failed category=${result.error.javaClass.simpleName}")
                     if (
                         result.error == AuthError.SessionExpired ||
                         result.error == AuthError.InvalidCredentials
                     ) {
+                        AuthDiagnostics.event("session-cleared reason=refresh-credentials-rejected")
                         clearLocalSession()
                     }
 
@@ -658,6 +672,10 @@ class CognitoAuthRepository
         } catch (failure: AuthFailure) {
             AuthResult.Failure(failure.error)
         } catch (throwable: Throwable) {
+            AuthDiagnostics.event(
+                "cognito-call-failed exceptionType=${throwable.javaClass.simpleName} " +
+                    "httpStatus=${(throwable as? retrofit2.HttpException)?.code()}"
+            )
             AuthResult.Failure(CognitoErrorMapper.map(throwable))
         }
 

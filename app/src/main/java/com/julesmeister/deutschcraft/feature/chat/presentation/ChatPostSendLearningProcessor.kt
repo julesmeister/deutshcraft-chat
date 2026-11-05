@@ -19,8 +19,8 @@ import kotlinx.coroutines.CancellationException
  * - Load the saved conversation
  * - Resolve the newest matching learner message
  * - Build history ending at that learner message
- * - Run contextual Besser
  * - Run mission evaluation
+ * - Run contextual Besser
  * - Run adaptive learning
  *
  * Failures here must not convert a successful chat send into a
@@ -153,23 +153,7 @@ class ChatPostSendLearningProcessor
                 }
             )
 
-            /*
-             * Besser is supplementary.
-             *
-             * Besser handles its own failures so mission and
-             * adaptive-learning processing can still continue.
-             */
-            besserProcessor.process(
-                conversationId =
-                    conversationId,
-                learnerMessage =
-                    savedLearnerMessage,
-                currentCefrLevel =
-                    conversation.cefrLevel,
-                activeMission =
-                    activeMission
-            )
-
+            // Persist goal completion before supplementary work so Room can show it immediately.
             val missionResult =
                 missionProcessor.process(
                     activeMission =
@@ -181,6 +165,17 @@ class ChatPostSendLearningProcessor
                     cefrLevel =
                         conversation.cefrLevel
                 )
+
+            besserProcessor.process(
+                conversationId =
+                    conversationId,
+                learnerMessage =
+                    savedLearnerMessage,
+                currentCefrLevel =
+                    conversation.cefrLevel,
+                activeMission =
+                    activeMission
+            )
 
             val adaptiveLearningResult =
                 adaptiveLearningProcessor.process(

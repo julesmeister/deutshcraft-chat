@@ -38,7 +38,8 @@ fun ChatComposer(
     refinementFeedback: String? = null,
     isEvaluatingRefinement: Boolean = false,
     onCancelRefinement: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    goalDescription: String? = null
 ) {
     val glassColors =
         rememberChatGlassColors()
@@ -143,6 +144,9 @@ fun ChatComposer(
         }
 
         ChatGlassInputField(
+            goalDescription =
+                goalDescription,
+
             backdrop =
                 backdrop,
             value =

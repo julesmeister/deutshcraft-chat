@@ -7,7 +7,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -161,20 +164,6 @@ fun ChatScreen(
         mutableStateOf(
             false
         )
-    }
-
-    var displayedError by
-    remember {
-        mutableStateOf<ChatErrorType?>(
-            null
-        )
-    }
-
-    LaunchedEffect(
-        uiState.error
-    ) {
-        displayedError =
-            uiState.error
     }
 
     LaunchedEffect(
@@ -410,10 +399,16 @@ fun ChatScreen(
 
         bottomBar = {
             ChatErrorBar(
-                error = displayedError,
+                error = uiState.error,
                 onDismiss = {
-                    displayedError = null
-                }
+                    onAction(ChatUiAction.ErrorDismissed)
+                },
+                onRetry = {
+                    onAction(ChatUiAction.ErrorDismissed)
+                },
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .imePadding()
             )
         }
     ) { innerPadding ->
@@ -426,11 +421,8 @@ fun ChatScreen(
                             .colorScheme
                             .background
                     )
-                    .padding(
-                        top =
-                            innerPadding
-                                .calculateTopPadding()
-                    )
+                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding)
         ) {
             ChatMessageList(
                 modifier =
@@ -487,6 +479,9 @@ fun ChatScreen(
                                 )
 
             ChatBottomBar(
+                goalDescription =
+                    uiState.currentMissionObjectiveDescription,
+
                 backdrop =
                     glassBackdrop,
 

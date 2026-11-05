@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.ui.theme.DeutschSurfaceHigh
@@ -29,12 +30,7 @@ import com.julesmeister.deutschcraft.ui.theme.DeutschTextSecondary
 fun TypingIndicator(
     modifier: Modifier = Modifier
 ) {
-    val transition =
-        rememberInfiniteTransition(
-            label = "TypingIndicatorTransition"
-        )
-
-    Row(
+    AnimatedTypingDots(
         modifier = modifier
             .background(
                 color =
@@ -47,10 +43,26 @@ fun TypingIndicator(
                     ChatDesignTokens.TypingIndicator.IndicatorHorizontalPadding,
                 vertical =
                     ChatDesignTokens.TypingIndicator.IndicatorVerticalPadding
-            ),
+            )
+    )
+}
+
+@Composable
+internal fun AnimatedTypingDots(
+    modifier: Modifier = Modifier,
+    color: Color = DeutschTextSecondary,
+    sizeScale: Float = 1f
+) {
+    val transition =
+        rememberInfiniteTransition(
+            label = "TypingIndicatorTransition"
+        )
+
+    Row(
+        modifier = modifier,
         horizontalArrangement =
             Arrangement.spacedBy(
-                ChatDesignTokens.TypingIndicator.DotSpacing
+                ChatDesignTokens.TypingIndicator.DotSpacing * sizeScale
             ),
         verticalAlignment =
             Alignment.CenterVertically
@@ -123,8 +135,12 @@ fun TypingIndicator(
             )
 
             TypingDot(
+                sizeScale =
+                    sizeScale,
+                color =
+                    color,
                 offsetY =
-                    dotOffset,
+                    dotOffset * sizeScale,
                 alpha =
                     dotAlpha,
                 scale =
@@ -136,6 +152,8 @@ fun TypingIndicator(
 
 @Composable
 private fun TypingDot(
+    sizeScale: Float,
+    color: Color,
     offsetY: Float,
     alpha: Float,
     scale: Float
@@ -143,7 +161,7 @@ private fun TypingDot(
     Box(
         modifier = Modifier
             .size(
-                ChatDesignTokens.TypingIndicator.DotSize
+                ChatDesignTokens.TypingIndicator.DotSize * sizeScale
             )
             .graphicsLayer {
                 translationY =
@@ -160,7 +178,7 @@ private fun TypingDot(
             )
             .background(
                 color =
-                    DeutschTextSecondary,
+                    color,
                 shape =
                     CircleShape
             )

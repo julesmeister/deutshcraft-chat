@@ -10,7 +10,6 @@ import com.julesmeister.deutschcraft.feature.besser.domain.RefinementVerdict
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.CompleteBesserChallengeUseCase
 import com.julesmeister.deutschcraft.feature.besser.domain.usecase.EvaluateBesserRefinementUseCase
 import com.julesmeister.deutschcraft.feature.chat.domain.MessageSender
-import com.julesmeister.deutschcraft.feature.chat.presentation.ChatErrorType
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatPresentationTokens
 import com.julesmeister.deutschcraft.feature.learninganalytics.domain.MissionAnalytics
 import javax.inject.Inject
@@ -19,7 +18,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
 
 class ChatSessionMessageController
 @Inject constructor(
@@ -119,8 +117,7 @@ class ChatSessionMessageController
             missionTitle: String,
             analytics: MissionAnalytics
         ) -> Unit,
-        onError: (message: String) -> Unit,
-        onChatError: (errorType: ChatErrorType) -> Unit = {}
+        onError: (message: String) -> Unit
     ) {
         val conversationId =
             runtime.activeConversationId
@@ -208,13 +205,7 @@ class ChatSessionMessageController
                         onMissionOpportunityCheckRequested,
 
                     onMissionCompleted =
-                        onMissionCompleted,
-
-                    onError =
-                        onError,
-
-                    onChatError =
-                        onChatError
+                        onMissionCompleted
                 )
             }
     }
@@ -232,9 +223,7 @@ class ChatSessionMessageController
         onMissionCompleted: (
             missionTitle: String,
             analytics: MissionAnalytics
-        ) -> Unit,
-        onError: (message: String) -> Unit,
-        onChatError: (errorType: ChatErrorType) -> Unit
+        ) -> Unit
     ) {
         val activeMissionAtSendStart =
             runtime.activeMission
@@ -441,38 +430,12 @@ class ChatSessionMessageController
                     conversationId
             )
 
-            val errorMessage =
-                ChatPresentationTokens.SessionMessageController.SendError
-
             uiState.update { state ->
                 state.sendingFailed(
-                    message =
-                        errorMessage
+                    error =
+                        throwable.toChatError()
                 )
             }
-
-            onError(errorMessage)
-
-            val errorType =
-                when (throwable) {
-                    is retrofit2.HttpException -> {
-                        ChatErrorType.NetworkError(
-                            "HTTP ${throwable.code()}: ${throwable.message()}"
-                        )
-                    }
-
-                    is java.io.IOException -> {
-                        ChatErrorType.NetworkError(
-                            "Network error: ${throwable.message}"
-                        )
-                    }
-
-                    else -> {
-                        ChatErrorType.GenericError(errorMessage)
-                    }
-                }
-
-            onChatError(errorType)
         }
     }
 

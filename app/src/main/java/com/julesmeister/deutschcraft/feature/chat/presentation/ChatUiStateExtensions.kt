@@ -180,7 +180,7 @@ internal fun ChatUiState.sendingSucceeded(
 }
 
 internal fun ChatUiState.sendingFailed(
-    message: String
+    error: ChatErrorType
 ): ChatUiState {
 
     return copy(
@@ -197,7 +197,10 @@ internal fun ChatUiState.sendingFailed(
             false,
 
         errorMessage =
-            message
+            null,
+
+        error =
+            error
     )
 }
 
@@ -485,6 +488,9 @@ internal fun ChatUiState.withActiveMission(
             currentMissionObjective =
                 null,
 
+            currentMissionObjectiveDescription =
+                null,
+
             currentMissionGuidance =
                 null,
 
@@ -552,6 +558,12 @@ internal fun ChatUiState.withActiveMission(
                 ?.takeIf(
                     String::isNotBlank
                 ),
+
+        currentMissionObjectiveDescription =
+            currentObjective
+                ?.description
+                ?.trim()
+                ?.takeIf(String::isNotBlank),
 
         currentMissionGuidance =
             currentObjective

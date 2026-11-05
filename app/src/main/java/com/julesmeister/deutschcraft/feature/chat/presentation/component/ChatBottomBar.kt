@@ -33,7 +33,8 @@ fun ChatBottomBar(
     refinementFeedback: String? = null,
     isEvaluatingRefinement: Boolean = false,
     onCancelRefinement: () -> Unit = {},
-    onInputFocused: () -> Unit = {}
+    onInputFocused: () -> Unit = {},
+    goalDescription: String? = null
 ) {
     val glassColors =
         rememberChatGlassColors()
@@ -136,6 +137,9 @@ fun ChatBottomBar(
         )
 
         ChatGlassInputField(
+            goalDescription =
+                goalDescription,
+
             backdrop =
                 backdrop,
             value =

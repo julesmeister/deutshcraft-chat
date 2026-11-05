@@ -44,6 +44,7 @@ import com.julesmeister.deutschcraft.feature.chat.presentation.MissionObjectiveC
 import com.julesmeister.deutschcraft.feature.chat.presentation.theme.ChatDesignTokens
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 internal fun AnimatedChatTopBarTitle(
@@ -90,7 +91,7 @@ internal fun AnimatedChatTopBarTitle(
                 ?: return@LaunchedEffect
 
         delay(
-            ChatDesignTokens.AnimatedTopBarTitle.ObjectiveCompletionDisplayMillis
+            ChatDesignTokens.AnimatedTopBarTitle.ObjectiveCompletionDisplayMillis.milliseconds
         )
 
         onObjectiveCompletionShown(
@@ -111,7 +112,7 @@ internal fun AnimatedChatTopBarTitle(
         }
 
         delay(
-            ChatDesignTokens.AnimatedTopBarTitle.AdaptiveFeedbackDisplayMillis
+            ChatDesignTokens.AnimatedTopBarTitle.AdaptiveFeedbackDisplayMillis.milliseconds
         )
 
         onAdaptiveLearningFeedbackShown(
@@ -278,13 +279,20 @@ internal fun AnimatedChatTopBarTitle(
             ChatTopBarTemporaryStatus.AssistantTyping -> {
                 SimpleStatus(
                     icon =
-                        "•••",
+                        "",
 
                     title =
                         "Emil schreibt",
 
                     subtitle =
-                        "Antwort wird vorbereitet"
+                        "Antwort wird vorbereitet",
+
+                    iconContent = {
+                        AnimatedTypingDots(
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            sizeScale = ChatDesignTokens.AnimatedTopBarTitle.TypingDotsSizeScale
+                        )
+                    }
                 )
             }
 
@@ -709,7 +717,8 @@ private fun NormalStatus() {
 private fun SimpleStatus(
     icon: String,
     title: String,
-    subtitle: String
+    subtitle: String,
+    iconContent: (@Composable () -> Unit)? = null
 ) {
     val colorScheme =
         MaterialTheme.colorScheme
@@ -739,16 +748,20 @@ private fun SimpleStatus(
             contentAlignment =
                 Alignment.Center
         ) {
-            Text(
-                text =
-                    icon,
+            if (iconContent != null) {
+                iconContent()
+            } else {
+                Text(
+                    text =
+                        icon,
 
-                color =
-                    colorScheme.onPrimaryContainer,
+                    color =
+                        colorScheme.onPrimaryContainer,
 
-                textAlign =
-                    TextAlign.Center
-            )
+                    textAlign =
+                        TextAlign.Center
+                )
+            }
         }
 
         Spacer(

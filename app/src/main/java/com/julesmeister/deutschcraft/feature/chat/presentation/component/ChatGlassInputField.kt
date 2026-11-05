@@ -68,7 +68,8 @@ internal fun ChatGlassInputField(
     onValueChange: (TextFieldValue) -> Unit,
     onSendClick: () -> Unit,
     onInputFocused: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    goalDescription: String? = null
 ) {
     val colorScheme =
         MaterialTheme.colorScheme
@@ -99,8 +100,12 @@ internal fun ChatGlassInputField(
         )
     }
 
+    var placeholderLineCount by remember(goalDescription, isRefinementMode) {
+        mutableIntStateOf(1)
+    }
+
     val isMultiline =
-        visualLineCount > 1
+        if (value.text.isEmpty()) placeholderLineCount > 1 else visualLineCount > 1
 
     /*
      * =======================================================
@@ -701,12 +706,18 @@ internal fun ChatGlassInputField(
                                     if (isRefinementMode) {
                                         ChatPresentationTokens.GlassInputField.RefinementPlaceholder
                                     } else {
-                                        ChatPresentationTokens.GlassInputField.DefaultPlaceholder
+                                        goalDescription
+                                            ?.trim()
+                                            ?.takeIf(String::isNotBlank)
+                                            ?: ChatPresentationTokens.GlassInputField.DefaultPlaceholder
                                     },
                                 style =
                                     inputTextStyle,
                                 color =
-                                    glassColors.placeholder
+                                    glassColors.placeholder,
+                                onTextLayout = { result ->
+                                    placeholderLineCount = result.lineCount.coerceAtLeast(1)
+                                }
                             )
                         }
 

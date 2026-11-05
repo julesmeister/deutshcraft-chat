@@ -133,6 +133,37 @@ Available offline:
 - Settings
 - Learning history
 
+The chat header and in-list typing indicator share the same animated dots.
+The chat level indicator and threads overflow menu share a cradled dropdown
+surface: the trigger is visually embedded in the curved top-right corner, with
+matching popup alignment, border/shadow, and opening/closing animation.
+The threads menu uses a compact 280dp body below the adjacent streak control,
+with a 16dp minimum window gutter and a gentle fade/slide/scale transition.
+Its buttons rest close to the right edge. Tapping the menu first animates the
+trigger inward and increases its gap from the streak button, then opens the
+dropdown. Dismissal closes the dropdown before returning the buttons to rest.
+Post-send mission evaluation runs before supplementary Besser/adaptive processing;
+new goal-completion confirmations interrupt the header's rotating mission pages
+as soon as the completion reaches Room.
+
+While a mission goal is active, its full description appears as the empty
+composer's placeholder. It is not inserted into the draft or sent as an answer;
+typing hides it, and Besser refinement retains its own placeholder.
+
+New AI replies require a working connection and access to the AI service. Failed
+requests display a dismissible red error bar in chat rather than a fabricated
+assistant reply. Further sends are blocked while that error is displayed;
+dismissing it allows another attempt. The learner's saved message remains in Room.
+The compact Retry pill clears the error and re-enables manual sending; it does not
+automatically resend the saved message or repeat the failed request.
+
+For authentication diagnostics in debug builds, filter Android Studio Logcat with
+`tag:DeutschCraftAuth`. Reproduce a failed send to see header presence, token type
+and expiry, issuer/client configuration matches, refresh outcomes, HTTP status,
+and AWS request IDs. JWT claims shown here are diagnostic only, not verified by
+the app. These logs exclude tokens, credentials, personal claims, and chat bodies,
+and are disabled in release builds.
+
 ---
 
 ## Room as Source of Truth

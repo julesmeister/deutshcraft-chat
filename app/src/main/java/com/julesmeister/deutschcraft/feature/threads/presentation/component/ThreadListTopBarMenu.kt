@@ -21,7 +21,6 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AddComment
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,9 +34,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.julesmeister.deutschcraft.feature.threads.presentation.theme.ThreadDesignTokens as Tokens
 import com.julesmeister.deutschcraft.ui.theme.DeutschLime
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
+import com.julesmeister.deutschcraft.ui.component.CradledDropdown
 
 @Composable
 internal fun ThreadListTopBarMenu(
@@ -45,25 +46,26 @@ internal fun ThreadListTopBarMenu(
     onDismissRequest: () -> Unit,
     onNewConversationClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    anchorContent: @Composable () -> Unit,
+    onClosed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = rememberThreadColors()
 
-    DropdownMenu(
+    CradledDropdown(
         expanded = expanded,
-        onDismissRequest = onDismissRequest,
-        modifier = modifier.width(Tokens.MenuWidth),
-        shape = Tokens.MenuShape,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = Tokens.MenuTonalElevation,
-        shadowElevation = if (colors.isDark) {
-            Tokens.MenuDarkShadowElevation
-        } else {
-            Tokens.MenuLightShadowElevation
-        }
+        onDismiss = onDismissRequest,
+        anchorContent = anchorContent,
+        anchorSize = Tokens.TopBarIconButtonSize,
+        anchorDescription = "Close more options",
+        width = 280.dp,
+        windowMargin = 16.dp,
+        bodyTopOffset = 56.dp,
+        onClosed = onClosed,
+        modifier = modifier
     ) {
         Column(
-            modifier = Modifier.padding(Tokens.MenuContentPadding)
+            modifier = Modifier
         ) {
             Text(
                 text = "QUICK ACTIONS",

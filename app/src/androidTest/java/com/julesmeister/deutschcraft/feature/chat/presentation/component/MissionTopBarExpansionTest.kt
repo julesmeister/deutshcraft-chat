@@ -18,6 +18,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeLeft
 import com.julesmeister.deutschcraft.feature.mission.data.ai.MissionGrammar
+import com.julesmeister.deutschcraft.feature.chat.presentation.MissionObjectiveCompletionEvent
 import com.julesmeister.deutschcraft.feature.mission.data.ai.MissionLanguageSupport
 import com.julesmeister.deutschcraft.feature.mission.data.ai.MissionVocabulary
 import com.julesmeister.deutschcraft.feature.mission.presentation.guidance.MissionGuidanceUiState
@@ -28,6 +29,48 @@ import org.junit.Test
 
 class MissionTopBarExpansionTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun goalCompletionInterruptsPagerWithoutWaitingForAutoAdvance() {
+        assertImmediateGoalCompletion(isTyping = false)
+    }
+
+    @Test
+    fun goalCompletionTakesPriorityOverTypingStatus() {
+        assertImmediateGoalCompletion(isTyping = true)
+    }
+
+    private fun assertImmediateGoalCompletion(isTyping: Boolean) {
+        var completion by mutableStateOf<MissionObjectiveCompletionEvent?>(null)
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            MaterialTheme {
+                AnimatedChatTopBarTitle(
+                    isAssistantTyping = isTyping,
+                    isAssessing = false,
+                    activeMissionTitle = "A restaurant mission",
+                    currentMissionObjective = "Order a meal",
+                    currentMissionGuidance = "Ask politely",
+                    missionProgressPercentage = 20,
+                    objectiveCompletionEvent = completion,
+                    adaptiveLearningFeedbackEvent = null,
+                    onObjectiveCompletionShown = {},
+                    onAdaptiveLearningFeedbackShown = {},
+                    onMissionGuidanceClick = {}
+                )
+            }
+        }
+        compose.runOnIdle {
+            completion = MissionObjectiveCompletionEvent(
+                eventId = "completion",
+                objectiveId = "greeting",
+                objectiveTitle = "Greet the waiter"
+            )
+        }
+        compose.mainClock.advanceTimeBy(500)
+        compose.onNodeWithText("Ziel erreicht").assertIsDisplayed()
+        compose.onNodeWithText("Greet the waiter").assertIsDisplayed()
+    }
 
     @Test
     fun handleBelowTopBarTogglesAndDragsDrawer() {

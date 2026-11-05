@@ -84,6 +84,8 @@ class AuthCryptoTest {
         val payload =
             """
             {"sub":"abc-123","email":"anna@example.com","name":"Anna",
+             "iss":"https://cognito.example/pool","client_id":"test-client",
+             "aud":"test-audience","token_use":"access",
              "exp":1700000000,
              "identities":[{"providerName":"Google","userId":"1"}]}
             """.trimIndent()
@@ -100,6 +102,10 @@ class AuthCryptoTest {
         assertEquals("Anna", claims.name)
         assertEquals(1_700_000_000L, claims.expiresAtEpochSeconds)
         assertEquals("Google", claims.identityProviderName)
+        assertEquals("https://cognito.example/pool", claims.issuer)
+        assertEquals("test-client", claims.clientId)
+        assertEquals("test-audience", claims.audience)
+        assertEquals("access", claims.tokenUse)
     }
 
     @Test
