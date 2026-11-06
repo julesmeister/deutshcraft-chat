@@ -4,6 +4,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 object ThreadDesignTokens {
 
@@ -204,4 +205,26 @@ object ThreadDesignTokens {
 
     val CreateThreadFabElevation =
         0.dp
+
+    /*
+     * =======================================================
+     * Thread row
+     * =======================================================
+     */
+
+    const val ThreadRowSwipeThresholdFraction = 0.35f
+    const val ThreadRowSwipeBackgroundBaseAlpha = 0.14f
+    const val ThreadRowSwipeBackgroundProgressAlpha = 0.18f
+    const val ThreadRowAvatarBackgroundAlpha = 0.14f
+
+    val ThreadRowSwipeActionEndPadding = 22.dp
+    val ThreadRowSwipeActionSize = 44.dp
+    val ThreadRowSwipeActionIconSize = 22.dp
+
+    val ThreadRowHorizontalPadding = 16.dp
+    val ThreadRowVerticalPadding = 12.dp
+    val ThreadRowContentStartPadding = 12.dp
+    val ThreadRowPreviewTopPadding = 4.dp
+    val ThreadRowTextLineHeight = 20.sp
+    val ThreadRowAvatarSize = 48.dp
 }

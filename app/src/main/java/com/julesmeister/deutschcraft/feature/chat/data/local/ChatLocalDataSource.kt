@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/data/local/ChatLocalDataSource.kt
+
 package com.julesmeister.deutschcraft.feature.chat.data.local
 
 import androidx.room.withTransaction
@@ -7,15 +9,24 @@ import com.julesmeister.deutschcraft.core.database.dao.MessageDao
 import com.julesmeister.deutschcraft.core.database.entity.ConversationEntity
 import com.julesmeister.deutschcraft.core.database.entity.ConversationTitleSource
 import com.julesmeister.deutschcraft.core.database.entity.MessageEntity
-import com.julesmeister.deutschcraft.core.database.entity.MessageSenderEntity
 import com.julesmeister.deutschcraft.core.database.entity.SyncStatusEntity
+import com.julesmeister.deutschcraft.feature.sync.scheduling.SyncScheduler
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 
-class ChatLocalDataSource @Inject constructor(
-    private val database: DeutschCraftDatabase,
-    private val conversationDao: ConversationDao,
-    private val messageDao: MessageDao
+class ChatLocalDataSource
+@Inject constructor(
+    private val database:
+    DeutschCraftDatabase,
+
+    private val conversationDao:
+    ConversationDao,
+
+    private val messageDao:
+    MessageDao,
+
+    private val syncScheduler:
+    SyncScheduler
 ) {
 
     fun observeMessages(
@@ -46,16 +57,45 @@ class ChatLocalDataSource @Inject constructor(
         conversation: ConversationEntity
     ) {
         conversationDao.upsertConversation(
-            conversation = conversation
+            conversation =
+                conversation.copy(
+                    syncStatus =
+                        SyncStatusEntity.LOCAL_ONLY,
+                    remoteVersion =
+                        null,
+                    lastSyncedAt =
+                        null,
+                    isDeleted =
+                        false,
+                    deletedAt =
+                        null
+                )
         )
+
+        syncScheduler.requestImmediateSync()
     }
 
     suspend fun saveMessage(
         message: MessageEntity
     ) {
+        val updatedAt =
+            message.updatedAt.coerceAtLeast(
+                message.createdAt
+            )
+
         database.withTransaction {
             messageDao.upsertMessage(
-                message = message
+                message =
+                    message.copy(
+                        updatedAt =
+                            updatedAt,
+                        syncStatus =
+                            SyncStatusEntity.LOCAL_ONLY,
+                        isDeleted =
+                            false,
+                        deletedAt =
+                            null
+                    )
             )
 
             conversationDao
@@ -65,11 +105,13 @@ class ChatLocalDataSource @Inject constructor(
                     previewText =
                         message.content,
                     updatedAt =
-                        message.createdAt,
+                        updatedAt,
                     syncStatus =
-                        SyncStatusEntity.LOCAL_ONLY
+                        SyncStatusEntity.PENDING_UPLOAD
                 )
         }
+
+        syncScheduler.requestImmediateSync()
     }
 
     suspend fun getOpenConversationForDay(
@@ -84,18 +126,41 @@ class ChatLocalDataSource @Inject constructor(
     suspend fun getNextSequenceNumber(
         conversationId: String
     ): Long {
-        return messageDao.getLastSequenceNumber(
-            conversationId = conversationId
-        ) + 1L
+        return messageDao
+            .getLastSequenceNumber(
+                conversationId =
+                    conversationId
+            ) + 1L
     }
 
     suspend fun deleteConversation(
-        conversationId: String
-    ) {
-        conversationDao
-            .deleteConversationPermanently(
-                conversationId = conversationId
-            )
+        conversationId: String,
+        deletedAt: Long
+    ): Boolean {
+        val conversationDeleted =
+            database.withTransaction {
+                messageDao
+                    .markMessagesDeletedForConversation(
+                        conversationId =
+                            conversationId,
+                        deletedAt =
+                            deletedAt
+                    )
+
+                conversationDao
+                    .markConversationDeleted(
+                        conversationId =
+                            conversationId,
+                        deletedAt =
+                            deletedAt
+                    ) > 0
+            }
+
+        if (conversationDeleted) {
+            syncScheduler.requestImmediateSync()
+        }
+
+        return conversationDeleted
     }
 
     suspend fun updateGeneratedConversationTitle(
@@ -114,22 +179,43 @@ class ChatLocalDataSource @Inject constructor(
                 updatedAt =
                     updatedAt,
                 syncStatus =
-                    SyncStatusEntity.LOCAL_ONLY
+                    SyncStatusEntity.PENDING_UPLOAD
             )
 
-        return updatedRows > 0
+        val wasUpdated =
+            updatedRows > 0
+
+        if (wasUpdated) {
+            syncScheduler.requestImmediateSync()
+        }
+
+        return wasUpdated
     }
 
     suspend fun updateMessageCorrection(
         messageId: String,
-        correction: String?
+        correction: String?,
+        updatedAt: Long
     ): Boolean {
         val updatedRows =
             messageDao.updateMessageCorrection(
-                messageId = messageId,
-                correction = correction,
+                messageId =
+                    messageId,
+                correction =
+                    correction,
+                updatedAt =
+                    updatedAt,
+                syncStatus =
+                    SyncStatusEntity.PENDING_UPLOAD
             )
 
-        return updatedRows > 0
+        val wasUpdated =
+            updatedRows > 0
+
+        if (wasUpdated) {
+            syncScheduler.requestImmediateSync()
+        }
+
+        return wasUpdated
     }
 }

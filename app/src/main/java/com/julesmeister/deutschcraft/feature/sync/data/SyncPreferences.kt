@@ -1,57 +1,167 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/sync/data/SyncPreferences.kt
+
 package com.julesmeister.deutschcraft.feature.sync.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
-import kotlinx.coroutines.flow.map
+import com.julesmeister.deutschcraft.core.di.SyncDataStore
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 @Singleton
 class SyncPreferences
 @Inject constructor(
-    private val dataStore: DataStore<Preferences>
+    @SyncDataStore
+    private val dataStore:
+    DataStore<Preferences>
 ) {
 
-    companion object {
-        private val NEXT_CURSOR_KEY =
-            longPreferencesKey("sync_next_cursor")
+    fun nextCursor(
+        userId: String
+    ) =
+        dataStore.data.map { preferences ->
+            preferences[
+                cursorKey(
+                    userId = userId
+                )
+            ] ?: 0L
+        }
 
-        private val LAST_SYNC_TIMESTAMP_KEY =
-            longPreferencesKey("sync_last_sync_timestamp")
+    fun lastSyncTimestamp(
+        userId: String
+    ) =
+        dataStore.data.map { preferences ->
+            preferences[
+                lastSyncKey(
+                    userId = userId
+                )
+            ] ?: 0L
+        }
+
+    suspend fun getNextCursor(
+        userId: String
+    ): Long {
+        return nextCursor(
+            userId = userId
+        ).first()
     }
 
-    val nextCursor =
-        dataStore.data.map { prefs ->
-            prefs[NEXT_CURSOR_KEY] ?: 0L
-        }
-
-    val lastSyncTimestamp =
-        dataStore.data.map { prefs ->
-            prefs[LAST_SYNC_TIMESTAMP_KEY] ?: 0L
-        }
+    suspend fun getLastSyncTimestamp(
+        userId: String
+    ): Long {
+        return lastSyncTimestamp(
+            userId = userId
+        ).first()
+    }
 
     suspend fun updateNextCursor(
+        userId: String,
         cursor: Long
     ) {
-        dataStore.edit { prefs ->
-            prefs[NEXT_CURSOR_KEY] = cursor
+        require(
+            userId.isNotBlank()
+        ) {
+            "Sync user ID cannot be blank."
+        }
+
+        dataStore.edit { preferences ->
+            preferences[
+                cursorKey(
+                    userId = userId
+                )
+            ] =
+                cursor.coerceAtLeast(
+                    0L
+                )
         }
     }
 
     suspend fun updateLastSyncTimestamp(
+        userId: String,
         timestamp: Long
     ) {
-        dataStore.edit { prefs ->
-            prefs[LAST_SYNC_TIMESTAMP_KEY] = timestamp
+        require(
+            userId.isNotBlank()
+        ) {
+            "Sync user ID cannot be blank."
+        }
+
+        dataStore.edit { preferences ->
+            preferences[
+                lastSyncKey(
+                    userId = userId
+                )
+            ] =
+                timestamp.coerceAtLeast(
+                    0L
+                )
         }
     }
 
-    suspend fun clearSyncState() {
-        dataStore.edit { prefs ->
-            prefs.remove(NEXT_CURSOR_KEY)
-            prefs.remove(LAST_SYNC_TIMESTAMP_KEY)
+    suspend fun clearSyncState(
+        userId: String
+    ) {
+        if (userId.isBlank()) {
+            return
         }
+
+        dataStore.edit { preferences ->
+            preferences.remove(
+                cursorKey(
+                    userId = userId
+                )
+            )
+
+            preferences.remove(
+                lastSyncKey(
+                    userId = userId
+                )
+            )
+        }
+    }
+
+    private fun cursorKey(
+        userId: String
+    ): Preferences.Key<Long> {
+        return longPreferencesKey(
+            CURSOR_KEY_PREFIX +
+                    userId.toPreferenceKeyPart()
+        )
+    }
+
+    private fun lastSyncKey(
+        userId: String
+    ): Preferences.Key<Long> {
+        return longPreferencesKey(
+            LAST_SYNC_KEY_PREFIX +
+                    userId.toPreferenceKeyPart()
+        )
+    }
+
+    private fun String.toPreferenceKeyPart():
+            String {
+        return trim()
+            .replace(
+                NON_KEY_CHARACTER_REGEX,
+                "_"
+            )
+    }
+
+    private companion object {
+
+        const val CURSOR_KEY_PREFIX =
+            "sync_cursor_"
+
+        const val LAST_SYNC_KEY_PREFIX =
+            "sync_last_sync_"
+
+        val NON_KEY_CHARACTER_REGEX =
+            Regex(
+                "[^A-Za-z0-9._-]"
+            )
     }
 }

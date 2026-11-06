@@ -20,6 +20,7 @@ import com.julesmeister.deutschcraft.core.database.dao.MissionInteractionEvidenc
 import com.julesmeister.deutschcraft.core.database.dao.MissionObjectiveHintUsageDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionThreadRecommendationDao
 import com.julesmeister.deutschcraft.core.database.migration.DatabaseMigrations
+import com.julesmeister.deutschcraft.core.database.migration.SyncDatabaseMigration
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -39,14 +40,14 @@ object DatabaseModule {
         @ApplicationContext
         context: Context
     ): DeutschCraftDatabase {
-
         return Room.databaseBuilder(
             context,
             DeutschCraftDatabase::class.java,
             DATABASE_NAME
         )
             .addMigrations(
-                *DatabaseMigrations.ALL
+                *DatabaseMigrations.ALL,
+                SyncDatabaseMigration.MIGRATION_19_20
             )
             .build()
     }
@@ -56,7 +57,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): ConversationDao {
-
         return database.conversationDao()
     }
 
@@ -65,7 +65,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): MessageDao {
-
         return database.messageDao()
     }
 
@@ -74,7 +73,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): LearnerProfileDao {
-
         return database.learnerProfileDao()
     }
 
@@ -83,7 +81,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): AssessmentDao {
-
         return database.assessmentDao()
     }
 
@@ -92,7 +89,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): ActivityDayDao {
-
         return database.activityDayDao()
     }
 
@@ -101,7 +97,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): MissionDao {
-
         return database.missionDao()
     }
 
@@ -110,7 +105,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): MissionThreadRecommendationDao {
-
         return database
             .missionThreadRecommendationDao()
     }
@@ -120,7 +114,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): MissionAnalyticsDao {
-
         return database.missionAnalyticsDao()
     }
 
@@ -129,7 +122,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): MissionObjectiveHintUsageDao {
-
         return database
             .missionObjectiveHintUsageDao()
     }
@@ -139,7 +131,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): MissionInteractionEvidenceDao {
-
         return database
             .missionInteractionEvidenceDao()
     }
@@ -149,7 +140,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): MissionCapabilityEvidenceDao {
-
         return database
             .missionCapabilityEvidenceDao()
     }
@@ -159,7 +149,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): AdaptiveLearningDao {
-
         return database.adaptiveLearningDao()
     }
 
@@ -168,7 +157,6 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): AdaptiveLearningMistakeDao {
-
         return database
             .adaptiveLearningMistakeDao()
     }
@@ -178,18 +166,8 @@ object DatabaseModule {
         database:
         DeutschCraftDatabase
     ): MarkedPhraseDao {
-
         return database.markedPhraseDao()
     }
-
-    /*
-     * CapabilityDao and BesserChallengeDao are intentionally
-     * NOT provided here.
-     *
-     * BesserPersistenceModule already owns those two bindings.
-     * Providing them again in DatabaseModule creates Dagger /
-     * Hilt DuplicateBindings errors.
-     */
 
     private const val DATABASE_NAME =
         "deutschcraft.db"

@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <uses-permission
+        android:name="android.permission.INTERNET" />
+
+    <uses-permission
+        android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <uses-permission
+        android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <uses-permission
+        android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".DeutschCraftApplication"
@@ -16,6 +25,29 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.DeutschCraft">
+
+        <!--
+             DeutschCraft supplies its own WorkManager Configuration
+             through DeutschCraftApplication.
+
+             Remove only WorkManager's automatic App Startup
+             initializer so HiltWorkerFactory is used to construct
+             @HiltWorker classes.
+
+             Other AndroidX Startup initializers remain available.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -23,40 +55,51 @@
             android:launchMode="singleTask"
             android:theme="@style/Theme.DeutschCraft"
             android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
 
-                <category android:name="android.intent.category.LAUNCHER" />
+            <intent-filter>
+                <action
+                    android:name="android.intent.action.MAIN" />
+
+                <category
+                    android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Cognito hosted OAuth (Google) returns here. -->
+            <!-- Google/Cognito OAuth callback. -->
             <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
+                <action
+                    android:name="android.intent.action.VIEW" />
 
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
+                <category
+                    android:name="android.intent.category.DEFAULT" />
+
+                <category
+                    android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="auth"
                     android:scheme="deutschcraft"
-                    android:path="/callback"
-                    />
+                    android:host="auth"
+                    android:path="/callback" />
             </intent-filter>
 
-            <!-- Cognito /logout returns here after clearing the hosted-UI session. -->
+            <!-- Cognito browser logout callback. -->
             <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
+                <action
+                    android:name="android.intent.action.VIEW" />
 
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
+                <category
+                    android:name="android.intent.category.DEFAULT" />
+
+                <category
+                    android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="auth"
                     android:scheme="deutschcraft"
-                    android:path="/signout"
-                    />
+                    android:host="auth"
+                    android:path="/signout" />
             </intent-filter>
+
         </activity>
+
     </application>
 
 </manifest>

@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/core/database/entity/ConversationEntity.kt
+
 package com.julesmeister.deutschcraft.core.database.entity
 
 import androidx.room.Entity
@@ -12,6 +14,7 @@ import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
         Index(value = ["updatedAt"]),
         Index(value = ["isClosed"]),
         Index(value = ["isArchived"]),
+        Index(value = ["isDeleted"]),
         Index(value = ["syncStatus"])
     ]
 )
@@ -21,30 +24,20 @@ data class ConversationEntity(
 
     val title: String,
 
-    val titleSource: ConversationTitleSource,
+    val titleSource:
+    ConversationTitleSource,
 
-    val cefrLevel: CefrLevel,
+    val cefrLevel:
+    CefrLevel,
 
-    /**
-     * ISO local date such as "2026-10-24".
-     */
     val localDate: String,
 
-    /**
-     * LocalDate.toEpochDay(), used for daily
-     * conversation lookup and grouping.
-     */
     val epochDay: Long,
 
     val createdAt: Long,
 
     val updatedAt: Long,
 
-    /**
-     * Timestamp when this thread was closed.
-     *
-     * Null means that the thread is still open.
-     */
     val closedAt: Long?,
 
     val messageCount: Int,
@@ -55,9 +48,16 @@ data class ConversationEntity(
 
     val isArchived: Boolean,
 
-    val syncStatus: SyncStatusEntity,
+    val syncStatus:
+    SyncStatusEntity,
 
     val remoteVersion: Long?,
 
-    val lastSyncedAt: Long?
+    val lastSyncedAt: Long?,
+
+    val isDeleted: Boolean =
+        false,
+
+    val deletedAt: Long? =
+        null
 )

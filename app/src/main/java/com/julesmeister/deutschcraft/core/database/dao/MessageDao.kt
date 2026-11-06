@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/core/database/dao/MessageDao.kt
+
 package com.julesmeister.deutschcraft.core.database.dao
 
 import androidx.room.Dao
@@ -5,38 +7,30 @@ import androidx.room.Query
 import androidx.room.Upsert
 import com.julesmeister.deutschcraft.core.database.entity.MessageEntity
 import com.julesmeister.deutschcraft.core.database.entity.MessageSenderEntity
+import com.julesmeister.deutschcraft.core.database.entity.SyncStatusEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MessageDao {
 
-    /*
-     * Inserts or updates one message.
-     */
     @Upsert
     suspend fun upsertMessage(
         message:
         MessageEntity
     )
 
-    /*
-     * Inserts or updates multiple messages.
-     */
     @Upsert
     suspend fun upsertMessages(
         messages:
         List<MessageEntity>
     )
 
-    /*
-     * Observes the complete conversation in chronological
-     * order.
-     */
     @Query(
         """
         SELECT *
         FROM messages
         WHERE conversationId = :conversationId
+          AND isDeleted = 0
         ORDER BY sequenceNumber ASC
         """
     )
@@ -44,14 +38,12 @@ interface MessageDao {
         conversationId: String
     ): Flow<List<MessageEntity>>
 
-    /*
-     * Loads the complete conversation once.
-     */
     @Query(
         """
         SELECT *
         FROM messages
         WHERE conversationId = :conversationId
+          AND isDeleted = 0
         ORDER BY sequenceNumber ASC
         """
     )
@@ -59,15 +51,12 @@ interface MessageDao {
         conversationId: String
     ): List<MessageEntity>
 
-    /*
-     * Returns every message created during a specific time
-     * window.
-     */
     @Query(
         """
         SELECT *
         FROM messages
         WHERE conversationId = :conversationId
+          AND isDeleted = 0
           AND createdAt >= :startedAt
           AND createdAt <= :completedAt
         ORDER BY sequenceNumber ASC
@@ -79,16 +68,13 @@ interface MessageDao {
         completedAt: Long
     ): List<MessageEntity>
 
-    /*
-     * Returns messages from one sender during a given time
-     * window.
-     */
     @Query(
         """
         SELECT *
         FROM messages
         WHERE conversationId = :conversationId
           AND sender = :sender
+          AND isDeleted = 0
           AND createdAt >= :startedAt
           AND createdAt <= :completedAt
         ORDER BY sequenceNumber ASC
@@ -96,14 +82,25 @@ interface MessageDao {
     )
     suspend fun getMessagesForSenderInWindow(
         conversationId: String,
-        sender: MessageSenderEntity,
+        sender:
+        MessageSenderEntity,
         startedAt: Long,
         completedAt: Long
     ): List<MessageEntity>
 
-    /*
-     * Loads one message by its primary key.
-     */
+    @Query(
+        """
+        SELECT *
+        FROM messages
+        WHERE id = :messageId
+          AND isDeleted = 0
+        LIMIT 1
+        """
+    )
+    suspend fun getMessage(
+        messageId: String
+    ): MessageEntity?
+
     @Query(
         """
         SELECT *
@@ -112,14 +109,10 @@ interface MessageDao {
         LIMIT 1
         """
     )
-    suspend fun getMessage(
+    suspend fun getMessageIncludingDeleted(
         messageId: String
     ): MessageEntity?
 
-    /*
-     * Returns the largest persisted sequence number for one
-     * conversation.
-     */
     @Query(
         """
         SELECT COALESCE(
@@ -128,32 +121,154 @@ interface MessageDao {
         )
         FROM messages
         WHERE conversationId = :conversationId
+          AND isDeleted = 0
         """
     )
     suspend fun getLastSequenceNumber(
         conversationId: String
     ): Long
 
-    /*
-     * Returns local messages waiting for synchronization.
-     */
     @Query(
         """
         SELECT *
         FROM messages
         WHERE syncStatus IN (
+            'LOCAL_ONLY',
             'PENDING_UPLOAD',
             'PENDING_DELETE'
         )
-        ORDER BY createdAt ASC
+        ORDER BY updatedAt ASC
         """
     )
     suspend fun getPendingSyncMessages():
             List<MessageEntity>
 
-    /*
-     * Permanently deletes one message.
-     */
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM messages
+        WHERE syncStatus IN (
+            'LOCAL_ONLY',
+            'PENDING_UPLOAD',
+            'PENDING_DELETE'
+        )
+        """
+    )
+    suspend fun countPendingSyncMessages():
+            Int
+
+    @Query(
+        """
+        UPDATE messages
+        SET
+            correction = :correction,
+            updatedAt = :updatedAt,
+            syncStatus = :syncStatus
+        WHERE id = :messageId
+          AND isDeleted = 0
+        """
+    )
+    suspend fun updateMessageCorrection(
+        messageId: String,
+        correction: String?,
+        updatedAt: Long,
+        syncStatus:
+        SyncStatusEntity
+    ): Int
+
+    @Query(
+        """
+        UPDATE messages
+        SET
+            content = :refinedContent,
+            correction = NULL,
+            updatedAt = :updatedAt,
+            syncStatus = :syncStatus
+        WHERE id = :messageId
+          AND sender = 'USER'
+          AND isDeleted = 0
+        """
+    )
+    suspend fun replaceLearnerMessageContent(
+        messageId: String,
+        refinedContent: String,
+        updatedAt: Long,
+        syncStatus:
+        SyncStatusEntity
+    ): Int
+
+    @Query(
+        """
+        UPDATE messages
+        SET
+            isDeleted = 1,
+            deletedAt = :deletedAt,
+            updatedAt = :deletedAt,
+            syncStatus = 'PENDING_DELETE'
+        WHERE id = :messageId
+          AND isDeleted = 0
+        """
+    )
+    suspend fun markMessageDeleted(
+        messageId: String,
+        deletedAt: Long
+    ): Int
+
+    @Query(
+        """
+        UPDATE messages
+        SET
+            isDeleted = 1,
+            deletedAt = :deletedAt,
+            updatedAt = :deletedAt,
+            syncStatus = 'PENDING_DELETE'
+        WHERE conversationId = :conversationId
+          AND isDeleted = 0
+        """
+    )
+    suspend fun markMessagesDeletedForConversation(
+        conversationId: String,
+        deletedAt: Long
+    ): Int
+
+    @Query(
+        """
+        UPDATE messages
+        SET
+            syncStatus = 'PENDING_UPLOAD',
+            updatedAt = :updatedAt
+        WHERE id = :messageId
+          AND isDeleted = 0
+        """
+    )
+    suspend fun markMessagePendingUpload(
+        messageId: String,
+        updatedAt: Long
+    ): Int
+
+    @Query(
+        """
+        UPDATE messages
+        SET
+            syncStatus = 'SYNCED',
+            remoteVersion = :remoteVersion,
+            lastSyncedAt = :lastSyncedAt
+        WHERE id = :messageId
+          AND updatedAt = :expectedUpdatedAt
+          AND syncStatus IN (
+              'LOCAL_ONLY',
+              'PENDING_UPLOAD',
+              'PENDING_DELETE'
+          )
+        """
+    )
+    suspend fun markMessageSynced(
+        messageId: String,
+        expectedUpdatedAt: Long,
+        remoteVersion: Long,
+        lastSyncedAt: Long
+    ): Int
+
     @Query(
         """
         DELETE FROM messages
@@ -164,55 +279,6 @@ interface MessageDao {
         messageId: String
     )
 
-    /*
-     * Updates the automatic correction attached to a learner
-     * message.
-     *
-     * null means that no meaningful correction is currently
-     * attached.
-     */
-    @Query(
-        """
-        UPDATE messages
-        SET correction = :correction
-        WHERE id = :messageId
-        """
-    )
-    suspend fun updateMessageCorrection(
-        messageId: String,
-        correction: String?
-    ): Int
-
-    /*
-     * Replaces the source learner message with the sentence
-     * written during a completed Besser refinement.
-     *
-     * The old automatic correction is cleared because it was
-     * generated for the previous message content and is now
-     * stale.
-     *
-     * The sender condition protects against accidentally
-     * rewriting an assistant message if malformed challenge
-     * data ever reaches this operation.
-     */
-    @Query(
-        """
-        UPDATE messages
-        SET
-            content = :refinedContent,
-            correction = NULL
-        WHERE id = :messageId
-          AND sender = 'USER'
-        """
-    )
-    suspend fun replaceLearnerMessageContent(
-        messageId: String,
-        refinedContent: String
-    ): Int
-
-    /*
-     * Deletes every message belonging to one conversation.
-     */
     @Query(
         """
         DELETE FROM messages
@@ -223,9 +289,19 @@ interface MessageDao {
         conversationId: String
     )
 
-    /*
-     * Deletes every message in the database.
-     */
+    @Query(
+        """
+        DELETE FROM messages
+        WHERE isDeleted = 1
+          AND syncStatus = 'SYNCED'
+          AND lastSyncedAt IS NOT NULL
+          AND lastSyncedAt <= :syncedBefore
+        """
+    )
+    suspend fun purgeSyncedMessageTombstones(
+        syncedBefore: Long
+    ): Int
+
     @Query(
         """
         DELETE FROM messages
@@ -233,16 +309,12 @@ interface MessageDao {
     )
     suspend fun deleteAllMessages()
 
-    /*
-     * Observes the latest messages for one conversation.
-     *
-     * Results are newest-first.
-     */
     @Query(
         """
         SELECT *
         FROM messages
         WHERE conversationId = :conversationId
+          AND isDeleted = 0
         ORDER BY sequenceNumber DESC
         LIMIT :messageLimit
         """

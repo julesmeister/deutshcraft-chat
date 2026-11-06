@@ -31,7 +31,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.julesmeister.deutschcraft.feature.threads.domain.ConversationThread
+import com.julesmeister.deutschcraft.feature.threads.presentation.theme.ThreadDesignTokens
 import com.julesmeister.deutschcraft.ui.theme.DeutschTextOnLime
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -49,7 +51,7 @@ fun ThreadRow(
         rememberSwipeToDismissBoxState(
             positionalThreshold = { totalDistance ->
                 totalDistance *
-                        SWIPE_THRESHOLD_FRACTION
+                        ThreadDesignTokens.ThreadRowSwipeThresholdFraction
             },
             confirmValueChange = { newValue ->
                 if (
@@ -126,18 +128,18 @@ private fun SwipeActionBackground(
                 .background(
                     accentColor.copy(
                         alpha =
-                            SWIPE_BACKGROUND_BASE_ALPHA +
+                            ThreadDesignTokens.ThreadRowSwipeBackgroundBaseAlpha +
                                     progress
                                         .coerceIn(
                                             0f,
                                             1f
                                         ) *
-                                    SWIPE_BACKGROUND_PROGRESS_ALPHA
+                                    ThreadDesignTokens.ThreadRowSwipeBackgroundProgressAlpha
                     )
                 )
                 .padding(
                     end =
-                        SWIPE_ACTION_END_PADDING
+                        ThreadDesignTokens.ThreadRowSwipeActionEndPadding
                 ),
         contentAlignment =
             Alignment.CenterEnd
@@ -146,7 +148,7 @@ private fun SwipeActionBackground(
             modifier =
                 Modifier
                     .size(
-                        SWIPE_ACTION_SIZE
+                        ThreadDesignTokens.ThreadRowSwipeActionSize
                     )
                     .graphicsLayer {
                         scaleX =
@@ -167,7 +169,7 @@ private fun SwipeActionBackground(
             Icon(
                 modifier =
                     Modifier.size(
-                        SWIPE_ACTION_ICON_SIZE
+                        ThreadDesignTokens.ThreadRowSwipeActionIconSize
                     ),
                 imageVector =
                     Icons
@@ -208,13 +210,13 @@ private fun ThreadRowContent(
                 )
                 .padding(
                     start =
-                        THREAD_ROW_HORIZONTAL_PADDING,
+                        ThreadDesignTokens.ThreadRowHorizontalPadding,
                     top =
-                        THREAD_ROW_VERTICAL_PADDING,
+                        ThreadDesignTokens.ThreadRowVerticalPadding,
                     end =
-                        THREAD_ROW_HORIZONTAL_PADDING,
+                        ThreadDesignTokens.ThreadRowHorizontalPadding,
                     bottom =
-                        THREAD_ROW_VERTICAL_PADDING
+                        ThreadDesignTokens.ThreadRowVerticalPadding
                 ),
         verticalAlignment =
             Alignment.CenterVertically
@@ -230,7 +232,7 @@ private fun ThreadRowContent(
                     .weight(1f)
                     .padding(
                         start =
-                            THREAD_CONTENT_START_PADDING
+                            ThreadDesignTokens.ThreadRowContentStartPadding
                     )
         ) {
             Row(
@@ -249,7 +251,9 @@ private fun ThreadRowContent(
                     style =
                         MaterialTheme
                             .typography
-                            .titleMedium,
+                            .titleMedium.copy(
+                            lineHeight = ThreadDesignTokens.ThreadRowTextLineHeight
+                        ),
                     fontWeight =
                         FontWeight.SemiBold,
                     maxLines =
@@ -283,7 +287,7 @@ private fun ThreadRowContent(
                 modifier =
                     Modifier.padding(
                         top =
-                            THREAD_PREVIEW_TOP_PADDING
+                            ThreadDesignTokens.ThreadRowPreviewTopPadding
                     ),
                 text =
                     thread.displayPreview,
@@ -294,7 +298,9 @@ private fun ThreadRowContent(
                 style =
                     MaterialTheme
                         .typography
-                        .titleMedium,
+                        .titleMedium.copy(
+                            lineHeight = ThreadDesignTokens.ThreadRowTextLineHeight
+                        ),
                 maxLines =
                     1,
                 overflow =
@@ -317,7 +323,7 @@ private fun ThreadLevelAvatar(
         modifier =
             Modifier
                 .size(
-                    THREAD_AVATAR_SIZE
+                    ThreadDesignTokens.ThreadRowAvatarSize
                 )
                 .clip(
                     CircleShape
@@ -325,7 +331,7 @@ private fun ThreadLevelAvatar(
                 .background(
                     accentColor.copy(
                         alpha =
-                            THREAD_AVATAR_BACKGROUND_ALPHA
+                            ThreadDesignTokens.ThreadRowAvatarBackgroundAlpha
                     )
                 ),
         contentAlignment =
@@ -356,39 +362,3 @@ private fun formatThreadTime(
         Date(timestamp)
     )
 }
-
-private const val SWIPE_THRESHOLD_FRACTION =
-    0.35f
-
-private const val SWIPE_BACKGROUND_BASE_ALPHA =
-    0.14f
-
-private const val SWIPE_BACKGROUND_PROGRESS_ALPHA =
-    0.18f
-
-private const val THREAD_AVATAR_BACKGROUND_ALPHA =
-    0.14f
-
-private val SWIPE_ACTION_END_PADDING =
-    22.dp
-
-private val SWIPE_ACTION_SIZE =
-    44.dp
-
-private val SWIPE_ACTION_ICON_SIZE =
-    22.dp
-
-private val THREAD_ROW_HORIZONTAL_PADDING =
-    16.dp
-
-private val THREAD_ROW_VERTICAL_PADDING =
-    12.dp
-
-private val THREAD_CONTENT_START_PADDING =
-    12.dp
-
-private val THREAD_PREVIEW_TOP_PADDING =
-    4.dp
-
-private val THREAD_AVATAR_SIZE =
-    48.dp

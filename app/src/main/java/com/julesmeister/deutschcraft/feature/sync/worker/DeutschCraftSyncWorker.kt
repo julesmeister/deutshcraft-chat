@@ -1,110 +1,103 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/sync/worker/DeutschCraftSyncWorker.kt
+
 package com.julesmeister.deutschcraft.feature.sync.worker
 
 import android.content.Context
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.julesmeister.deutschcraft.feature.sync.domain.SyncError
 import com.julesmeister.deutschcraft.feature.sync.domain.SyncRepository
 import com.julesmeister.deutschcraft.feature.sync.domain.SyncResult
-import java.util.concurrent.TimeUnit
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
 
-class DeutschCraftSyncWorker(
+@HiltWorker
+class DeutschCraftSyncWorker
+@AssistedInject constructor(
+    @Assisted
     context: Context,
-    params: WorkerParameters,
-    private val syncRepository: SyncRepository
-) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result {
+    @Assisted
+    workerParameters:
+    WorkerParameters,
+
+    private val syncRepository:
+    SyncRepository
+) : CoroutineWorker(
+    context,
+    workerParameters
+) {
+
+    override suspend fun doWork():
+            Result {
         return try {
-            val result =
-                syncRepository.syncNow()
+            when (
+                val syncResult =
+                    syncRepository.syncNow()
+            ) {
+                is SyncResult.Success -> {
+                    Result.success()
+                }
 
-            when (result) {
-                is SyncResult.Success -> Result.success()
                 is SyncResult.Failure -> {
-                    Result.retry()
+                    syncResult.error
+                        .toWorkerResult()
                 }
             }
-        } catch (cancellation: CancellationException) {
+        } catch (
+            cancellation:
+            CancellationException
+        ) {
             throw cancellation
-        } catch (throwable: Throwable) {
+        } catch (
+            throwable:
+            Throwable
+        ) {
             Result.retry()
         }
     }
 
-    companion object {
+    private fun SyncError.toWorkerResult():
+            Result {
+        return when (this) {
+            SyncError.NotAuthenticated -> {
+                Result.success()
+            }
 
-        private const val PERIODIC_SYNC_TAG =
-            "deutschcraft-periodic-sync"
+            SyncError.NetworkUnavailable -> {
+                Result.retry()
+            }
 
-        private const val MIN_BACKOFF_MILLIS = 15000L
+            is SyncError.ServerError -> {
+                if (
+                    code in
+                    RETRYABLE_HTTP_STATUS_CODES
+                ) {
+                    Result.retry()
+                } else {
+                    Result.failure()
+                }
+            }
 
-        fun schedulePeriodic(
-            context: Context
-        ) {
-            val syncRequest =
-                PeriodicWorkRequestBuilder<DeutschCraftSyncWorker>(
-                    15,
-                    TimeUnit.MINUTES,
-                    MIN_BACKOFF_MILLIS,
-                    TimeUnit.MILLISECONDS
-                )
-                    .setConstraints(
-                        Constraints
-                            .Builder()
-                            .setRequiredNetworkType(
-                                NetworkType.CONNECTED
-                            )
-                            .build()
-                    )
-                    .addTag(PERIODIC_SYNC_TAG)
-                    .build()
-
-            WorkManager
-                .getInstance(context)
-                .enqueueUniquePeriodicWork(
-                    PERIODIC_SYNC_TAG,
-                    androidx.work.ExistingPeriodicWorkPolicy.KEEP,
-                    syncRequest
-                )
+            is SyncError.Unknown -> {
+                Result.retry()
+            }
         }
+    }
 
-        fun cancelPeriodic(
-            context: Context
-        ) {
-            WorkManager
-                .getInstance(context)
-                .cancelAllWorkByTag(PERIODIC_SYNC_TAG)
-        }
+    private companion object {
 
-        fun syncNow(
-            context: Context
-        ) {
-            val syncRequest =
-                OneTimeWorkRequestBuilder<DeutschCraftSyncWorker>()
-                    .setConstraints(
-                        Constraints
-                            .Builder()
-                            .setRequiredNetworkType(
-                                NetworkType.CONNECTED
-                            )
-                            .build()
-                    )
-                    .build()
-
-            WorkManager
-                .getInstance(context)
-                .enqueueUniqueWork(
-                    "deutschcraft-sync-now",
-                    androidx.work.ExistingWorkPolicy.KEEP,
-                    syncRequest
-                )
-        }
+        val RETRYABLE_HTTP_STATUS_CODES =
+            setOf(
+                408,
+                425,
+                429,
+                500,
+                502,
+                503,
+                504
+            )
     }
 }

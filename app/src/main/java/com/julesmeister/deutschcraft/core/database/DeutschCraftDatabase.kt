@@ -44,8 +44,8 @@ import com.julesmeister.deutschcraft.core.database.entity.mission.ConversationMi
 import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveProgressEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.MissionTemplateEntity
-import com.julesmeister.deutschcraft.core.database.entity.mission.recommendation.MissionThreadRecommendationEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.recommendation.MissionScenarioCompletionEntity
+import com.julesmeister.deutschcraft.core.database.entity.mission.recommendation.MissionThreadRecommendationEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.recommendation.MissionThreadRecommendationObjectiveEntity
 
 @Database(
@@ -84,7 +84,7 @@ import com.julesmeister.deutschcraft.core.database.entity.mission.recommendation
         BesserChallengeHintEntity::class,
         MissionCapabilityEvidenceEntity::class
     ],
-    version = 19,
+    version = 20,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(

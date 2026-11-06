@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/core/database/dao/ConversationDao.kt
+
 package com.julesmeister.deutschcraft.core.database.dao
 
 import androidx.room.Dao
@@ -11,52 +13,36 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ConversationDao {
 
-    /*
-     * Create or replace one conversation.
-     */
     @Upsert
     suspend fun upsertConversation(
-        conversation: ConversationEntity
+        conversation:
+        ConversationEntity
     )
 
-    /*
-     * Create or replace multiple conversations.
-     *
-     * This will become useful when cloud synchronization
-     * is added for subscribed users.
-     */
     @Upsert
     suspend fun upsertConversations(
-        conversations: List<ConversationEntity>
+        conversations:
+        List<ConversationEntity>
     )
 
-    /*
-     * Observe all visible conversation threads.
-     *
-     * Whenever a conversation is inserted, updated,
-     * archived, or deleted, Room emits a new list.
-     */
     @Query(
         """
         SELECT *
         FROM conversations
         WHERE isArchived = 0
+          AND isDeleted = 0
         ORDER BY updatedAt DESC
         """
     )
     fun observeActiveConversations():
             Flow<List<ConversationEntity>>
 
-    /*
-     * Observe all conversations belonging to one day.
-     *
-     * This can support date-grouped thread sections.
-     */
     @Query(
         """
         SELECT *
         FROM conversations
         WHERE isArchived = 0
+          AND isDeleted = 0
           AND epochDay = :epochDay
         ORDER BY updatedAt DESC
         """
@@ -65,9 +51,19 @@ interface ConversationDao {
         epochDay: Long
     ): Flow<List<ConversationEntity>>
 
-    /*
-     * Observe one conversation continuously.
-     */
+    @Query(
+        """
+        SELECT *
+        FROM conversations
+        WHERE id = :conversationId
+          AND isDeleted = 0
+        LIMIT 1
+        """
+    )
+    fun observeConversation(
+        conversationId: String
+    ): Flow<ConversationEntity?>
+
     @Query(
         """
         SELECT *
@@ -76,18 +72,16 @@ interface ConversationDao {
         LIMIT 1
         """
     )
-    fun observeConversation(
+    suspend fun getConversationIncludingDeleted(
         conversationId: String
-    ): Flow<ConversationEntity?>
+    ): ConversationEntity?
 
-    /*
-     * Retrieve one conversation once.
-     */
     @Query(
         """
         SELECT *
         FROM conversations
         WHERE id = :conversationId
+          AND isDeleted = 0
         LIMIT 1
         """
     )
@@ -97,37 +91,34 @@ interface ConversationDao {
 
     @Query(
         """
-    UPDATE conversations
-    SET
-        title = :title,
-        titleSource = :titleSource,
-        updatedAt = :updatedAt,
-        syncStatus = :syncStatus
-    WHERE id = :conversationId
-      AND titleSource = 'DEFAULT'
-    """
+        UPDATE conversations
+        SET
+            title = :title,
+            titleSource = :titleSource,
+            updatedAt = :updatedAt,
+            syncStatus = :syncStatus
+        WHERE id = :conversationId
+          AND titleSource = 'DEFAULT'
+          AND isDeleted = 0
+        """
     )
     suspend fun updateGeneratedTitle(
         conversationId: String,
         title: String,
-        titleSource: ConversationTitleSource,
+        titleSource:
+        ConversationTitleSource,
         updatedAt: Long,
-        syncStatus: SyncStatusEntity
+        syncStatus:
+        SyncStatusEntity
     ): Int
 
-    /*
-     * Retrieve the newest open conversation.
-     *
-     * This will help determine whether the current
-     * conversation can continue or whether a new daily
-     * conversation should be created.
-     */
     @Query(
         """
         SELECT *
         FROM conversations
         WHERE isArchived = 0
           AND isClosed = 0
+          AND isDeleted = 0
         ORDER BY updatedAt DESC
         LIMIT 1
         """
@@ -135,16 +126,13 @@ interface ConversationDao {
     suspend fun getLatestOpenConversation():
             ConversationEntity?
 
-    /*
-     * Retrieve the newest open conversation for a
-     * particular local calendar day.
-     */
     @Query(
         """
         SELECT *
         FROM conversations
         WHERE isArchived = 0
           AND isClosed = 0
+          AND isDeleted = 0
           AND epochDay = :epochDay
         ORDER BY updatedAt DESC
         LIMIT 1
@@ -154,13 +142,6 @@ interface ConversationDao {
         epochDay: Long
     ): ConversationEntity?
 
-    /*
-     * Update the thread metadata after a message
-     * has been inserted.
-     *
-     * The parameter name previewText must match
-     * the SQL bind variable :previewText.
-     */
     @Query(
         """
         UPDATE conversations
@@ -170,18 +151,17 @@ interface ConversationDao {
             messageCount = messageCount + 1,
             syncStatus = :syncStatus
         WHERE id = :conversationId
+          AND isDeleted = 0
         """
     )
     suspend fun updateConversationAfterMessage(
         conversationId: String,
         previewText: String,
         updatedAt: Long,
-        syncStatus: SyncStatusEntity
+        syncStatus:
+        SyncStatusEntity
     ): Int
 
-    /*
-     * Apply a locally generated or AI-generated title.
-     */
     @Query(
         """
         UPDATE conversations
@@ -191,22 +171,19 @@ interface ConversationDao {
             updatedAt = :updatedAt,
             syncStatus = :syncStatus
         WHERE id = :conversationId
+          AND isDeleted = 0
         """
     )
     suspend fun updateConversationTitle(
         conversationId: String,
         title: String,
-        titleSource: ConversationTitleSource,
+        titleSource:
+        ConversationTitleSource,
         updatedAt: Long,
-        syncStatus: SyncStatusEntity
+        syncStatus:
+        SyncStatusEntity
     ): Int
 
-    /*
-     * Close a daily conversation.
-     *
-     * Closed conversations remain visible in thread
-     * history but should no longer receive messages.
-     */
     @Query(
         """
         UPDATE conversations
@@ -216,18 +193,16 @@ interface ConversationDao {
             updatedAt = :closedAt,
             syncStatus = :syncStatus
         WHERE id = :conversationId
+          AND isDeleted = 0
         """
     )
     suspend fun closeConversation(
         conversationId: String,
         closedAt: Long,
-        syncStatus: SyncStatusEntity
+        syncStatus:
+        SyncStatusEntity
     ): Int
 
-    /*
-     * Archive a conversation without permanently
-     * deleting its messages.
-     */
     @Query(
         """
         UPDATE conversations
@@ -236,50 +211,52 @@ interface ConversationDao {
             updatedAt = :updatedAt,
             syncStatus = :syncStatus
         WHERE id = :conversationId
+          AND isDeleted = 0
         """
     )
     suspend fun archiveConversation(
         conversationId: String,
         updatedAt: Long,
-        syncStatus: SyncStatusEntity
+        syncStatus:
+        SyncStatusEntity
     ): Int
 
     @Query(
         """
-    SELECT *
-    FROM conversations
-    WHERE isArchived = 1
-    ORDER BY updatedAt DESC
-    """
+        SELECT *
+        FROM conversations
+        WHERE isArchived = 1
+          AND isDeleted = 0
+        ORDER BY updatedAt DESC
+        """
     )
     fun observeArchivedConversations():
             Flow<List<ConversationEntity>>
 
     @Query(
         """
-    UPDATE conversations
-    SET
-        isArchived = 0,
-        updatedAt = :updatedAt,
-        syncStatus = :syncStatus
-    WHERE id = :conversationId
-    """
+        UPDATE conversations
+        SET
+            isArchived = 0,
+            updatedAt = :updatedAt,
+            syncStatus = :syncStatus
+        WHERE id = :conversationId
+          AND isDeleted = 0
+        """
     )
     suspend fun restoreConversation(
         conversationId: String,
         updatedAt: Long,
-        syncStatus: SyncStatusEntity
+        syncStatus:
+        SyncStatusEntity
     ): Int
 
-    /*
-     * Retrieve conversations awaiting future cloud
-     * synchronization.
-     */
     @Query(
         """
         SELECT *
         FROM conversations
         WHERE syncStatus IN (
+            'LOCAL_ONLY',
             'PENDING_UPLOAD',
             'PENDING_DELETE'
         )
@@ -289,12 +266,81 @@ interface ConversationDao {
     suspend fun getPendingSyncConversations():
             List<ConversationEntity>
 
-    /*
-     * Permanently delete one conversation.
-     *
-     * Related messages should also be deleted if the
-     * MessageEntity foreign key uses CASCADE.
-     */
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM conversations
+        WHERE syncStatus IN (
+            'LOCAL_ONLY',
+            'PENDING_UPLOAD',
+            'PENDING_DELETE'
+        )
+        """
+    )
+    suspend fun countPendingSyncConversations():
+            Int
+
+    @Query(
+        """
+        UPDATE conversations
+        SET
+            isDeleted = 1,
+            deletedAt = :deletedAt,
+            isArchived = 1,
+            isClosed = 1,
+            closedAt = COALESCE(
+                closedAt,
+                :deletedAt
+            ),
+            updatedAt = :deletedAt,
+            syncStatus = 'PENDING_DELETE'
+        WHERE id = :conversationId
+          AND isDeleted = 0
+        """
+    )
+    suspend fun markConversationDeleted(
+        conversationId: String,
+        deletedAt: Long
+    ): Int
+
+    @Query(
+        """
+        UPDATE conversations
+        SET
+            syncStatus = 'SYNCED',
+            remoteVersion = :remoteVersion,
+            lastSyncedAt = :lastSyncedAt
+        WHERE id = :conversationId
+          AND updatedAt = :expectedUpdatedAt
+          AND syncStatus IN (
+              'LOCAL_ONLY',
+              'PENDING_UPLOAD',
+              'PENDING_DELETE'
+          )
+        """
+    )
+    suspend fun markConversationSynced(
+        conversationId: String,
+        expectedUpdatedAt: Long,
+        remoteVersion: Long,
+        lastSyncedAt: Long
+    ): Int
+
+    @Query(
+        """
+        UPDATE conversations
+        SET
+            syncStatus = 'PENDING_UPLOAD',
+            updatedAt = :updatedAt
+        WHERE id = :conversationId
+          AND isDeleted = 0
+        """
+    )
+    suspend fun markConversationPendingUpload(
+        conversationId: String,
+        updatedAt: Long
+    ): Int
+
     @Query(
         """
         DELETE FROM conversations
@@ -305,11 +351,23 @@ interface ConversationDao {
         conversationId: String
     ): Int
 
-    /*
-     * Development or account-deletion operation.
-     */
-    @Query("DELETE FROM conversations")
+    @Query(
+        """
+        DELETE FROM conversations
+        WHERE isDeleted = 1
+          AND syncStatus = 'SYNCED'
+          AND lastSyncedAt IS NOT NULL
+          AND lastSyncedAt <= :syncedBefore
+        """
+    )
+    suspend fun purgeSyncedConversationTombstones(
+        syncedBefore: Long
+    ): Int
+
+    @Query(
+        """
+        DELETE FROM conversations
+        """
+    )
     suspend fun deleteAllConversations()
-
-
 }

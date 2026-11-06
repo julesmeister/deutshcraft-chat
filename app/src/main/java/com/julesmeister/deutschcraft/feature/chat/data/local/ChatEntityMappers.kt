@@ -1,3 +1,5 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/chat/data/local/ChatEntityMappers.kt
+
 package com.julesmeister.deutschcraft.feature.chat.data.local
 
 import com.julesmeister.deutschcraft.core.database.entity.ConversationEntity
@@ -43,7 +45,9 @@ fun Conversation.toEntity(): ConversationEntity {
         isArchived = isArchived,
         syncStatus = SyncStatusEntity.LOCAL_ONLY,
         remoteVersion = null,
-        lastSyncedAt = null
+        lastSyncedAt = null,
+        isDeleted = false,
+        deletedAt = null
     )
 }
 
@@ -70,36 +74,25 @@ fun ChatMessage.toEntity(): MessageEntity {
         correction = correction,
         syncStatus = SyncStatusEntity.LOCAL_ONLY,
         remoteVersion = null,
-        lastSyncedAt = null
+        lastSyncedAt = null,
+        updatedAt = timestamp,
+        isDeleted = false,
+        deletedAt = null
     )
 }
 
-private fun MessageSenderEntity.toDomain():
-        MessageSender {
+private fun MessageSenderEntity.toDomain(): MessageSender {
     return when (this) {
-        MessageSenderEntity.USER -> {
-            MessageSender.USER
-        }
+        MessageSenderEntity.USER -> MessageSender.USER
 
         MessageSenderEntity.ASSISTANT,
-        MessageSenderEntity.SYSTEM -> {
-            MessageSender.ASSISTANT
-        }
+        MessageSenderEntity.SYSTEM -> MessageSender.ASSISTANT
     }
 }
 
-private fun MessageSender.toEntity():
-        MessageSenderEntity {
+private fun MessageSender.toEntity(): MessageSenderEntity {
     return when (this) {
-        MessageSender.USER -> {
-            MessageSenderEntity.USER
-        }
-
-        MessageSender.ASSISTANT -> {
-            MessageSenderEntity.ASSISTANT
-        }
+        MessageSender.USER -> MessageSenderEntity.USER
+        MessageSender.ASSISTANT -> MessageSenderEntity.ASSISTANT
     }
 }
-
-private const val DEFAULT_DELIVERY_STATUS =
-    "SENT"
