@@ -5,6 +5,7 @@ package com.julesmeister.deutschcraft.feature.mission.data
 import androidx.room.withTransaction
 import com.julesmeister.deutschcraft.core.database.DeutschCraftDatabase
 import com.julesmeister.deutschcraft.core.database.dao.MissionDao
+import com.julesmeister.deutschcraft.core.database.entity.SyncStatusEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.ConversationMissionEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveProgressEntity
@@ -13,9 +14,11 @@ import com.julesmeister.deutschcraft.feature.mission.data.local.toMissionObjecti
 import com.julesmeister.deutschcraft.feature.mission.data.mapper.toDomain
 import com.julesmeister.deutschcraft.feature.mission.domain.ConversationMission
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionObjective
+import com.julesmeister.deutschcraft.feature.mission.domain.MissionObjectiveProgress
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionStatus
 import com.julesmeister.deutschcraft.feature.mission.domain.MissionTemplate
 import com.julesmeister.deutschcraft.feature.mission.domain.repository.MissionRepository
+import com.julesmeister.deutschcraft.feature.sync.scheduling.SyncScheduler
 import java.time.Clock
 import java.util.UUID
 import javax.inject.Inject
@@ -38,12 +41,14 @@ class LocalFirstMissionRepository
     Clock,
 
     private val json:
-    Json
+    Json,
+
+    private val syncScheduler:
+    SyncScheduler
 ) : MissionRepository {
 
     override fun observeMissionCatalog():
             Flow<List<MissionTemplate>> {
-
         return missionDao
             .observeEnabledMissionTemplates()
             .map { templates ->
@@ -65,7 +70,6 @@ class LocalFirstMissionRepository
     override fun observeActiveMission(
         conversationId: String
     ): Flow<ConversationMission?> {
-
         return missionDao
             .observeActiveMission(
                 conversationId =
@@ -79,7 +83,6 @@ class LocalFirstMissionRepository
     override fun observeMissionHistory(
         conversationId: String
     ): Flow<List<ConversationMission>> {
-
         return missionDao
             .observeConversationMissionHistory(
                 conversationId =
@@ -94,7 +97,6 @@ class LocalFirstMissionRepository
 
     override fun observeCompletedMissions():
             Flow<List<ConversationMission>> {
-
         return missionDao
             .observeCompletedMissions()
             .map { missions ->
@@ -107,7 +109,6 @@ class LocalFirstMissionRepository
     override suspend fun getMissionTemplate(
         missionTemplateId: String
     ): MissionTemplate? {
-
         val template =
             missionDao.getMissionTemplate(
                 missionTemplateId =
@@ -130,7 +131,6 @@ class LocalFirstMissionRepository
     override suspend fun getConversationMission(
         conversationMissionId: String
     ): ConversationMission? {
-
         return missionDao
             .getConversationMission(
                 conversationMissionId =
@@ -149,7 +149,6 @@ class LocalFirstMissionRepository
             saveMissionTemplateInternal(
                 template =
                     template,
-
                 now =
                     now
             )
@@ -163,6 +162,17 @@ class LocalFirstMissionRepository
         targetCapabilityIds: Set<String>,
         adaptiveFocusKeys: Set<String>
     ): String {
+        require(
+            conversationId.isNotBlank()
+        ) {
+            "Conversation ID cannot be blank."
+        }
+
+        require(
+            missionTemplateId.isNotBlank()
+        ) {
+            "Mission template ID cannot be blank."
+        }
 
         val template =
             getMissionTemplate(
@@ -178,7 +188,9 @@ class LocalFirstMissionRepository
             clock.millis()
 
         val conversationMissionId =
-            UUID.randomUUID().toString()
+            UUID
+                .randomUUID()
+                .toString()
 
         database.withTransaction {
             missionDao.upsertConversationMission(
@@ -231,7 +243,22 @@ class LocalFirstMissionRepository
                             now,
 
                         updatedAt =
-                            now
+                            now,
+
+                        syncStatus =
+                            SyncStatusEntity.LOCAL_ONLY,
+
+                        remoteVersion =
+                            null,
+
+                        lastSyncedAt =
+                            null,
+
+                        isDeleted =
+                            false,
+
+                        deletedAt =
+                            null
                     )
             )
 
@@ -241,7 +268,6 @@ class LocalFirstMissionRepository
                         objective.toEmptyProgressEntity(
                             conversationMissionId =
                                 conversationMissionId,
-
                             updatedAt =
                                 now
                         )
@@ -249,12 +275,20 @@ class LocalFirstMissionRepository
             )
         }
 
+        syncScheduler.requestImmediateSync()
+
         return conversationMissionId
     }
 
     override suspend fun startMission(
         conversationMissionId: String
     ) {
+        require(
+            conversationMissionId.isNotBlank()
+        ) {
+            "Conversation mission ID cannot be blank."
+        }
+
         val now =
             clock.millis()
 
@@ -279,20 +313,20 @@ class LocalFirstMissionRepository
             "Mission could not be started: " +
                     conversationMissionId
         }
+
+        syncScheduler.requestImmediateSync()
     }
 
     override suspend fun replaceActiveMissionBranch(
         conversationMissionId: String,
         replacementTemplate: MissionTemplate
     ) {
-        /*
-         * Read the complete current mission before entering the
-         * transaction.
-         *
-         * At this point template may be a generated temporary
-         * branch. rootMissionTemplateId remains the permanent
-         * semantic anchor.
-         */
+        require(
+            conversationMissionId.isNotBlank()
+        ) {
+            "Conversation mission ID cannot be blank."
+        }
+
         val existingMission =
             getConversationMission(
                 conversationMissionId =
@@ -323,23 +357,10 @@ class LocalFirstMissionRepository
         val now =
             clock.millis()
 
-        /*
-         * The current ConversationMission keeps its ID and
-         * original root template.
-         *
-         * The new template contains:
-         *
-         * 1. cloned completed objectives
-         * 2. freshly generated objectives for the new branch
-         *
-         * Cloning completed objectives is necessary because
-         * objective rows belong to a specific template.
-         */
         val mergedTemplate =
             buildMergedBranchTemplate(
                 replacementTemplate =
                     replacementTemplate,
-
                 completedProgress =
                     completedProgress
             )
@@ -348,19 +369,10 @@ class LocalFirstMissionRepository
             saveMissionTemplateInternal(
                 template =
                     mergedTemplate,
-
                 now =
                     now
             )
 
-            /*
-             * Remove progress belonging to the previous current
-             * template.
-             *
-             * We immediately recreate completed progress against
-             * the cloned completed objectives and empty progress
-             * against the AI-generated branch objectives.
-             */
             missionDao.deleteObjectiveProgressForMission(
                 conversationMissionId =
                     conversationMissionId
@@ -413,7 +425,6 @@ class LocalFirstMissionRepository
                             objective.toEmptyProgressEntity(
                                 conversationMissionId =
                                     conversationMissionId,
-
                                 updatedAt =
                                     now
                             )
@@ -425,14 +436,6 @@ class LocalFirstMissionRepository
                     newProgress
             )
 
-            /*
-             * IMPORTANT:
-             *
-             * This is the renamed DAO method from the corrected
-             * MissionDao.
-             *
-             * Do not call updateActiveMissionTemplate().
-             */
             val changedRows =
                 missionDao.replaceActiveMissionTemplate(
                     conversationMissionId =
@@ -451,60 +454,32 @@ class LocalFirstMissionRepository
                 "The active mission branch could not be persisted."
             }
         }
+
+        syncScheduler.requestImmediateSync()
     }
 
     override suspend fun dismissMission(
         conversationMissionId: String
     ) {
-        val now =
-            clock.millis()
+        require(
+            conversationMissionId.isNotBlank()
+        ) {
+            "Conversation mission ID cannot be blank."
+        }
 
-        missionDao.updateMissionDismissalState(
-            conversationMissionId =
-                conversationMissionId,
-
-            status =
-                MissionStatus.DISMISSED.name,
-
-            dismissedAt =
-                now,
-
-            updatedAt =
-                now
-        )
-    }
-
-    override suspend fun completeObjective(
-        conversationMissionId: String,
-        objectiveId: String,
-        messageId: String,
-        confidence: Float
-    ) {
         val now =
             clock.millis()
 
         val changedRows =
-            missionDao.completeObjective(
+            missionDao.updateMissionDismissalState(
                 conversationMissionId =
                     conversationMissionId,
 
-                objectiveId =
-                    objectiveId,
+                status =
+                    MissionStatus.DISMISSED.name,
 
-                completedAt =
+                dismissedAt =
                     now,
-
-                messageId =
-                    messageId,
-
-                confidence =
-                    confidence.coerceIn(
-                        minimumValue =
-                            0f,
-
-                        maximumValue =
-                            1f
-                    ),
 
                 updatedAt =
                     now
@@ -513,63 +488,217 @@ class LocalFirstMissionRepository
         check(
             changedRows > 0
         ) {
-            "Mission objective could not be completed: " +
-                    objectiveId
+            "Mission could not be dismissed: " +
+                    conversationMissionId
         }
 
-        val remainingRequiredObjectives =
-            missionDao.countIncompleteRequiredObjectives(
-                conversationMissionId =
-                    conversationMissionId
-            )
+        syncScheduler.requestImmediateSync()
+    }
 
-        if (
-            remainingRequiredObjectives ==
-            0
+    override suspend fun completeObjective(
+        conversationMissionId: String,
+        objectiveId: String,
+        messageId: String,
+        confidence: Float
+    ) {
+        require(
+            conversationMissionId.isNotBlank()
         ) {
-            completeMission(
-                conversationMissionId =
-                    conversationMissionId
-            )
+            "Conversation mission ID cannot be blank."
         }
+
+        require(
+            objectiveId.isNotBlank()
+        ) {
+            "Mission objective ID cannot be blank."
+        }
+
+        require(
+            messageId.isNotBlank()
+        ) {
+            "Completion message ID cannot be blank."
+        }
+
+        val now =
+            clock.millis()
+
+        database.withTransaction {
+            val changedRows =
+                missionDao.completeObjective(
+                    conversationMissionId =
+                        conversationMissionId,
+
+                    objectiveId =
+                        objectiveId,
+
+                    completedAt =
+                        now,
+
+                    messageId =
+                        messageId,
+
+                    confidence =
+                        confidence.coerceIn(
+                            minimumValue =
+                                0f,
+                            maximumValue =
+                                1f
+                        ),
+
+                    updatedAt =
+                        now
+                )
+
+            check(
+                changedRows > 0
+            ) {
+                "Mission objective could not be completed: " +
+                        objectiveId
+            }
+
+            val pendingRows =
+                missionDao.markMissionPendingUpload(
+                    conversationMissionId =
+                        conversationMissionId,
+                    updatedAt =
+                        now
+                )
+
+            check(
+                pendingRows > 0
+            ) {
+                "Mission could not be marked for synchronization: " +
+                        conversationMissionId
+            }
+
+            val remainingRequiredObjectives =
+                missionDao
+                    .countIncompleteRequiredObjectives(
+                        conversationMissionId =
+                            conversationMissionId
+                    )
+
+            if (
+                remainingRequiredObjectives ==
+                0
+            ) {
+                val completedRows =
+                    missionDao
+                        .updateMissionCompletionState(
+                            conversationMissionId =
+                                conversationMissionId,
+
+                            status =
+                                MissionStatus.COMPLETED.name,
+
+                            completedAt =
+                                now,
+
+                            updatedAt =
+                                now
+                        )
+
+                check(
+                    completedRows > 0
+                ) {
+                    "Mission could not be completed: " +
+                            conversationMissionId
+                }
+
+                database
+                    .missionThreadRecommendationDao()
+                    .markCompletedByMissionId(
+                        conversationMissionId =
+                            conversationMissionId,
+                        completedAt =
+                            now
+                    )
+
+                database
+                    .missionThreadRecommendationDao()
+                    .recordCompletedScenarioTypes()
+            }
+        }
+
+        syncScheduler.requestImmediateSync()
     }
 
     override suspend fun completeMission(
         conversationMissionId: String
     ) {
+        require(
+            conversationMissionId.isNotBlank()
+        ) {
+            "Conversation mission ID cannot be blank."
+        }
+
         val now =
             clock.millis()
 
         database.withTransaction {
-            missionDao.updateMissionCompletionState(
-                conversationMissionId =
-                    conversationMissionId,
+            val changedRows =
+                missionDao
+                    .updateMissionCompletionState(
+                        conversationMissionId =
+                            conversationMissionId,
 
-                status =
-                    MissionStatus.COMPLETED.name,
+                        status =
+                            MissionStatus.COMPLETED.name,
 
-                completedAt =
-                    now,
+                        completedAt =
+                            now,
 
-                updatedAt =
-                    now
-            )
-            database.missionThreadRecommendationDao().markCompletedByMissionId(
-                conversationMissionId = conversationMissionId,
-                completedAt = now
-            )
-            // Retain only scenario identities, even if the learner deletes the thread.
-            database.missionThreadRecommendationDao().recordCompletedScenarioTypes()
+                        updatedAt =
+                            now
+                    )
+
+            check(
+                changedRows > 0
+            ) {
+                "Mission could not be completed: " +
+                        conversationMissionId
+            }
+
+            database
+                .missionThreadRecommendationDao()
+                .markCompletedByMissionId(
+                    conversationMissionId =
+                        conversationMissionId,
+                    completedAt =
+                        now
+                )
+
+            database
+                .missionThreadRecommendationDao()
+                .recordCompletedScenarioTypes()
         }
+
+        syncScheduler.requestImmediateSync()
     }
 
     override suspend fun deleteConversationMissions(
         conversationId: String
     ) {
-        missionDao.deleteConversationMissions(
-            conversationId =
-                conversationId
-        )
+        require(
+            conversationId.isNotBlank()
+        ) {
+            "Conversation ID cannot be blank."
+        }
+
+        val deletedAt =
+            clock.millis()
+
+        val changedRows =
+            missionDao.markConversationMissionsDeleted(
+                conversationId =
+                    conversationId,
+                deletedAt =
+                    deletedAt
+            )
+
+        if (changedRows > 0) {
+            syncScheduler.requestImmediateSync()
+        }
     }
 
     private suspend fun saveMissionTemplateInternal(
@@ -628,11 +757,12 @@ class LocalFirstMissionRepository
     }
 
     private fun buildMergedBranchTemplate(
-        replacementTemplate: MissionTemplate,
-        completedProgress:
-        List<com.julesmeister.deutschcraft.feature.mission.domain.MissionObjectiveProgress>
-    ): MissionTemplate {
+        replacementTemplate:
+        MissionTemplate,
 
+        completedProgress:
+        List<MissionObjectiveProgress>
+    ): MissionTemplate {
         val templateId =
             replacementTemplate.id
 
@@ -691,7 +821,6 @@ class LocalFirstMissionRepository
     private fun MissionObjective.toEntity(
         missionTemplateId: String
     ): MissionObjectiveEntity {
-
         return MissionObjectiveEntity(
             id =
                 id,
@@ -741,7 +870,6 @@ class LocalFirstMissionRepository
         conversationMissionId: String,
         updatedAt: Long
     ): MissionObjectiveProgressEntity {
-
         return MissionObjectiveProgressEntity(
             conversationMissionId =
                 conversationMissionId,
@@ -769,7 +897,6 @@ class LocalFirstMissionRepository
     private fun encodeStringSet(
         values: Set<String>
     ): String {
-
         return json.encodeToString(
             values
                 .asSequence()

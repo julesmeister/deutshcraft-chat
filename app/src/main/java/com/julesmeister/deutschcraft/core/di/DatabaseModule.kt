@@ -1,5 +1,3 @@
-// app/src/main/java/com/julesmeister/deutschcraft/core/di/DatabaseModule.kt
-
 package com.julesmeister.deutschcraft.core.di
 
 import android.content.Context
@@ -20,6 +18,7 @@ import com.julesmeister.deutschcraft.core.database.dao.MissionInteractionEvidenc
 import com.julesmeister.deutschcraft.core.database.dao.MissionObjectiveHintUsageDao
 import com.julesmeister.deutschcraft.core.database.dao.MissionThreadRecommendationDao
 import com.julesmeister.deutschcraft.core.database.migration.DatabaseMigrations
+import com.julesmeister.deutschcraft.core.database.migration.MissionSyncDatabaseMigration
 import com.julesmeister.deutschcraft.core.database.migration.SyncDatabaseMigration
 import dagger.Module
 import dagger.Provides
@@ -47,7 +46,8 @@ object DatabaseModule {
         )
             .addMigrations(
                 *DatabaseMigrations.ALL,
-                SyncDatabaseMigration.MIGRATION_19_20
+                SyncDatabaseMigration.MIGRATION_19_20,
+                MissionSyncDatabaseMigration.MIGRATION_20_21
             )
             .build()
     }

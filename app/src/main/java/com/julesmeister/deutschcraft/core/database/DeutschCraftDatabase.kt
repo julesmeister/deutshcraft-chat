@@ -1,5 +1,3 @@
-// app/src/main/java/com/julesmeister/deutschcraft/core/database/DeutschCraftDatabase.kt
-
 package com.julesmeister.deutschcraft.core.database
 
 import androidx.room.AutoMigration
@@ -84,7 +82,7 @@ import com.julesmeister.deutschcraft.core.database.entity.mission.recommendation
         BesserChallengeHintEntity::class,
         MissionCapabilityEvidenceEntity::class
     ],
-    version = 20,
+    version = 21,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(

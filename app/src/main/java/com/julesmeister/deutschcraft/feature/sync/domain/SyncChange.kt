@@ -1,3 +1,4 @@
+// app/src/main/java/com/julesmeister/deutschcraft/feature/sync/domain/SyncChange.kt
 
 package com.julesmeister.deutschcraft.feature.sync.domain
 
@@ -11,14 +12,16 @@ data class SyncChangeRequest(
     val entityId: String,
     val clientUpdatedAt: Long,
     val deleted: Boolean = false,
-    val payload: JsonObject = JsonObject(
-        emptyMap()
-    )
+    val payload: JsonObject =
+        JsonObject(
+            emptyMap()
+        )
 )
 
 @Serializable
 data class SyncUploadRequest(
-    val changes: List<SyncChangeRequest>
+    val changes:
+    List<SyncChangeRequest>
 )
 
 @Serializable
@@ -32,9 +35,10 @@ data class SyncChangeResponse(
     val entityKey: String,
     val entityType: String,
     val entityId: String,
-    val payload: JsonObject = JsonObject(
-        emptyMap()
-    ),
+    val payload: JsonObject =
+        JsonObject(
+            emptyMap()
+        ),
     val clientUpdatedAt: Long,
     val serverUpdatedAt: Long,
     val deleted: Boolean = false,
@@ -43,7 +47,8 @@ data class SyncChangeResponse(
 
 @Serializable
 data class SyncDownloadResponse(
-    val changes: List<SyncChangeResponse>,
+    val changes:
+    List<SyncChangeResponse>,
     val cursor: Long
 )
 
@@ -54,4 +59,7 @@ object SyncEntityType {
 
     const val MESSAGE =
         "MESSAGE"
+
+    const val CONVERSATION_MISSION =
+        "CONVERSATION_MISSION"
 }

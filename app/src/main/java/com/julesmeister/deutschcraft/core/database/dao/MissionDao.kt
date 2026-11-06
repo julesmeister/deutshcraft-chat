@@ -1,11 +1,10 @@
-// app/src/main/java/com/julesmeister/deutschcraft/core/database/dao/MissionDao.kt
-
 package com.julesmeister.deutschcraft.core.database.dao
 
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import com.julesmeister.deutschcraft.core.database.entity.SyncStatusEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.ConversationMissionEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveEntity
 import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveProgressEntity
@@ -18,17 +17,20 @@ interface MissionDao {
 
     @Upsert
     suspend fun upsertMissionTemplate(
-        template: MissionTemplateEntity
+        template:
+        MissionTemplateEntity
     )
 
     @Upsert
     suspend fun upsertMissionTemplates(
-        templates: List<MissionTemplateEntity>
+        templates:
+        List<MissionTemplateEntity>
     )
 
     @Upsert
     suspend fun upsertMissionObjectives(
-        objectives: List<MissionObjectiveEntity>
+        objectives:
+        List<MissionObjectiveEntity>
     )
 
     @Query(
@@ -68,17 +70,20 @@ interface MissionDao {
 
     @Upsert
     suspend fun upsertConversationMission(
-        conversationMission: ConversationMissionEntity
+        conversationMission:
+        ConversationMissionEntity
     )
 
     @Upsert
     suspend fun upsertObjectiveProgress(
-        progress: MissionObjectiveProgressEntity
+        progress:
+        MissionObjectiveProgressEntity
     )
 
     @Upsert
     suspend fun upsertObjectiveProgressList(
-        progress: List<MissionObjectiveProgressEntity>
+        progress:
+        List<MissionObjectiveProgressEntity>
     )
 
     @Transaction
@@ -88,6 +93,7 @@ interface MissionDao {
         FROM conversation_missions
         WHERE conversationId = :conversationId
           AND status = 'ACTIVE'
+          AND isDeleted = 0
         ORDER BY startedAt DESC, createdAt DESC
         LIMIT 1
         """
@@ -102,6 +108,7 @@ interface MissionDao {
         SELECT *
         FROM conversation_missions
         WHERE conversationId = :conversationId
+          AND isDeleted = 0
         ORDER BY createdAt DESC
         """
     )
@@ -115,6 +122,7 @@ interface MissionDao {
         SELECT *
         FROM conversation_missions
         WHERE id = :conversationMissionId
+          AND isDeleted = 0
         LIMIT 1
         """
     )
@@ -122,25 +130,73 @@ interface MissionDao {
         conversationMissionId: String
     ): ConversationMissionWithDetails?
 
-    /*
-     * Stores the original template on the first branch and
-     * updates only the current branch template afterwards.
-     *
-     * This prevents repeated branching from replacing the
-     * semantic root mission.
-     */
+    @Query(
+        """
+        SELECT *
+        FROM conversation_missions
+        WHERE id = :conversationMissionId
+        LIMIT 1
+        """
+    )
+    suspend fun getConversationMissionEntityIncludingDeleted(
+        conversationMissionId: String
+    ): ConversationMissionEntity?
+
+    @Query(
+        """
+        SELECT *
+        FROM conversation_missions
+        WHERE syncStatus IN (
+            'LOCAL_ONLY',
+            'PENDING_UPLOAD',
+            'PENDING_DELETE'
+        )
+        ORDER BY updatedAt ASC
+        """
+    )
+    suspend fun getPendingSyncConversationMissions():
+            List<ConversationMissionEntity>
+
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM conversation_missions
+        WHERE syncStatus IN (
+            'LOCAL_ONLY',
+            'PENDING_UPLOAD',
+            'PENDING_DELETE'
+        )
+        """
+    )
+    suspend fun countPendingSyncConversationMissions():
+            Int
+
+    @Query(
+        """
+        SELECT *
+        FROM mission_objective_progress
+        WHERE conversationMissionId = :conversationMissionId
+        """
+    )
+    suspend fun getObjectiveProgressEntities(
+        conversationMissionId: String
+    ): List<MissionObjectiveProgressEntity>
+
     @Query(
         """
         UPDATE conversation_missions
-        SET rootMissionTemplateId =
+        SET
+            rootMissionTemplateId =
                 COALESCE(
                     rootMissionTemplateId,
                     missionTemplateId
                 ),
             missionTemplateId = :newMissionTemplateId,
-            updatedAt = :updatedAt
+            updatedAt = :updatedAt,
+            syncStatus = 'PENDING_UPLOAD'
         WHERE id = :conversationMissionId
           AND status = 'ACTIVE'
+          AND isDeleted = 0
         """
     )
     suspend fun replaceActiveMissionTemplate(
@@ -162,10 +218,13 @@ interface MissionDao {
     @Query(
         """
         UPDATE conversation_missions
-        SET status = :status,
+        SET
+            status = :status,
             startedAt = :startedAt,
-            updatedAt = :updatedAt
+            updatedAt = :updatedAt,
+            syncStatus = 'PENDING_UPLOAD'
         WHERE id = :conversationMissionId
+          AND isDeleted = 0
         """
     )
     suspend fun updateMissionStartState(
@@ -178,10 +237,13 @@ interface MissionDao {
     @Query(
         """
         UPDATE conversation_missions
-        SET status = :status,
+        SET
+            status = :status,
             completedAt = :completedAt,
-            updatedAt = :updatedAt
+            updatedAt = :updatedAt,
+            syncStatus = 'PENDING_UPLOAD'
         WHERE id = :conversationMissionId
+          AND isDeleted = 0
         """
     )
     suspend fun updateMissionCompletionState(
@@ -194,10 +256,13 @@ interface MissionDao {
     @Query(
         """
         UPDATE conversation_missions
-        SET status = :status,
+        SET
+            status = :status,
             dismissedAt = :dismissedAt,
-            updatedAt = :updatedAt
+            updatedAt = :updatedAt,
+            syncStatus = 'PENDING_UPLOAD'
         WHERE id = :conversationMissionId
+          AND isDeleted = 0
         """
     )
     suspend fun updateMissionDismissalState(
@@ -210,7 +275,8 @@ interface MissionDao {
     @Query(
         """
         UPDATE mission_objective_progress
-        SET isCompleted = 1,
+        SET
+            isCompleted = 1,
             completedAt = :completedAt,
             completedByMessageId = :messageId,
             confidence = :confidence,
@@ -225,6 +291,26 @@ interface MissionDao {
         completedAt: Long,
         messageId: String,
         confidence: Float,
+        updatedAt: Long
+    ): Int
+
+    /*
+     * Objective progress is embedded inside the mission cloud
+     * snapshot, so completing an objective also makes its parent
+     * mission pending for upload.
+     */
+    @Query(
+        """
+        UPDATE conversation_missions
+        SET
+            updatedAt = :updatedAt,
+            syncStatus = 'PENDING_UPLOAD'
+        WHERE id = :conversationMissionId
+          AND isDeleted = 0
+        """
+    )
+    suspend fun markMissionPendingUpload(
+        conversationMissionId: String,
         updatedAt: Long
     ): Int
 
@@ -245,6 +331,46 @@ interface MissionDao {
 
     @Query(
         """
+        UPDATE conversation_missions
+        SET
+            isDeleted = 1,
+            deletedAt = :deletedAt,
+            updatedAt = :deletedAt,
+            syncStatus = 'PENDING_DELETE'
+        WHERE conversationId = :conversationId
+          AND isDeleted = 0
+        """
+    )
+    suspend fun markConversationMissionsDeleted(
+        conversationId: String,
+        deletedAt: Long
+    ): Int
+
+    @Query(
+        """
+        UPDATE conversation_missions
+        SET
+            syncStatus = 'SYNCED',
+            remoteVersion = :remoteVersion,
+            lastSyncedAt = :lastSyncedAt
+        WHERE id = :conversationMissionId
+          AND updatedAt = :expectedUpdatedAt
+          AND syncStatus IN (
+              'LOCAL_ONLY',
+              'PENDING_UPLOAD',
+              'PENDING_DELETE'
+          )
+        """
+    )
+    suspend fun markConversationMissionSynced(
+        conversationMissionId: String,
+        expectedUpdatedAt: Long,
+        remoteVersion: Long,
+        lastSyncedAt: Long
+    ): Int
+
+    @Query(
+        """
         DELETE FROM conversation_missions
         WHERE conversationId = :conversationId
         """
@@ -253,12 +379,26 @@ interface MissionDao {
         conversationId: String
     )
 
+    @Query(
+        """
+        DELETE FROM conversation_missions
+        WHERE isDeleted = 1
+          AND syncStatus = 'SYNCED'
+          AND lastSyncedAt IS NOT NULL
+          AND lastSyncedAt <= :syncedBefore
+        """
+    )
+    suspend fun purgeSyncedMissionTombstones(
+        syncedBefore: Long
+    ): Int
+
     @Transaction
     @Query(
         """
         SELECT *
         FROM conversation_missions
         WHERE status = 'COMPLETED'
+          AND isDeleted = 0
         ORDER BY completedAt DESC, updatedAt DESC
         """
     )

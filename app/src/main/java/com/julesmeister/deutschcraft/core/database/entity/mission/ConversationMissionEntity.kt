@@ -1,5 +1,3 @@
-// app/src/main/java/com/julesmeister/deutschcraft/core/database/entity/mission/ConversationMissionEntity.kt
-
 package com.julesmeister.deutschcraft.core.database.entity.mission
 
 import androidx.room.ColumnInfo
@@ -8,6 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.julesmeister.deutschcraft.core.database.entity.ConversationEntity
+import com.julesmeister.deutschcraft.core.database.entity.SyncStatusEntity
 
 @Entity(
     tableName = "conversation_missions",
@@ -33,13 +32,25 @@ import com.julesmeister.deutschcraft.core.database.entity.ConversationEntity
             value = ["missionTemplateId"]
         ),
         Index(
-            value = ["conversationId", "status"]
+            value = [
+                "conversationId",
+                "status"
+            ]
         ),
         Index(
             value = ["sourceRecommendationId"]
         ),
         Index(
             value = ["rootMissionTemplateId"]
+        ),
+        Index(
+            value = ["updatedAt"]
+        ),
+        Index(
+            value = ["syncStatus"]
+        ),
+        Index(
+            value = ["isDeleted"]
         )
     ]
 )
@@ -49,24 +60,8 @@ data class ConversationMissionEntity(
 
     val conversationId: String,
 
-    /*
-     * The template currently driving the active branch.
-     *
-     * This may change when the learner selects another
-     * direction.
-     */
     val missionTemplateId: String,
 
-    /*
-     * Immutable semantic anchor for the mission attempt.
-     *
-     * For rows created before database version 18, this is
-     * initially null and falls back to missionTemplateId.
-     *
-     * The first branch operation persists the original
-     * missionTemplateId here before replacing the current
-     * branch template.
-     */
     @ColumnInfo(
         defaultValue = "NULL"
     )
@@ -97,5 +92,36 @@ data class ConversationMissionEntity(
 
     val createdAt: Long,
 
-    val updatedAt: Long
+    val updatedAt: Long,
+
+    @ColumnInfo(
+        defaultValue = "'LOCAL_ONLY'"
+    )
+    val syncStatus:
+    SyncStatusEntity =
+        SyncStatusEntity.LOCAL_ONLY,
+
+    @ColumnInfo(
+        defaultValue = "NULL"
+    )
+    val remoteVersion:
+    Long? = null,
+
+    @ColumnInfo(
+        defaultValue = "NULL"
+    )
+    val lastSyncedAt:
+    Long? = null,
+
+    @ColumnInfo(
+        defaultValue = "0"
+    )
+    val isDeleted:
+    Boolean = false,
+
+    @ColumnInfo(
+        defaultValue = "NULL"
+    )
+    val deletedAt:
+    Long? = null
 )

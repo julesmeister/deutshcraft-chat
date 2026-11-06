@@ -1,5 +1,3 @@
-// app/src/main/java/com/julesmeister/deutschcraft/feature/sync/data/SyncRepositoryImpl.kt
-
 package com.julesmeister.deutschcraft.feature.sync.data
 
 import androidx.room.withTransaction
@@ -7,11 +5,16 @@ import com.julesmeister.deutschcraft.core.cefr.model.CefrLevel
 import com.julesmeister.deutschcraft.core.database.DeutschCraftDatabase
 import com.julesmeister.deutschcraft.core.database.dao.ConversationDao
 import com.julesmeister.deutschcraft.core.database.dao.MessageDao
+import com.julesmeister.deutschcraft.core.database.dao.MissionDao
 import com.julesmeister.deutschcraft.core.database.entity.ConversationEntity
 import com.julesmeister.deutschcraft.core.database.entity.ConversationTitleSource
 import com.julesmeister.deutschcraft.core.database.entity.MessageEntity
 import com.julesmeister.deutschcraft.core.database.entity.MessageSenderEntity
 import com.julesmeister.deutschcraft.core.database.entity.SyncStatusEntity
+import com.julesmeister.deutschcraft.core.database.entity.mission.ConversationMissionEntity
+import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveEntity
+import com.julesmeister.deutschcraft.core.database.entity.mission.MissionObjectiveProgressEntity
+import com.julesmeister.deutschcraft.core.database.entity.mission.MissionTemplateEntity
 import com.julesmeister.deutschcraft.feature.auth.domain.AuthRepository
 import com.julesmeister.deutschcraft.feature.auth.domain.AuthSession
 import com.julesmeister.deutschcraft.feature.sync.domain.SyncChangeRequest
@@ -38,11 +41,14 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -51,26 +57,14 @@ import retrofit2.HttpException
 @Singleton
 class SyncRepositoryImpl
 @Inject constructor(
-    private val database:
-    DeutschCraftDatabase,
-
-    private val conversationDao:
-    ConversationDao,
-
-    private val messageDao:
-    MessageDao,
-
-    private val syncApi:
-    SyncApi,
-
-    private val syncPreferences:
-    SyncPreferences,
-
-    private val authRepository:
-    AuthRepository,
-
-    private val clock:
-    Clock
+    private val database: DeutschCraftDatabase,
+    private val conversationDao: ConversationDao,
+    private val messageDao: MessageDao,
+    private val missionDao: MissionDao,
+    private val syncApi: SyncApi,
+    private val syncPreferences: SyncPreferences,
+    private val authRepository: AuthRepository,
+    private val clock: Clock
 ) : SyncRepository {
 
     private val repositoryScope =
@@ -152,13 +146,11 @@ class SyncRepositoryImpl
                 appliedCount
             )
         } catch (
-            cancellation:
-            CancellationException
+            cancellation: CancellationException
         ) {
             throw cancellation
         } catch (
-            throwable:
-            Throwable
+            throwable: Throwable
         ) {
             SyncResult.Failure(
                 throwable.toSyncError(
@@ -214,9 +206,9 @@ class SyncRepositoryImpl
                             request =
                                 SyncUploadRequest(
                                     changes =
-                                        batch.map(
-                                            PendingUploadRecord::change
-                                        )
+                                        batch.map { record ->
+                                            record.change
+                                        }
                                 )
                         )
 
@@ -253,9 +245,22 @@ class SyncRepositoryImpl
                                 }
 
                                 is PendingUploadRecord.Message -> {
-                                    messageDao
-                                        .markMessageSynced(
-                                            messageId =
+                                    messageDao.markMessageSynced(
+                                        messageId =
+                                            record.entity.id,
+                                        expectedUpdatedAt =
+                                            record.entity.updatedAt,
+                                        remoteVersion =
+                                            response.cursor,
+                                        lastSyncedAt =
+                                            syncedAt
+                                    )
+                                }
+
+                                is PendingUploadRecord.ConversationMission -> {
+                                    missionDao
+                                        .markConversationMissionSynced(
+                                            conversationMissionId =
                                                 record.entity.id,
                                             expectedUpdatedAt =
                                                 record.entity.updatedAt,
@@ -282,13 +287,12 @@ class SyncRepositoryImpl
                             latestCursor
                     )
 
-                    syncPreferences
-                        .updateLastSyncTimestamp(
-                            userId =
-                                session.userId,
-                            timestamp =
-                                syncedAt
-                        )
+                    syncPreferences.updateLastSyncTimestamp(
+                        userId =
+                            session.userId,
+                        timestamp =
+                            syncedAt
+                    )
 
                     uploadedCount +=
                         batch.size
@@ -302,13 +306,11 @@ class SyncRepositoryImpl
                 uploadedCount
             )
         } catch (
-            cancellation:
-            CancellationException
+            cancellation: CancellationException
         ) {
             throw cancellation
         } catch (
-            throwable:
-            Throwable
+            throwable: Throwable
         ) {
             SyncResult.Failure(
                 throwable.toSyncError(
@@ -405,14 +407,12 @@ class SyncRepositoryImpl
     }
 
     override suspend fun clearSyncState() {
-        val session =
-            signedInSession()
-
-        if (session != null) {
-            syncPreferences.clearSyncState(
-                userId = session.userId
-            )
-        }
+        signedInSession()
+            ?.let { session ->
+                syncPreferences.clearSyncState(
+                    userId = session.userId
+                )
+            }
 
         mutableSyncState.value =
             SyncState(
@@ -427,7 +427,8 @@ class SyncRepositoryImpl
                 .getPendingSyncConversations()
                 .map { conversation ->
                     PendingUploadRecord.Conversation(
-                        entity = conversation,
+                        entity =
+                            conversation,
                         change =
                             conversation.toSyncChange()
                     )
@@ -438,15 +439,29 @@ class SyncRepositoryImpl
                 .getPendingSyncMessages()
                 .map { message ->
                     PendingUploadRecord.Message(
-                        entity = message,
+                        entity =
+                            message,
                         change =
                             message.toSyncChange()
                     )
                 }
 
+        val missions =
+            missionDao
+                .getPendingSyncConversationMissions()
+                .map { mission ->
+                    PendingUploadRecord.ConversationMission(
+                        entity =
+                            mission,
+                        change =
+                            mission.toSyncChange()
+                    )
+                }
+
         return (
                 conversations +
-                        messages
+                        messages +
+                        missions
                 )
             .sortedWith(
                 compareBy<PendingUploadRecord> { record ->
@@ -458,11 +473,319 @@ class SyncRepositoryImpl
 
                         is PendingUploadRecord.Message ->
                             1
+
+                        is PendingUploadRecord.ConversationMission ->
+                            2
                     }
                 }.thenBy { record ->
                     record.change.entityKey
                 }
             )
+    }
+
+    private suspend fun ConversationMissionEntity.toSyncChange():
+            SyncChangeRequest {
+        val canonicalMissionId =
+            id
+
+        val isTombstone =
+            isDeleted ||
+                    syncStatus ==
+                    SyncStatusEntity.PENDING_DELETE
+
+        val template =
+            missionDao.getMissionTemplate(
+                missionTemplateId =
+                    missionTemplateId
+            )
+
+        if (
+            !isTombstone &&
+            template == null
+        ) {
+            throw IllegalStateException(
+                "Mission template does not exist: " +
+                        missionTemplateId
+            )
+        }
+
+        val objectives =
+            if (template == null) {
+                emptyList()
+            } else {
+                missionDao.getMissionObjectives(
+                    missionTemplateId =
+                        missionTemplateId
+                )
+            }
+
+        val objectiveProgress =
+            missionDao.getObjectiveProgressEntities(
+                conversationMissionId =
+                    canonicalMissionId
+            )
+
+        return SyncChangeRequest(
+            entityKey =
+                "CONVERSATION_MISSION#" +
+                        "$conversationId#" +
+                        canonicalMissionId,
+
+            entityType =
+                SyncEntityType.CONVERSATION_MISSION,
+
+            entityId =
+                canonicalMissionId,
+
+            clientUpdatedAt =
+                updatedAt,
+
+            deleted =
+                isTombstone,
+
+            payload =
+                JsonObject(
+                    mapOf(
+                        "conversationId" to
+                                JsonPrimitive(
+                                    conversationId
+                                ),
+
+                        "missionTemplateId" to
+                                JsonPrimitive(
+                                    missionTemplateId
+                                ),
+
+                        "rootMissionTemplateId" to
+                                rootMissionTemplateId
+                                    .toJsonElement(),
+
+                        "sourceRecommendationId" to
+                                sourceRecommendationId
+                                    .toJsonElement(),
+
+                        "targetCapabilityIdsJson" to
+                                JsonPrimitive(
+                                    targetCapabilityIdsJson
+                                ),
+
+                        "adaptiveFocusKeysJson" to
+                                JsonPrimitive(
+                                    adaptiveFocusKeysJson
+                                ),
+
+                        "status" to
+                                JsonPrimitive(
+                                    status
+                                ),
+
+                        "startedAt" to
+                                startedAt.toJsonElement(),
+
+                        "completedAt" to
+                                completedAt.toJsonElement(),
+
+                        "dismissedAt" to
+                                dismissedAt.toJsonElement(),
+
+                        "createdAt" to
+                                JsonPrimitive(
+                                    createdAt
+                                ),
+
+                        "deletedAt" to
+                                deletedAt.toJsonElement(),
+
+                        "template" to
+                                template.toSyncJsonElement(),
+
+                        "objectives" to
+                                JsonArray(
+                                    objectives.map { objective ->
+                                        objective.toSyncJsonObject()
+                                    }
+                                ),
+
+                        "objectiveProgress" to
+                                JsonArray(
+                                    objectiveProgress.map { progress ->
+                                        progress.toSyncJsonObject(
+                                            canonicalMissionId =
+                                                canonicalMissionId
+                                        )
+                                    }
+                                )
+                    )
+                )
+        )
+    }
+
+    private fun MissionTemplateEntity?.toSyncJsonElement():
+            JsonElement {
+        if (this == null) {
+            return JsonNull
+        }
+
+        return JsonObject(
+            mapOf(
+                "id" to
+                        JsonPrimitive(
+                            id
+                        ),
+
+                "title" to
+                        JsonPrimitive(
+                            title
+                        ),
+
+                "description" to
+                        JsonPrimitive(
+                            description
+                        ),
+
+                "scenario" to
+                        JsonPrimitive(
+                            scenario
+                        ),
+
+                "learnerRole" to
+                        JsonPrimitive(
+                            learnerRole
+                        ),
+
+                "assistantRole" to
+                        JsonPrimitive(
+                            assistantRole
+                        ),
+
+                "difficulty" to
+                        JsonPrimitive(
+                            difficulty
+                        ),
+
+                "icon" to
+                        JsonPrimitive(
+                            icon
+                        ),
+
+                "isEnabled" to
+                        JsonPrimitive(
+                            isEnabled
+                        ),
+
+                "createdAt" to
+                        JsonPrimitive(
+                            createdAt
+                        ),
+
+                "updatedAt" to
+                        JsonPrimitive(
+                            updatedAt
+                        )
+            )
+        )
+    }
+
+    private fun MissionObjectiveEntity.toSyncJsonObject():
+            JsonObject {
+        return JsonObject(
+            mapOf(
+                "id" to
+                        JsonPrimitive(
+                            id
+                        ),
+
+                "missionTemplateId" to
+                        JsonPrimitive(
+                            missionTemplateId
+                        ),
+
+                "title" to
+                        JsonPrimitive(
+                            title
+                        ),
+
+                "description" to
+                        JsonPrimitive(
+                            description
+                        ),
+
+                "sequenceNumber" to
+                        JsonPrimitive(
+                            sequenceNumber
+                        ),
+
+                "isRequired" to
+                        JsonPrimitive(
+                            isRequired
+                        ),
+
+                "completionHint" to
+                        JsonPrimitive(
+                            completionHint
+                        ),
+
+                "coachingHintsJson" to
+                        JsonPrimitive(
+                            coachingHintsJson
+                        ),
+
+                "targetVocabularyJson" to
+                        JsonPrimitive(
+                            targetVocabularyJson
+                        ),
+
+                "examplePhrasesJson" to
+                        JsonPrimitive(
+                            examplePhrasesJson
+                        )
+            )
+        )
+    }
+
+    private fun MissionObjectiveProgressEntity.toSyncJsonObject(
+        canonicalMissionId: String
+    ): JsonObject {
+        return JsonObject(
+            mapOf(
+                "conversationMissionId" to
+                        JsonPrimitive(
+                            canonicalMissionId
+                        ),
+
+                "objectiveId" to
+                        JsonPrimitive(
+                            objectiveId
+                        ),
+
+                "isCompleted" to
+                        JsonPrimitive(
+                            isCompleted
+                        ),
+
+                "completedAt" to
+                        completedAt.toJsonElement(),
+
+                "completedByMessageId" to
+                        completedByMessageId
+                            .toJsonElement(),
+
+                "confidence" to
+                        JsonPrimitive(
+                            confidence.coerceIn(
+                                minimumValue =
+                                    0f,
+                                maximumValue =
+                                    1f
+                            )
+                        ),
+
+                "updatedAt" to
+                        JsonPrimitive(
+                            updatedAt
+                        )
+            )
+        )
     }
 
     private fun ensureSessionStillMatches(
@@ -481,8 +804,7 @@ class SyncRepositoryImpl
     }
 
     private suspend fun applyDownloadedChanges(
-        response:
-        SyncDownloadResponse
+        response: SyncDownloadResponse
     ): Int {
         var appliedCount =
             0
@@ -499,8 +821,11 @@ class SyncRepositoryImpl
                         SyncEntityType.MESSAGE ->
                             1
 
-                        else ->
+                        SyncEntityType.CONVERSATION_MISSION ->
                             2
+
+                        else ->
+                            3
                     }
                 }.thenBy { change ->
                     change.serverUpdatedAt
@@ -525,6 +850,12 @@ class SyncRepositoryImpl
                             )
                         }
 
+                        SyncEntityType.CONVERSATION_MISSION -> {
+                            applyConversationMissionChange(
+                                change = change
+                            )
+                        }
+
                         else -> {
                             false
                         }
@@ -541,8 +872,7 @@ class SyncRepositoryImpl
     }
 
     private suspend fun applyConversationChange(
-        change:
-        SyncChangeResponse
+        change: SyncChangeResponse
     ): Boolean {
         val local =
             conversationDao
@@ -680,8 +1010,7 @@ class SyncRepositoryImpl
     }
 
     private suspend fun applyMessageChange(
-        change:
-        SyncChangeResponse
+        change: SyncChangeResponse
     ): Boolean {
         val local =
             messageDao
@@ -802,15 +1131,446 @@ class SyncRepositoryImpl
         return true
     }
 
+    private suspend fun applyConversationMissionChange(
+        change: SyncChangeResponse
+    ): Boolean {
+        val canonicalMissionId =
+            change.entityId
+
+        val local =
+            missionDao
+                .getConversationMissionEntityIncludingDeleted(
+                    conversationMissionId =
+                        canonicalMissionId
+                )
+
+        if (local.isLocallyDirty()) {
+            return false
+        }
+
+        if (
+            local?.remoteVersion != null &&
+            local.remoteVersion >=
+            change.serverUpdatedAt
+        ) {
+            return false
+        }
+
+        if (
+            local?.updatedAt != null &&
+            local.updatedAt >
+            change.clientUpdatedAt
+        ) {
+            return false
+        }
+
+        val payload =
+            change.payload
+
+        val conversationId =
+            payload.string(
+                key = "conversationId"
+            ) ?: local?.conversationId
+            ?: return false
+
+        val parentConversation =
+            conversationDao
+                .getConversationIncludingDeleted(
+                    conversationId =
+                        conversationId
+                )
+                ?: return false
+
+        if (
+            parentConversation.isDeleted &&
+            !change.deleted
+        ) {
+            return false
+        }
+
+        if (change.deleted) {
+            if (local == null) {
+                return false
+            }
+
+            missionDao.upsertConversationMission(
+                conversationMission =
+                    local.copy(
+                        updatedAt =
+                            change.clientUpdatedAt,
+
+                        syncStatus =
+                            SyncStatusEntity.SYNCED,
+
+                        remoteVersion =
+                            change.serverUpdatedAt,
+
+                        lastSyncedAt =
+                            clock.millis(),
+
+                        isDeleted =
+                            true,
+
+                        deletedAt =
+                            payload.long(
+                                key = "deletedAt"
+                            ) ?: change.clientUpdatedAt
+                    )
+            )
+
+            return true
+        }
+
+        val templateJson =
+            payload.objectValue(
+                key = "template"
+            ) ?: return false
+
+        val template =
+            templateJson.toMissionTemplateEntity()
+                ?: return false
+
+        val objectives =
+            payload.objectArray(
+                key = "objectives"
+            ).mapNotNull { objectiveJson ->
+                objectiveJson.toMissionObjectiveEntity()
+            }
+
+        val downloadedProgress =
+            payload.objectArray(
+                key = "objectiveProgress"
+            ).mapNotNull { progressJson ->
+                progressJson
+                    .toMissionObjectiveProgressEntity()
+            }
+
+        val missionTemplateId =
+            payload.string(
+                key = "missionTemplateId"
+            ) ?: template.id
+
+        if (
+            missionTemplateId !=
+            template.id
+        ) {
+            return false
+        }
+
+        val validObjectives =
+            objectives.filter { objective ->
+                objective.missionTemplateId ==
+                        missionTemplateId
+            }
+
+        if (validObjectives.isEmpty()) {
+            return false
+        }
+
+        missionDao.upsertMissionTemplate(
+            template =
+                template
+        )
+
+        missionDao.upsertMissionObjectives(
+            objectives =
+                validObjectives
+        )
+
+        val remote =
+            ConversationMissionEntity(
+                id =
+                    canonicalMissionId,
+
+                conversationId =
+                    conversationId,
+
+                missionTemplateId =
+                    missionTemplateId,
+
+                rootMissionTemplateId =
+                    payload.nullableString(
+                        key =
+                            "rootMissionTemplateId"
+                    ),
+
+                sourceRecommendationId =
+                    payload.nullableString(
+                        key =
+                            "sourceRecommendationId"
+                    ),
+
+                targetCapabilityIdsJson =
+                    payload.rawString(
+                        key =
+                            "targetCapabilityIdsJson"
+                    ) ?: local?.targetCapabilityIdsJson
+                    ?: EMPTY_JSON_ARRAY,
+
+                adaptiveFocusKeysJson =
+                    payload.rawString(
+                        key =
+                            "adaptiveFocusKeysJson"
+                    ) ?: local?.adaptiveFocusKeysJson
+                    ?: EMPTY_JSON_ARRAY,
+
+                status =
+                    payload.string(
+                        key = "status"
+                    ) ?: local?.status
+                    ?: DEFAULT_MISSION_STATUS,
+
+                startedAt =
+                    payload.nullableLong(
+                        key = "startedAt"
+                    ),
+
+                completedAt =
+                    payload.nullableLong(
+                        key = "completedAt"
+                    ),
+
+                dismissedAt =
+                    payload.nullableLong(
+                        key = "dismissedAt"
+                    ),
+
+                createdAt =
+                    payload.long(
+                        key = "createdAt"
+                    ) ?: local?.createdAt
+                    ?: change.clientUpdatedAt,
+
+                updatedAt =
+                    change.clientUpdatedAt,
+
+                syncStatus =
+                    SyncStatusEntity.SYNCED,
+
+                remoteVersion =
+                    change.serverUpdatedAt,
+
+                lastSyncedAt =
+                    clock.millis(),
+
+                isDeleted =
+                    false,
+
+                deletedAt =
+                    null
+            )
+
+        missionDao.upsertConversationMission(
+            conversationMission =
+                remote
+        )
+
+        missionDao.deleteObjectiveProgressForMission(
+            conversationMissionId =
+                canonicalMissionId
+        )
+
+        val validObjectiveIds =
+            validObjectives
+                .mapTo(
+                    mutableSetOf()
+                ) { objective ->
+                    objective.id
+                }
+
+        val normalizedProgress =
+            downloadedProgress
+                .filter { progress ->
+                    progress.objectiveId in
+                            validObjectiveIds
+                }
+                .map { progress ->
+                    progress.copy(
+                        conversationMissionId =
+                            canonicalMissionId
+                    )
+                }
+
+        missionDao.upsertObjectiveProgressList(
+            progress =
+                normalizedProgress
+        )
+
+        return true
+    }
+
+    private fun JsonObject.toMissionTemplateEntity():
+            MissionTemplateEntity? {
+        return MissionTemplateEntity(
+            id =
+                string(
+                    key = "id"
+                ) ?: return null,
+
+            title =
+                rawString(
+                    key = "title"
+                ) ?: return null,
+
+            description =
+                rawString(
+                    key = "description"
+                ) ?: return null,
+
+            scenario =
+                rawString(
+                    key = "scenario"
+                ) ?: return null,
+
+            learnerRole =
+                rawString(
+                    key = "learnerRole"
+                ) ?: return null,
+
+            assistantRole =
+                rawString(
+                    key = "assistantRole"
+                ) ?: return null,
+
+            difficulty =
+                string(
+                    key = "difficulty"
+                ) ?: return null,
+
+            icon =
+                rawString(
+                    key = "icon"
+                ).orEmpty(),
+
+            isEnabled =
+                boolean(
+                    key = "isEnabled"
+                ) ?: true,
+
+            createdAt =
+                long(
+                    key = "createdAt"
+                ) ?: 0L,
+
+            updatedAt =
+                long(
+                    key = "updatedAt"
+                ) ?: 0L
+        )
+    }
+
+    private fun JsonObject.toMissionObjectiveEntity():
+            MissionObjectiveEntity? {
+        return MissionObjectiveEntity(
+            id =
+                string(
+                    key = "id"
+                ) ?: return null,
+
+            missionTemplateId =
+                string(
+                    key = "missionTemplateId"
+                ) ?: return null,
+
+            title =
+                rawString(
+                    key = "title"
+                ) ?: return null,
+
+            description =
+                rawString(
+                    key = "description"
+                ) ?: return null,
+
+            sequenceNumber =
+                int(
+                    key = "sequenceNumber"
+                ) ?: return null,
+
+            isRequired =
+                boolean(
+                    key = "isRequired"
+                ) ?: true,
+
+            completionHint =
+                rawString(
+                    key = "completionHint"
+                ).orEmpty(),
+
+            coachingHintsJson =
+                rawString(
+                    key = "coachingHintsJson"
+                ) ?: EMPTY_JSON_ARRAY,
+
+            targetVocabularyJson =
+                rawString(
+                    key = "targetVocabularyJson"
+                ) ?: EMPTY_JSON_ARRAY,
+
+            examplePhrasesJson =
+                rawString(
+                    key = "examplePhrasesJson"
+                ) ?: EMPTY_JSON_ARRAY
+        )
+    }
+
+    private fun JsonObject.toMissionObjectiveProgressEntity():
+            MissionObjectiveProgressEntity? {
+        return MissionObjectiveProgressEntity(
+            conversationMissionId =
+                string(
+                    key = "conversationMissionId"
+                ) ?: return null,
+
+            objectiveId =
+                string(
+                    key = "objectiveId"
+                ) ?: return null,
+
+            isCompleted =
+                boolean(
+                    key = "isCompleted"
+                ) ?: false,
+
+            completedAt =
+                nullableLong(
+                    key = "completedAt"
+                ),
+
+            completedByMessageId =
+                nullableString(
+                    key = "completedByMessageId"
+                ),
+
+            confidence =
+                float(
+                    key = "confidence"
+                )
+                    ?.coerceIn(
+                        minimumValue =
+                            0f,
+                        maximumValue =
+                            1f
+                    )
+                    ?: 0f,
+
+            updatedAt =
+                long(
+                    key = "updatedAt"
+                ) ?: 0L
+        )
+    }
+
     private suspend fun refreshState(
-        session:
-        AuthSession.SignedIn
+        session: AuthSession.SignedIn
     ) {
         val pendingChanges =
             conversationDao
                 .countPendingSyncConversations() +
                     messageDao
-                        .countPendingSyncMessages()
+                        .countPendingSyncMessages() +
+                    missionDao
+                        .countPendingSyncConversationMissions()
 
         mutableSyncState.value =
             mutableSyncState.value.copy(
@@ -1002,6 +1762,13 @@ class SyncRepositoryImpl
                 LOCAL_DIRTY_STATUSES
     }
 
+    private fun ConversationMissionEntity?.isLocallyDirty():
+            Boolean {
+        return this != null &&
+                syncStatus in
+                LOCAL_DIRTY_STATUSES
+    }
+
     private fun Throwable.toSyncError(
         fallbackMessage: String
     ): SyncError {
@@ -1046,16 +1813,16 @@ class SyncRepositoryImpl
     private fun JsonObject.string(
         key: String
     ): String? {
-        return this[key]
-            ?.jsonPrimitive
-            ?.contentOrNull
+        return rawString(
+            key = key
+        )
             ?.trim()
             ?.takeIf(
                 String::isNotBlank
             )
     }
 
-    private fun JsonObject.nullableString(
+    private fun JsonObject.rawString(
         key: String
     ): String? {
         val element =
@@ -1069,6 +1836,14 @@ class SyncRepositoryImpl
         return element
             .jsonPrimitive
             .contentOrNull
+    }
+
+    private fun JsonObject.nullableString(
+        key: String
+    ): String? {
+        return rawString(
+            key = key
+        )
     }
 
     private fun JsonObject.long(
@@ -1103,12 +1878,41 @@ class SyncRepositoryImpl
             ?.intOrNull
     }
 
+    private fun JsonObject.float(
+        key: String
+    ): Float? {
+        return this[key]
+            ?.jsonPrimitive
+            ?.floatOrNull
+    }
+
     private fun JsonObject.boolean(
         key: String
     ): Boolean? {
         return this[key]
             ?.jsonPrimitive
             ?.booleanOrNull
+    }
+
+    private fun JsonObject.objectValue(
+        key: String
+    ): JsonObject? {
+        return this[key] as?
+                JsonObject
+    }
+
+    private fun JsonObject.objectArray(
+        key: String
+    ): List<JsonObject> {
+        return (
+                this[key] as?
+                        JsonArray
+                )
+            ?.mapNotNull { element ->
+                element as?
+                        JsonObject
+            }
+            .orEmpty()
     }
 
     private inline fun <reified T : Enum<T>>
@@ -1129,15 +1933,19 @@ class SyncRepositoryImpl
             }
     }
 
-    private fun String?.toJsonElement() =
-        this?.let(
+    private fun String?.toJsonElement():
+            JsonElement {
+        return this?.let(
             ::JsonPrimitive
         ) ?: JsonNull
+    }
 
-    private fun Long?.toJsonElement() =
-        this?.let(
+    private fun Long?.toJsonElement():
+            JsonElement {
+        return this?.let(
             ::JsonPrimitive
         ) ?: JsonNull
+    }
 
     private sealed interface PendingUploadRecord {
 
@@ -1155,6 +1963,14 @@ class SyncRepositoryImpl
         data class Message(
             val entity:
             MessageEntity,
+
+            override val change:
+            SyncChangeRequest
+        ) : PendingUploadRecord
+
+        data class ConversationMission(
+            val entity:
+            ConversationMissionEntity,
 
             override val change:
             SyncChangeRequest
@@ -1185,6 +2001,12 @@ class SyncRepositoryImpl
 
         const val DEFAULT_LOCAL_DATE =
             "1970-01-01"
+
+        const val DEFAULT_MISSION_STATUS =
+            "OFFERED"
+
+        const val EMPTY_JSON_ARRAY =
+            "[]"
 
         const val SEQUENCE_KEY_WIDTH =
             12
