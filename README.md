@@ -2,9 +2,9 @@
 
 **DeutschCraft** is an offline-first, Telegram-inspired Android application for learning German through natural AI conversations.
 
-Rather than teaching through lessons, quizzes, flashcards, or exercises, DeutschCraft teaches through meaningful communication.
+Rather than teaching through lessons, quizzes, flashcards, or isolated exercises, DeutschCraft teaches through meaningful communication.
 
-Learners practice German by chatting naturally with a persistent AI companion while the application quietly performs assessment, correction, CEFR evaluation, mission tracking, vocabulary analysis, progress measurement, and personalized learning support in the background.
+Learners practice German by chatting naturally with a persistent AI companion while the application quietly performs assessment, correction, CEFR evaluation, mission tracking, vocabulary analysis, progress measurement, adaptive learning, and personalized learning support in the background.
 
 > **Conversation first. Learning happens naturally.**
 
@@ -34,7 +34,7 @@ Real Communication
 Learning Happens Naturally
 ```
 
-The user opens DeutschCraft because they want to communicate.
+The learner opens DeutschCraft because the learner wants to communicate.
 
 Improvement in German proficiency becomes a natural outcome of engaging conversations rather than completing lessons.
 
@@ -62,7 +62,7 @@ Exercise Platform
 
 The conversation itself is the product.
 
-Learning systems should support the conversation without interrupting it.
+Learning systems support the conversation without unnecessarily interrupting it.
 
 ---
 
@@ -94,106 +94,643 @@ Emil adapts to:
 - Previous conversations
 - Vocabulary familiarity
 - Learning progress
+- Adaptive-learning signals
 
 while maintaining a consistent personality.
 
 ---
 
-## Offline First
+# Offline-First Architecture
 
 DeutschCraft follows an offline-first architecture.
 
-The user owns their data.
+Room remains the primary source of truth.
 
 ```text
 Room Database
       ↓
+Repositories
+      ↓
+Flow / StateFlow
+      ↓
+ViewModels
+      ↓
+Jetpack Compose
+```
+
+Persistent local data includes:
+
+```text
 Conversations
 Messages
 Corrections
 Assessments
 Progress
 Missions
+Mission Templates
+Mission Objectives
+Mission Objective Progress
 Vocabulary
 Activity Tracking
+Adaptive Learning
+Besser Challenges
 Settings
 ```
 
-The application remains functional even without internet access.
+The application remains useful without continuous internet access.
 
 Available offline:
 
 - View conversations
 - Read previous chats
-- Progress dashboard
-- Mission history
-- Vocabulary history
-- Archived threads
-- Activity statistics
-- Settings
-- Learning history
+- View archived threads
+- View the progress dashboard
+- View mission history
+- Continue locally stored conversations and missions
+- View vocabulary history
+- View activity statistics
+- View learning history
+- Change settings
 
-The chat header and in-list typing indicator share the same animated dots.
-The chat level indicator and threads overflow menu share a cradled dropdown
-surface: the trigger is visually embedded in the curved top-right corner, with
-matching popup alignment, border/shadow, and opening/closing animation.
-The threads menu uses a compact 280dp body below the adjacent streak control,
-with an 8dp minimum window gutter and a gentle fade/slide/scale transition.
-Its cradle matches the menu button's 40dp diameter without an expanded collar,
-so both buttons stay in their resting positions near the right edge. Its
-lower-left connector is straight, while the dropdown retains its fade/slide/scale
-animation. The chat level indicator retains its larger, curved cradle.
-Post-send mission evaluation runs before supplementary Besser/adaptive processing;
-new goal-completion confirmations interrupt the header's rotating mission pages
-as soon as the completion reaches Room.
-
-While a mission goal is active, its full description appears as the empty
-composer's placeholder. It is not inserted into the draft or sent as an answer;
-typing hides it, and Besser refinement retains its own placeholder.
-
-New AI replies require a working connection and access to the AI service. Failed
-requests display a dismissible red error bar in chat rather than a fabricated
-assistant reply. Further sends are blocked while that error is displayed;
-dismissing it allows another attempt. The learner's saved message remains in Room.
-The compact Retry pill clears the error and re-enables manual sending; it does not
-automatically resend the saved message or repeat the failed request.
-
-For authentication diagnostics in debug builds, filter Android Studio Logcat with
-`tag:DeutschCraftAuth`. Reproduce a failed send to see header presence, token type
-and expiry, issuer/client configuration matches, refresh outcomes, HTTP status,
-and AWS request IDs. JWT claims shown here are diagnostic only, not verified by
-the app. These logs exclude tokens, credentials, personal claims, and chat bodies,
-and are disabled in release builds.
+New AI-generated replies require a working connection to the configured AI backend.
 
 ---
 
 ## Room as Source of Truth
 
-All persistent learner data is stored locally.
+All persistent learner data is written locally first.
 
 ```text
-AI Response
-      ↓
+User Action / AI Response
+          ↓
 Repository
-      ↓
-Room
-      ↓
-Flow
-      ↓
+          ↓
+Room Transaction
+          ↓
+Flow / StateFlow
+          ↓
 Compose UI
 ```
+
+Cloud synchronization does not replace Room.
+
+Local mutations follow:
+
+```text
+Local Mutation
+      ↓
+Room Commit
+      ↓
+UI Updates
+      ↓
+Background Sync Requested
+      ↓
+AWS
+```
+
+Network operations are not performed inside Room transactions.
+
+A failed cloud request therefore does not remove a successfully committed conversation, message, correction, or mission update.
 
 Room owns:
 
 - Conversations
 - Messages
-- Besser Corrections
+- Besser corrections and challenges
 - Assessments
-- Progress Records
+- Progress records
 - Missions
-- Mission Objectives
-- Vocabulary
-- Activity Tracking
+- Mission templates
+- Mission objectives
+- Mission objective progress
+- Vocabulary and marked phrases
+- Activity tracking
+- Adaptive-learning evidence
+- Learner state
+
+---
+
+# Authentication
+
+DeutschCraft includes authenticated account support backed by Amazon Cognito.
+
+Google sign-in is integrated through the Cognito authentication flow.
+
+```text
+Google Sign-In
+      ↓
+Amazon Cognito
+      ↓
+Access Token
+      ↓
+Android Auth Session
+      ↓
+Authenticated API Requests
+```
+
+Protected API requests carry the current Cognito access token.
+
+Cloud ownership is derived from the authenticated Cognito `sub` rather than from an arbitrary user identifier supplied by Android.
+
+For authentication diagnostics in debug builds, filter Android Studio Logcat with:
+
+```text
+tag:DeutschCraftAuth
+```
+
+Diagnostics expose safe metadata such as:
+
+- Signed-in state
+- Authorization-header presence
+- Token availability
+- Token type
+- Expiration information
+- Issuer/client configuration comparison
+- Refresh outcomes
+- HTTP response status
+- AWS gateway request IDs
+
+Tokens, credentials, personal claims, and chat bodies are excluded from authentication diagnostic logs.
+
+---
+
+# Cloud Synchronization
+
+DeutschCraft includes authenticated cloud synchronization while preserving Room as the operational source of truth.
+
+## Architecture
+
+```text
+Room
+  ↓
+SyncScheduler
+  ↓
+WorkManager
+  ↓
+DeutschCraftSyncWorker
+  ↓
+SyncRepository
+  ↓
+Retrofit / OkHttp
+  ↓
+Amazon API Gateway
+  ↓
+JWT Authorizer
+  ↓
+AWS Lambda
+  ↓
+Amazon DynamoDB
+```
+
+Cloud synchronization currently supports:
+
+```text
+✅ Conversations
+✅ Messages
+✅ Conversation Missions
+✅ Mission Template Snapshots
+✅ Mission Objective Snapshots
+✅ Mission Objective Progress
+```
+
+The synchronization system provides:
+
+- Authenticated per-user cloud storage
+- Initial cloud backup
+- Incremental cloud downloads
+- Batched uploads
+- Immediate synchronization after supported local mutations
+- Periodic synchronization
+- Archive synchronization
+- Restore synchronization
+- Tombstone-based deletion
+- Mission-state synchronization
+- Generated mission-template preservation
+- Objective-progress preservation
+- Cross-device synchronization infrastructure
+
+---
+
+## Sync Scheduling
+
+Synchronization is coordinated by `SyncScheduler`.
+
+Two forms of WorkManager work are maintained:
+
+```text
+Immediate Sync
+     +
+Periodic Sync
+```
+
+After sign-in:
+
+```text
+Signed In
+   ↓
+Immediate Sync
+   ↓
+Upload Pending Changes
+   ↓
+Download Remote Changes
+```
+
+A separate periodic worker is registered with an initial delay:
+
+```text
+Periodic Sync
+     ↓
+Initial Delay: 15 Minutes
+     ↓
+Background Synchronization
+```
+
+The initial delay prevents the periodic worker from duplicating the immediate sign-in synchronization.
+
+Rapid local mutations use unique WorkManager work so unnecessary duplicate workers can be collapsed.
+
+---
+
+## Hilt and WorkManager
+
+`DeutschCraftSyncWorker` uses Hilt-assisted construction.
+
+```text
+WorkManager
+     ↓
+HiltWorkerFactory
+     ↓
+DeutschCraftSyncWorker
+     ↓
+SyncRepository
+```
+
+DeutschCraft supplies a custom WorkManager configuration through the application class.
+
+The default WorkManager initializer is disabled so WorkManager uses the Hilt worker factory.
+
+---
+
+## Immediate Mutation Sync
+
+Supported local mutations request synchronization after the local write succeeds.
+
+Examples include:
+
+```text
+Create Conversation
+Save Message
+Generate Conversation Title
+Update Message Correction
+Archive Conversation
+Restore Conversation
+Delete Conversation
+Refine Besser Message
+Offer Mission
+Start Mission
+Branch Mission
+Complete Mission Objective
+Dismiss Mission
+Complete Mission
+Delete Conversation Missions
+```
+
+The ordering is intentionally:
+
+```text
+Room Transaction
+      ↓
+Commit
+      ↓
+requestImmediateSync()
+      ↓
+WorkManager
+```
+
+This preserves DeutschCraft's offline-first behavior.
+
+---
+
+## Upload Batching
+
+The synchronization API accepts a maximum of:
+
+```text
+100 changes per upload request
+```
+
+Android automatically splits larger pending datasets into batches.
+
+Example:
+
+```text
+350 Pending Changes
+       ↓
+Batch 1: 100
+Batch 2: 100
+Batch 3: 100
+Batch 4: 50
+```
+
+Each successful batch is acknowledged independently.
+
+Successfully acknowledged records are marked synchronized after each batch.
+
+If a later batch fails, already acknowledged records do not need to be uploaded again.
+
+---
+
+## Incremental Downloads
+
+DeutschCraft maintains a per-user synchronization cursor.
+
+Cloud downloads use:
+
+```text
+GET /v1/sync?since=<cursor>
+```
+
+The synchronization Lambda returns records newer than the supplied cursor.
+
+```text
+Previous Cursor
+      ↓
+GET /v1/sync?since=<cursor>
+      ↓
+Only Newer Changes
+      ↓
+Apply to Room
+      ↓
+Store New Cursor
+```
+
+When no new changes exist, the server returns a small response instead of redownloading the learner's complete history.
+
+---
+
+## Synchronization Metadata
+
+Synchronized Room entities track metadata including:
+
+```text
+syncStatus
+remoteVersion
+lastSyncedAt
+updatedAt
+isDeleted
+deletedAt
+```
+
+Local dirty states include:
+
+```text
+LOCAL_ONLY
+PENDING_UPLOAD
+PENDING_DELETE
+```
+
+Remote changes do not overwrite locally dirty entities.
+
+Client timestamps and server versions are compared before incoming changes are applied.
+
+---
+
+## Deletion Tombstones
+
+Deletion uses tombstones instead of immediately forgetting cloud identity.
+
+```text
+Local Delete
+     ↓
+isDeleted = true
+syncStatus = PENDING_DELETE
+     ↓
+POST /v1/sync
+     ↓
+DynamoDB
+deleted = true
+```
+
+Another device can therefore learn that the entity was intentionally deleted.
+
+This prevents an older local copy from resurrecting deleted data.
+
+Tombstone infrastructure currently covers:
+
+```text
+Conversations
+Messages
+Conversation Missions
+```
+
+---
+
+# Conversation Sync
+
+Conversation records use:
+
+```text
+CONVERSATION#<conversationId>
+```
+
+Synchronized conversation state includes:
+
+- Title
+- Title source
+- CEFR level
+- Local date
+- Epoch day
+- Creation timestamp
+- Update timestamp
+- Closed state
+- Archive state
+- Message count
+- Preview text
+- Deletion state
+
+Archive and restore operations mark the conversation pending for upload and trigger immediate synchronization.
+
+---
+
+# Message Sync
+
+Message records use:
+
+```text
+MESSAGE#<conversationId>#<paddedSequenceNumber>
+```
+
+Synchronized message state includes:
+
+- Message ID
+- Conversation ID
+- Content
+- Sender
+- Sequence number
+- Creation timestamp
+- Update timestamp
+- Correction
+- Deletion state
+
+Sequence numbers are padded in cloud keys to preserve deterministic ordering.
+
+---
+
+# Mission Cloud Sync
+
+Conversation missions participate in cloud synchronization.
+
+Mission records use:
+
+```text
+CONVERSATION_MISSION#<conversationId>#<conversationMissionId>
+```
+
+Each mission is synchronized as a self-contained snapshot:
+
+```text
+ConversationMission
+        +
+MissionTemplate
+        +
+MissionObjectives
+        +
+ObjectiveProgress
+        ↓
+Cloud Mission Snapshot
+```
+
+This matters because generated and branched mission templates can exist only on the device where the mission branch was created.
+
+The receiving device can reconstruct the mission without assuming that the generated template already exists locally.
+
+---
+
+## Conversation Mission Snapshot
+
+A synchronized mission contains:
+
+```text
+Conversation ID
+Mission Template ID
+Root Mission Template ID
+Source Recommendation ID
+Target Capability IDs
+Adaptive Focus Keys
+Mission Status
+Started At
+Completed At
+Dismissed At
+Created At
+Deleted At
+Mission Template
+Mission Objectives
+Mission Objective Progress
+```
+
+Mission states include:
+
+```text
+OFFERED
+ACTIVE
+COMPLETED
+DISMISSED
+```
+
+Mission changes become pending for synchronization when:
+
+- A mission is offered
+- A mission starts
+- The active branch changes
+- An objective completes
+- A mission is dismissed
+- A mission completes
+- Conversation mission data is deleted
+
+---
+
+## Mission Template Snapshot
+
+Mission snapshots include the current mission template.
+
+Template information includes:
+
+- Template ID
+- Title
+- Description
+- Scenario
+- Learner role
+- Assistant role
+- CEFR difficulty
+- Icon
+- Enabled state
+- Creation timestamp
+- Update timestamp
+
+This allows generated mission branches to survive cloud restoration.
+
+---
+
+## Mission Objective Snapshot
+
+Mission objectives are bundled with the mission snapshot.
+
+Objective information includes:
+
+- Objective ID
+- Mission template ID
+- Title
+- Description
+- Sequence number
+- Required state
+- Completion hint
+- Coaching hints
+- Target vocabulary
+- Example phrases
+
+---
+
+## Mission Objective Progress
+
+Objective progress preserves:
+
+```text
+Conversation Mission ID
+Objective ID
+Completed State
+Completed At
+Completed By Message ID
+Confidence
+Updated At
+```
+
+Completing an objective marks the parent mission pending for synchronization.
+
+When all required objectives are completed, the mission can transition to `COMPLETED`.
+
+---
+
+## Mission Progress Identity
+
+Mission synchronization maintains a canonical mission identity.
+
+The expected invariant is:
+
+```text
+DynamoDB entityId
+        =
+ConversationMissionEntity.id
+        =
+Final Mission ID in entityKey
+        =
+objectiveProgress[*].conversationMissionId
+```
+
+Objective progress is normalized against the enclosing mission ID during serialization.
+
+Downloaded objective progress is normalized to the downloaded mission's canonical entity ID before being persisted into Room.
+
+This protects branched and historical missions from mismatched progress ownership.
 
 ---
 
@@ -212,9 +749,9 @@ C2
 
 Assessment is evidence-based.
 
-Rather than exams, the application gathers evidence from real conversations.
+Rather than relying exclusively on exams, DeutschCraft gathers evidence from real conversations.
 
-Tracked skills:
+Tracked skills include:
 
 - Grammar
 - Vocabulary
@@ -238,7 +775,7 @@ Implemented:
 - Multiple conversation threads
 - Automatic chat title generation
 - Thread archiving
-- Undo archive
+- Thread restoration
 - Reply suggestions
 - Message actions
 - Keyboard-aware layout
@@ -247,10 +784,53 @@ Implemented:
 - Message arrival animations
 - Message press animations
 - Navigation animations
+- Custom chat composer
+- Dark mode
+- Light mode
+- Theme-aware UI
+- Contextual learning bubbles
+
+The chat header and in-list typing indicator share the same animated dots.
+
+The chat level indicator and threads overflow menu use custom cradled dropdown surfaces.
+
+The threads menu uses a compact 280dp body below the adjacent streak control with an 8dp minimum window gutter and fade, slide, and scale transitions.
+
+Its cradle matches the menu button's 40dp diameter without an expanded collar so the adjacent controls remain in their resting positions.
+
+The chat level indicator retains its larger curved cradle.
 
 ---
 
-## AI Conversation
+## Chat Error Handling
+
+New AI replies require connectivity and access to the AI backend.
+
+Failed requests display a dismissible error state rather than fabricating an assistant reply.
+
+```text
+Learner Message
+      ↓
+Room ✅
+      ↓
+AI Request
+      ↓
+Failure
+      ↓
+Error UI
+```
+
+The learner's saved message remains in Room.
+
+Further sends are blocked while the error state is displayed.
+
+The compact Retry control clears the error and re-enables manual sending.
+
+It does not automatically duplicate the saved message or silently repeat the failed request.
+
+---
+
+# AI Conversation
 
 Current provider:
 
@@ -258,7 +838,7 @@ Current provider:
 Qwen
 ```
 
-Features:
+Features include:
 
 - Natural German conversation
 - Persona-based responses
@@ -266,30 +846,162 @@ Features:
 - Conversation continuity
 - Topic adaptation
 - Mission participation
+- Structured correction
+- Structured evaluation
+- Mission generation
+- Adaptive-learning support
 
 ---
 
-## Besser Corrections
+# AI Architecture
+
+Current architecture:
+
+```text
+Android
+    ↓
+Amazon Cognito Authentication
+    ↓
+Amazon API Gateway
+    ↓
+AWS Lambda
+    ↓
+Qwen
+```
+
+AI provider credentials are never stored inside the Android application.
+
+```text
+Android APK
+   ❌ Qwen API Key
+
+AWS Backend
+   ✅ Provider Credential
+```
+
+Protected Android requests use Cognito authentication.
+
+The Lambda backend controls external provider access.
+
+---
+
+# AWS Architecture
+
+DeutschCraft currently uses AWS for authentication, protected AI access, and cloud synchronization.
+
+```text
+Android
+   ↓
+Amazon Cognito
+   ↓
+Access Token
+   ↓
+Amazon API Gateway
+   ├── /v1/chat/completions
+   └── /v1/sync
+          ↓
+       AWS Lambda
+          ↓
+   ┌──────┴──────┐
+   ↓             ↓
+ Qwen        DynamoDB
+```
+
+The AWS architecture currently provides:
+
+```text
+Authentication
+Protected AI Proxy
+Conversation Backup
+Message Backup
+Mission Backup
+Incremental Restore
+Cross-Device Sync Infrastructure
+```
+
+---
+
+# DynamoDB Sync Model
+
+Cloud records are partitioned by authenticated Cognito identity.
+
+Conceptually:
+
+```text
+userId = Cognito sub
+```
+
+Cloud entity keys include:
+
+```text
+CONVERSATION#<conversationId>
+
+MESSAGE#<conversationId>#<sequenceNumber>
+
+CONVERSATION_MISSION#
+<conversationId>#
+<conversationMissionId>
+```
+
+Cloud records contain synchronization metadata including:
+
+```text
+entityType
+entityId
+payloadJson
+clientUpdatedAt
+serverUpdatedAt
+deleted
+schemaVersion
+```
+
+Supported entity types currently include:
+
+```text
+CONVERSATION
+MESSAGE
+CONVERSATION_MISSION
+```
+
+---
+
+# Besser System
+
+DeutschCraft contains a contextual Besser correction and challenge system.
 
 Example:
 
 ```text
-User:
+Learner:
 Ich go heute zum Markt.
 
 Besser:
 Ich gehe heute zum Markt.
 ```
 
-Corrections are stored separately from user messages.
+The Besser system supports:
 
-Original messages are always preserved.
+- Contextual corrections
+- Refinement challenges
+- Progressive hints
+- Assistance tracking
+- Evaluation scores
+- Evaluation feedback
+- Evaluation evidence
+- Capability relationships
+- Mastery-oriented learning evidence
+
+Original learner messages are preserved unless the learner explicitly completes a refinement flow that updates the source message.
+
+When Besser refinement changes the source message, that message is marked pending for synchronization and an immediate sync is requested.
+
+Besser challenge state itself remains part of the broader learner-state synchronization roadmap.
 
 ---
 
-## Message Actions
+# Message Actions
 
-Every message supports contextual actions:
+Messages support contextual actions including:
 
 ```text
 Translate
@@ -297,7 +1009,7 @@ Explain
 Rephrase
 ```
 
-Future actions:
+Planned or expanding actions include:
 
 ```text
 Save Vocabulary
@@ -311,7 +1023,7 @@ Add To Practice
 
 ## Purpose
 
-Teach German through realistic communication scenarios.
+Missions teach German through realistic communication scenarios.
 
 Example:
 
@@ -319,7 +1031,7 @@ Example:
 🎯 Restaurant Ordering
 ```
 
-Objectives:
+Objectives might include:
 
 ```text
 ✓ Greet the waiter
@@ -335,18 +1047,14 @@ Objectives are completed naturally through conversation.
 
 ## Mission Flow
 
-New missions suggested inside ordinary chats use the same 8–10-goal range as
-thread-list missions, aiming for 10 distinct steps from opening to closing the
-conversation. Short generated lists receive the existing single repair attempt
-before an offer is accepted. Already-started missions retain their saved goals
-and progress.
-
 ```text
 Conversation
       ↓
 Mission Offered
       ↓
 Mission Accepted
+      ↓
+Mission Active
       ↓
 Objectives Detected
       ↓
@@ -355,31 +1063,72 @@ Mission Completed
 Performance Review
 ```
 
-Mission progress is saved locally and survives application restarts.
+New missions suggested inside ordinary chats use a multi-goal structure similar to thread-list missions.
+
+Generated mission branches preserve their original mission template as a semantic root while allowing the current scenario and objectives to evolve.
+
+Mission progress survives application restarts and now participates in cloud synchronization.
+
+---
+
+## Mission Branching
+
+Mission variations can continue or reshape an active mission through flows such as:
+
+```text
+Noch eine Runde
+Neue Situation
+Neue Wörter
+Grammatik-Stufe
+```
+
+The original mission remains the root anchor.
+
+A branch may produce:
+
+```text
+Existing ConversationMission
+        ↓
+New Generated MissionTemplate
+        ↓
+Preserved Completed Objectives
+        +
+New Branch Objectives
+        ↓
+Rebuilt Objective Progress
+```
+
+The `ConversationMission` retains its identity while the active template changes.
+
+This mission identity is preserved by cloud synchronization.
+
+---
 
 ## Thread-List Mission Recommendations
 
-The mission cell reuses eligible recommendations stored in Room before asking
-Qwen to generate more. New scenarios use recent ordinary learner messages as
-a local, soft novelty signal; conversation text is not added to the generation
-prompt. CEFR suitability, adaptive reinforcement, objectives, hints, vocabulary,
-and examples remain intact.
+The mission cell reuses eligible recommendations stored in Room before asking Qwen to generate additional recommendations.
 
-Completed scenario identities are never recommended again, across CEFR changes,
-archives, and history age. A small completion ledger retains those identities
-after thread deletion, with existing identifiable completions backfilled during
-the database upgrade. Active and paused mission scenarios are also excluded;
-abandoned attempts do not permanently block a scenario.
+New scenarios use recent ordinary learner messages as a local novelty signal without directly adding raw conversation history to the recommendation-generation prompt.
 
-Identity comes from the source recommendation, the seeded restaurant template,
-or an exact legacy template match. Unlinked, freely generated missions without
-a recognizable scenario identity are not guessed from conversation keywords.
+Recommendation logic preserves:
 
-The visible cell observes persisted eligibility, and starting a recommendation
-rechecks it in the same transaction that creates its conversation and mission.
-Skipping never restores an ineligible suggestion. Refills share generation
-locks, stop after an exhausted generation pass, and back off failed scenarios
-for one minute instead of immediately repeating their AI requests.
+- CEFR suitability
+- Adaptive reinforcement
+- Objectives
+- Hints
+- Vocabulary
+- Examples
+- Scenario diversity
+
+Completed scenario identities are excluded from future recommendations where they can be reliably identified.
+
+A completion ledger can preserve scenario identity even when the original thread is later removed.
+
+Active or paused mission scenarios can also be excluded from duplicate recommendations.
+
+Skipping does not restore an otherwise ineligible recommendation.
+
+Recommendation refill operations use generation locks and temporary failure backoff to avoid unnecessary repeated AI requests.
 
 ---
 
@@ -389,6 +1138,7 @@ Implemented:
 
 - Mission templates
 - Mission entities
+- Conversation missions
 - Mission repository
 - Mission DAO
 - Active mission tracking
@@ -398,31 +1148,42 @@ Implemented:
 - Mission history
 - Mission persistence
 - Objective completion events
+- Mission branching
+- Mission variation flows
+- Mission cloud snapshots
+- Mission objective cloud snapshots
+- Objective-progress cloud snapshots
+- Mission tombstones
+- Immediate mission synchronization
 
 ---
 
 ## Mission Top Bar
 
-During a mission a small handle tab hangs beneath the top bar. Tap it, or drag
-the handle or the top bar downward, to pull a details drawer out from under the
-bar; it follows the finger and settles open or closed by distance and fling
-velocity. The drawer overlays the conversation (with a scrim) so messages never
-move. Mission paging and auto-advance pause while expanded. Dragging up, tapping
-the handle or scrim, or Android Back collapses it. Reduced motion snaps instead
-of animating.
+During an active mission, a small handle beneath the top bar exposes a mission details drawer.
 
-The drawer shows a progress ring with CEFR badge, the current-goal card, a goal
-timeline, and existing progressive hints. Vocabulary (card carousel) and grammar
-(pattern cards) are generated on demand for the
-mission's CEFR level and cached locally for up to 32 mission contexts. Branch
-changes produce fresh support; ordinary goal progress does not regenerate it.
-Vocabulary follows the target-vocabulary setting; grammar and German examples
-follow the example-phrases setting. When both are disabled no support request is
-made. Failures show an explicit retry action rather than placeholder content.
+The drawer follows drag gestures and settles open or closed according to movement and velocity.
 
-The chat screen contains a dynamic learning-assistant top bar.
+The drawer overlays the conversation so messages do not move.
 
-Features:
+Mission paging and automatic advancement pause while the drawer is expanded.
+
+Reduced-motion mode avoids unnecessary animated transitions.
+
+The expanded mission interface includes:
+
+```text
+Progress Ring
+CEFR Badge
+Current Goal
+Goal Timeline
+Progressive Hints
+Vocabulary Support
+Grammar Support
+Example Phrases
+```
+
+The chat top bar can display:
 
 ```text
 🎯 Active Objectives
@@ -431,20 +1192,13 @@ Features:
 ✅ Completion Feedback
 ```
 
-Implemented:
+Post-send mission evaluation runs before supplementary Besser and adaptive-learning processing.
 
-- Animated transitions
-- Objective progress display
-- Mission completion events
-- Assessment status
-- Typing status
-- Auto-rotating content
-- Swipeable horizontal mission pager
-- Manual horizontal exploration
-- Automatic advancement
-- Progress indicators
+New goal-completion confirmations can interrupt rotating mission pages as soon as the completion reaches Room.
 
-The learner can swipe horizontally to explore mission information without waiting for automatic rotation.
+While a mission objective is active, the full objective description can appear as the empty composer's placeholder.
+
+It is not inserted into the draft or sent as the learner's response.
 
 ---
 
@@ -452,7 +1206,7 @@ The learner can swipe horizontally to explore mission information without waitin
 
 The Progress screen combines language assessment and mission achievements.
 
-Displays:
+Displayed information includes:
 
 ```text
 Current CEFR Level
@@ -475,7 +1229,7 @@ Readiness For B1:
 78%
 ```
 
-Mission achievements now appear alongside language-development metrics.
+Mission achievements update through Room flows.
 
 ---
 
@@ -498,20 +1252,41 @@ Example:
 ✅ Job Interview
 ```
 
-Mission completion updates automatically through Room flows.
+Mission completion updates automatically through Room.
+
+---
+
+# Adaptive Learning
+
+DeutschCraft contains an adaptive-learning foundation that tracks learner evidence, capabilities, and learning focus areas.
+
+Adaptive data can influence:
+
+- Mission recommendations
+- Progress interpretation
+- Capability reinforcement
+- Vocabulary focus
+- Besser challenges
+- Future learning priorities
+
+The broader adaptive-learning state currently remains primarily local.
+
+Cloud synchronization for the wider learner model is planned as a later synchronization phase.
 
 ---
 
 # Settings System
 
-Implemented:
+Implemented settings include:
 
 ```text
+Theme
 Font Size
 Reduce Animations
 Mission Hints
 Example Phrases
 Target Vocabulary
+Progress Language
 ```
 
 Architecture:
@@ -526,105 +1301,83 @@ SettingsViewModel
 Settings UI
 ```
 
-Settings are persistent across application launches.
+Settings persist across application launches.
 
-Font size multiplies Android's system font scale throughout the app; chat and
-the font preview do not apply it a second time. Reduce animations disables
-Compose animation durations app-wide while retaining Android's own animator
-duration scale when the preference is off. The mission pager also stops
-automatic rotation and scrolling guidance text in reduced-motion mode.
+Font size works with Android's system font scale without applying the same scaling twice.
 
-Mission hints, example phrases, and target vocabulary switches control the
-corresponding learner-facing mission guidance sections. Turning support off
-hides its controls and previously revealed content without deleting saved hint
-usage, changing independence analytics, or removing context from AI prompts.
-Mission hints also control the chat top-bar guidance text. Progress language
-is selectable from Settings as well as from the progress dashboard.
+Reduced-motion settings limit application-controlled Compose animations.
+
+The mission pager also stops automatic rotation and unnecessary scrolling behavior in reduced-motion mode.
+
+Mission hints, example phrases, and target-vocabulary settings control their corresponding learner-facing support sections without deleting stored evidence or progress.
 
 ---
 
 # Learning Support
 
-Supported learning assistance:
+Learning assistance includes:
 
 ```text
 Mission Hints
 Example Phrases
 Vocabulary Guidance
+Grammar Guidance
 Besser Corrections
+Besser Challenges
 CEFR Assessment
+Adaptive Reinforcement
 ```
 
-The goal is to provide help without interrupting conversation flow.
+The goal is to provide support without unnecessarily interrupting natural conversation.
 
 ---
 
 # Activity Tracking
 
-Tracked metrics:
+Tracked information includes:
 
 - Active days
 - Conversation activity
 - Assessment activity
 - Mission participation
-- Language growth evidence
+- Language-growth evidence
+- Current streak information
 
-Future metrics:
+Future and expanding analytics include:
 
-- Weekly streaks
+- Weekly consistency
 - Monthly consistency
 - Conversation duration
 - Mission success rate
+- Cross-device activity synchronization
 
 ---
 
-# AI Architecture
+# AI Cost Controls
 
-Current architecture:
+Chat persona and active-mission instructions use compact prompts while retaining:
 
-```text
-Android
-    ↓
-AI Gateway
-    ↓
-Qwen
-```
+- Emil's identity
+- CEFR adaptation
+- Conversation behavior
+- Learner-role guidance
+- Mission coaching rules
 
-Planned production architecture:
+Structured sentence correction and sentence analysis use stable system prompts and JSON-oriented responses.
 
-```text
-Android
-    ↓
-Spring Boot
-    ↓
-Qwen
-```
+Validated results for selected corrections, analyses, and contextual phrase explanations can be reused through bounded process-local caches.
 
-AI credentials are never stored inside the Android application.
+Identical concurrent requests can share one operation.
 
-## AI Cost Controls
+Cache keys preserve meaningful differences such as case, punctuation, source sentence, and phrase type where applicable.
 
-Chat persona and active-mission instructions use compact wording while retaining
-identity, CEFR adaptation, conversation behavior, learner-role suggestions, and
-mission coaching rules. Conversation history, model, thinking-disabled mode,
-response-token limits, and chat/mission repair attempts are unchanged.
+Valid no-correction results can be reused.
 
-Sentence correction and sentence analysis send their rules and JSON schemas in a
-stable system prompt, with only sentence data in the user message. Both request
-JSON-object output to reduce formatting failures.
+Failures and invalid model responses are not cached.
 
-Corrections, sentence analyses (translation, explanation, and all three rephrases),
-and contextual marked-phrase explanations reuse validated results in bounded,
-process-local caches (64 results per gateway). Identical concurrent requests share
-one operation. Correction/analysis keys trim only surrounding whitespace, retaining
-case and punctuation; phrase keys include the source sentence and phrase type.
-Valid "no correction needed" results are reusable; failures and invalid results are
-not. Caches are not written to disk and are discarded when the app process ends.
+Caches are not persisted to disk and are discarded when the application process ends.
 
-Conversational replies, mission generation, and contextual learning evaluations
-are not served from these caches. No features or assessment cadence are disabled.
-Actual token/cost savings depend on provider tokenization and repeated requests;
-shorter prompts do not by themselves prove unchanged model response quality.
+Conversational replies, mission generation, and contextual learning evaluation are not blindly served from these caches.
 
 ---
 
@@ -644,9 +1397,28 @@ Coroutines
 StateFlow
 ViewModel
 WorkManager
+Retrofit
+OkHttp
+Kotlin Serialization
 ```
 
-## Backend (Planned)
+## AWS
+
+```text
+Amazon Cognito
+Amazon API Gateway
+AWS Lambda
+Amazon DynamoDB
+Amazon CloudWatch
+```
+
+## AI
+
+```text
+Qwen
+```
+
+## Possible Future Backend Expansion
 
 ```text
 Spring Boot
@@ -655,11 +1427,7 @@ PostgreSQL
 Docker
 ```
 
-## AI
-
-```text
-Qwen
-```
+The current AWS-backed architecture already removes direct AI credentials from Android and provides authenticated synchronization.
 
 ---
 
@@ -672,24 +1440,61 @@ com.julesmeister.deutschcraft
 │   └── navigation
 │
 ├── core
+│   ├── cefr
 │   ├── database
+│   │   ├── dao
+│   │   ├── entity
+│   │   └── migration
 │   ├── datastore
 │   ├── di
 │   └── network
 │
 ├── feature
+│   ├── auth
 │   ├── chat
 │   ├── threads
 │   ├── archivedthreads
 │   ├── mission
 │   ├── progress
 │   ├── assessment
+│   ├── adaptivelearning
+│   ├── besser
 │   ├── settings
 │   ├── engagement
-│   └── messageactions
+│   ├── messageactions
+│   └── sync
+│       ├── data
+│       ├── domain
+│       ├── scheduling
+│       └── worker
 │
+├── DeutschCraftApplication.kt
 └── MainActivity.kt
 ```
+
+---
+
+# Database Evolution
+
+DeutschCraft uses explicit Room migrations as the local model evolves.
+
+Recent cloud synchronization migrations include:
+
+```text
+Room 19
+   ↓
+19 → 20
+Conversation and Message Sync Metadata
+   ↓
+Room 20
+   ↓
+20 → 21
+Conversation Mission Sync Metadata
+   ↓
+Room 21
+```
+
+Synchronization metadata is introduced through migrations rather than destructive database recreation so existing learner history can be preserved.
 
 ---
 
@@ -697,12 +1502,15 @@ com.julesmeister.deutschcraft
 
 ## Foundation ✅
 
-- Compose
+- Jetpack Compose
 - Hilt
 - Navigation
 - Room
 - Repositories
 - DataStore
+- Coroutines
+- StateFlow
+- WorkManager
 
 ---
 
@@ -713,6 +1521,9 @@ com.julesmeister.deutschcraft
 - Activity tracking
 - Persistent conversations
 - Mission persistence
+- Objective persistence
+- Besser foundation
+- Adaptive-learning foundation
 
 ---
 
@@ -721,21 +1532,114 @@ com.julesmeister.deutschcraft
 Implemented:
 
 - Threads
-- Archive
+- Archive and restore
 - Reply suggestions
 - Message actions
 - Typing indicators
 - Top-bar guidance
+- Theme support
 - Animated mission experiences
+- Error-aware AI messaging
 
-Remaining:
+Continuing improvements:
 
 - UX polish
 - Accessibility refinements
 
 ---
 
-## Mission Platform 🚧
+## Authentication and Secure AI Gateway ✅
+
+Implemented:
+
+```text
+✅ Amazon Cognito integration
+✅ Google sign-in flow
+✅ Access-token authentication
+✅ API Gateway JWT protection
+✅ Lambda-based AI proxy
+✅ AI API key removed from Android
+✅ Debug authentication diagnostics
+```
+
+---
+
+## Cloud Sync Phase 3.1 ✅
+
+Conversation and message synchronization:
+
+```text
+✅ Conversation upload
+✅ Message upload
+✅ Initial cloud backup
+✅ Cloud download
+✅ Incremental since cursor
+✅ 100-record upload batching
+✅ Per-batch acknowledgement
+✅ Immediate mutation sync
+✅ Periodic background sync
+✅ Hilt WorkManager integration
+✅ Duplicate sign-in sync removed
+✅ Archive synchronization
+✅ Restore synchronization
+✅ Conversation deletion tombstones
+✅ Message deletion tombstones
+✅ Cognito sub user isolation
+✅ DynamoDB persistence
+```
+
+---
+
+## Cloud Sync Phase 3.2 🚧
+
+Mission synchronization:
+
+```text
+✅ ConversationMission sync metadata
+✅ Room 20 → 21 migration
+✅ CONVERSATION_MISSION cloud entity
+✅ Mission snapshot upload
+✅ Mission template snapshot
+✅ Mission objective snapshot
+✅ Mission objective progress snapshot
+✅ Mission-offer synchronization
+✅ Mission-start synchronization
+✅ Objective-completion synchronization
+✅ Mission-completion synchronization
+✅ Mission-dismissal synchronization
+✅ Mission-branch synchronization
+✅ Mission deletion tombstones
+✅ Canonical mission ID normalization
+
+🚧 Cross-device active mission continuation verification
+🚧 Device-to-device mission progress convergence testing
+🚧 Mission recommendation/completion identity synchronization
+```
+
+---
+
+## Cloud Sync Phase 3.3 Planned
+
+Broader learner-state synchronization:
+
+```text
+⬜ Learner Profile
+⬜ CEFR Progress State
+⬜ Assessment Evidence
+⬜ Activity and Streak Data
+⬜ Adaptive Learning Focus
+⬜ Adaptive Learning Evidence
+⬜ Besser Challenge State
+⬜ Besser Mastery / Capability State
+⬜ Marked Phrases
+⬜ Appropriate User Settings
+```
+
+The goal is full learner continuity across devices without removing Room's role as the local working source of truth.
+
+---
+
+# Mission Platform 🚧
 
 Implemented:
 
@@ -745,46 +1649,59 @@ Implemented:
 ✅ Mission persistence
 ✅ Active mission tracking
 ✅ Objective tracking
+✅ Objective progress
 ✅ Mission history
-✅ Top-bar integration
+✅ Mission top-bar integration
+✅ Mission details drawer
 ✅ Swipeable mission pager
 ✅ Mission completion events
 ✅ Mission progress dashboard
+✅ Dynamic mission recommendations
+✅ Mission branching
+✅ Mission variation flows
+✅ Mission cloud snapshots
+✅ Mission objective synchronization
+✅ Objective-progress synchronization
 ```
 
-Remaining:
+Continuing work:
 
 ```text
-⬜ Mission offer cards
-⬜ Objective evaluator refinement
-⬜ Mission review screen
+🚧 Cross-device mission continuation verification
+🚧 Objective evaluator refinement
+⬜ Mission review experience
 ⬜ Mission rewards
 ⬜ Mission difficulty progression
 ```
 
 ---
 
-# Future Features
-
-## Vocabulary System
+# Vocabulary Roadmap
 
 ```text
 Saved Vocabulary
 Challenge Words
 Dictionary
 Mastery Tracking
+Cross-Device Vocabulary State
 ```
 
-## Adaptive Reinforcement
+---
+
+# Adaptive Reinforcement Roadmap
 
 ```text
 Reuse Difficult Words
 Confidence Tracking
 Mastery Detection
 Weak Vocabulary Practice
+Capability Progression
+Adaptive Mission Selection
 ```
 
-## Audio
+---
+
+# Audio Roadmap
 
 ```text
 Speech Playback
@@ -793,34 +1710,72 @@ Shadowing
 Listening Missions
 ```
 
-## Cloud Sync
+---
+
+# Cloud Sync Roadmap
+
+Implemented:
 
 ```text
-Backup
-Restore
-Multi-Device Sync
+✅ Conversation Backup
+✅ Message Backup
+✅ Conversation Restore Infrastructure
+✅ Message Restore Infrastructure
+✅ Archive State Sync
+✅ Deletion Tombstones
+✅ Incremental Sync
+✅ Mission Backup
+✅ Mission Template Snapshot
+✅ Mission Objective Snapshot
+✅ Mission Progress Snapshot
 ```
 
-## Authentication
+Next:
 
 ```text
-Google Sign-In
-Email Login
-Subscriptions
+🚧 Cross-Device Mission Continuation
+⬜ Learner Profile Backup
+⬜ Assessment Backup
+⬜ CEFR Progress Backup
+⬜ Streak Backup
+⬜ Adaptive Learning Backup
+⬜ Besser Mastery Backup
+⬜ Marked Phrase Backup
+⬜ Full Learner-State Multi-Device Continuity
+```
+
+---
+
+# Authentication Roadmap
+
+```text
+✅ Google Sign-In
+✅ Amazon Cognito
+✅ Protected AWS APIs
+
+⬜ Email Login
+⬜ Account Management
+⬜ Subscription Support
+⬜ User Account Deletion Flow
 ```
 
 ---
 
 # Animation Roadmap
 
-Chat presentation appearance and motion constants live in
-`feature/chat/presentation/theme/ChatDesignTokens.kt`. Shared tokens remain at
-the top level, while component-specific dimensions, colors, typography, and
-timings are grouped by component (for example, `TopBar`, `ReplySuggestions`,
-and `LevelProgressIndicator`). Non-visual presentation constants (including log
-tags, text labels, errors, formatter patterns, and presentation behavior limits)
-live in component/owner groups in `ChatPresentationTokens.kt` in the same theme
-folder. Data and domain constants remain outside the presentation theme layer.
+Chat presentation appearance and motion constants are centralized through design tokens.
+
+Chat-related appearance and motion constants live in:
+
+```text
+feature/chat/presentation/theme/ChatDesignTokens.kt
+```
+
+Non-visual chat presentation constants live in:
+
+```text
+feature/chat/presentation/theme/ChatPresentationTokens.kt
+```
 
 Implemented:
 
@@ -830,6 +1785,7 @@ Implemented:
 ✅ Typing Indicator
 ✅ Navigation Animations
 ✅ Mission Top Bar Animations
+✅ Mission Drawer Motion
 ✅ Swipeable Mission Pager
 ✅ Progress Dashboard Animations
 ✅ Animated Skill Progress Bars
@@ -849,35 +1805,137 @@ Planned:
 
 # Data Ownership Strategy
 
-Room remains the primary source of truth.
+Room remains the primary operational source of truth.
 
 ```text
-Phone Owns Data
+Local Device
+     ↓
+Room
+     ↓
+User Experience
 ```
 
-Future cloud services exist only for:
+Cloud infrastructure provides continuity:
+
+```text
+Room
+  ↕
+AWS Sync
+  ↕
+Other Devices
+```
+
+Cloud infrastructure currently supports:
 
 ```text
 Backup
 Restore
-Cross-Device Sync
-Premium Features
+Cross-Device Synchronization
+Authentication
+Protected AI Access
 ```
 
-Never for normal application functionality.
+Normal local application behavior should not require DynamoDB to remain continuously reachable.
 
 ---
 
 # Security Requirements
 
-- Never store AI keys in Android
+DeutschCraft follows these security principles:
+
+- Never store AI provider keys in Android
 - Never commit secrets
 - Use HTTPS
+- Authenticate protected API requests
+- Derive cloud ownership from Cognito identity
+- Never trust arbitrary client-supplied user IDs for cloud ownership
 - Validate AI responses
-- Validate API requests
+- Validate synchronization payloads
+- Use bounded upload batch sizes
+- Maintain deletion tombstones
+- Avoid logging authentication tokens
+- Avoid logging credentials
+- Avoid logging sensitive chat content in authentication diagnostics
+- Keep sensitive backend configuration outside Android
 - Support account deletion
-- Support data deletion
-- Encrypt sensitive information
+- Support user-data deletion
+- Keep release diagnostics appropriately restricted
+
+---
+
+# Reliability Principles
+
+## Local Writes First
+
+```text
+Write to Room
+     ↓
+Commit
+     ↓
+Update UI
+     ↓
+Attempt Sync
+```
+
+## Network Failure Does Not Destroy Local Work
+
+```text
+Network Offline
+      ↓
+Pending Local Change
+      ↓
+WorkManager Waits / Retries
+      ↓
+Sync When Connectivity Returns
+```
+
+## Cloud Changes Are Incremental
+
+```text
+Last Cursor
+     ↓
+GET /v1/sync?since=<cursor>
+     ↓
+Only Newer Changes
+```
+
+## Large Uploads Are Batched
+
+```text
+Pending Changes
+      ↓
+Groups of ≤ 100
+      ↓
+Independent Acknowledgement
+```
+
+## Deletes Do Not Resurrect
+
+```text
+Delete
+  ↓
+Tombstone
+  ↓
+Sync
+  ↓
+Other Device Learns Deletion
+```
+
+## Mission Snapshots Are Self-Contained
+
+```text
+ConversationMission
+        +
+MissionTemplate
+        +
+Objectives
+        +
+ObjectiveProgress
+        ↓
+Cloud Snapshot
+```
+
+This allows generated mission branches to be reconstructed on another device.
 
 ---
 
@@ -885,34 +1943,95 @@ Never for normal application functionality.
 
 DeutschCraft succeeds when:
 
-1. Users enjoy chatting.
-2. Learning feels natural.
-3. Missions feel meaningful.
-4. Progress is visible.
-5. The application works offline.
-6. Cloud services remain optional.
-7. German proficiency improves through real conversation.
-8. Learners return because they enjoy talking, not because they feel forced to study.
+1. Learners enjoy chatting.
+2. Learning feels natural rather than forced.
+3. Emil remains consistent across conversations.
+4. Missions feel like meaningful communication rather than quizzes.
+5. Progress is visible and evidence-based.
+6. The application remains useful offline.
+7. Local work survives temporary backend failures.
+8. Cloud synchronization provides continuity without replacing Room.
+9. Conversations can continue across devices.
+10. Mission progress can continue across devices.
+11. German proficiency improves through real communication.
+12. Learners return because they enjoy talking rather than because they feel forced to study.
 
 ---
 
 # Immediate Next Milestone
 
-## Restaurant Ordering Mission MVP
+## Phase 3.2: Cross-Device Mission Continuity
+
+Current mission synchronization infrastructure:
 
 ```text
-✅ Mission persistence
-✅ Active mission observation
-✅ Mission top-bar system
-✅ Mission history
-✅ Objective tracking
-✅ Mission completion tracking
+✅ Conversation mission upload
+✅ Mission template snapshot
+✅ Mission objective snapshot
+✅ Objective progress snapshot
+✅ Mission status synchronization
+✅ Generated branch preservation
+✅ Canonical mission ID normalization
+✅ Incremental cloud download
 
-⬜ Restaurant mission template polish
-⬜ Objective evaluator
-⬜ Mission offer card
-⬜ Mission review screen
-⬜ Mission rewards
+🚧 Fresh-device active mission restoration
+🚧 Continue a partially completed mission on Device B
+🚧 Sync Device B mission progress back to Device A
+🚧 Verify COMPLETED state across devices
+🚧 Verify DISMISSED state across devices
+🚧 Synchronize mission recommendation/completion identity
 ```
 
-> The current priority is delivering the first complete end-to-end conversation mission experience while preserving DeutschCraft's conversation-first philosophy.
+Acceptance target:
+
+```text
+Device A
+
+Start Mission
+     ↓
+Complete Objective 1
+     ↓
+Complete Objective 2
+     ↓
+AWS Sync
+     ↓
+
+Device B
+
+Sign In
+     ↓
+Cloud Restore
+     ↓
+Open Same Conversation
+     ↓
+Same Mission
+Same Generated Branch
+Same Objectives
+Same Completed Goals
+Same Remaining Goals
+     ↓
+Continue Mission
+     ↓
+AWS Sync
+     ↓
+
+Device A
+
+Next Sync
+     ↓
+Receives Device B Progress
+```
+
+After reliable cross-device mission continuation is verified, the next synchronization phase expands into broader learner state:
+
+```text
+Learner Profile
+CEFR Progress
+Assessment Evidence
+Activity and Streaks
+Adaptive Learning
+Besser Mastery
+Marked Phrases
+```
+
+> **The current priority is completing reliable cross-device mission continuity while preserving DeutschCraft's offline-first, conversation-first architecture.**
