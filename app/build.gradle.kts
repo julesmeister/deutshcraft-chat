@@ -149,7 +149,7 @@ android {
             name =
                 "QWEN_MODEL",
             value =
-                "\"qwen3.8-flash\""
+                "\"qwen3.7-flash\""
         )
 
         buildConfigField(
